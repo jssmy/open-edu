@@ -167,20 +167,20 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 
 ### Tests for User Story 4
 
-- [ ] T071 [P] [US4] Prueba Feature de acceso por inscripción activa y curso publicado; denegación para suspendida, cancelada, no inscrito y curso desactivado en `tests/Feature/Progress/StudentAccessTest.php`
-- [ ] T072 [P] [US4] Prueba Feature de completar lección (idempotente) y cálculo de progreso sin lecciones archivadas en `tests/Feature/Progress/LessonCompletionTest.php`
-- [ ] T073 [P] [US4] Pruebas unitarias del cálculo de progreso en `tests/Unit/Progress/`
+- [X] T071 [P] [US4] Prueba Feature de acceso por inscripción activa y curso publicado; denegación para suspendida, cancelada, no inscrito y curso desactivado en `tests/Feature/Progress/StudentAccessTest.php`
+- [X] T072 [P] [US4] Prueba Feature de completar lección (idempotente) y cálculo de progreso sin lecciones archivadas en `tests/Feature/Progress/LessonCompletionTest.php`
+- [X] T073 [P] [US4] Pruebas unitarias del cálculo de progreso en `tests/Unit/Progress/`
 
 ### Implementation for User Story 4
 
-- [ ] T074 [US4] Crear la migración de `lesson_progress` en `database/migrations/` con student_id, lesson_id, completed_at y restricción única (student_id, lesson_id)
-- [ ] T075 [P] [US4] Crear dominio y puerto `ProgressRepository` y el servicio de cálculo de progreso en `app/Modules/Progress/Domain/`
-- [ ] T076 [US4] Implementar los casos de uso CompleteLesson y GetCourseProgress en `app/Modules/Progress/Application/`
-- [ ] T078 [US4] Implementar repositorio Eloquent y controladores de estudio (`/my/courses`, `/lessons/{id}/complete`) en `app/Modules/Progress/Infrastructure/`
-- [ ] T079 [US4] Registrar las rutas de Estudio en `routes/web.php`
-- [ ] T080 [P] [US4] Crear las páginas `MyCourses.vue`, `CourseViewer.vue` y el visor de lección por tipo de contenido, con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Study/`
-- [ ] T081 [P] [US4] Crear el componente de barra de progreso en `resources/js/components/progress/ProgressBar.vue`
-- [ ] T082 [US4] Prueba E2E del recorrido del estudiante en `tests/e2e/study.spec.ts`
+- [X] T074 [US4] Crear la migración de `lesson_progress` en `database/migrations/` con student_id, lesson_id, completed_at y restricción única (student_id, lesson_id)
+- [X] T075 [P] [US4] Crear dominio y puerto `ProgressRepository` y el servicio de cálculo de progreso en `app/Modules/Progress/Domain/`
+- [X] T076 [US4] Implementar los casos de uso CompleteLesson y GetCourseProgress en `app/Modules/Progress/Application/`
+- [X] T078 [US4] Implementar repositorio Eloquent y controladores de estudio (`/my/courses`, `/lessons/{id}/complete`) en `app/Modules/Progress/Infrastructure/`
+- [X] T079 [US4] Registrar las rutas de Estudio en `routes/web.php`
+- [X] T080 [P] [US4] Crear las páginas `MyCourses.vue`, `CourseViewer.vue` y el visor de lección por tipo de contenido, con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Study/`
+- [X] T081 [P] [US4] Crear el componente de barra de progreso en `resources/js/components/progress/ProgressBar.vue`
+- [X] T082 [US4] Prueba E2E del recorrido del estudiante en `tests/e2e/study.spec.ts`
 
 ---
 

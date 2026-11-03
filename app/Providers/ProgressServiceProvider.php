@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Modules\Progress\Domain\ProgressRepository;
+use App\Modules\Progress\Infrastructure\EloquentProgressRepository;
 use Illuminate\Support\ServiceProvider;
 
 /** Enlaza los puertos del módulo Progress con sus adaptadores. */
@@ -9,6 +11,6 @@ class ProgressServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Los puertos se enlazan aquí a medida que existan (principio YAGNI).
+        $this->app->bind(ProgressRepository::class, EloquentProgressRepository::class);
     }
 }

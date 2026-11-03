@@ -8,6 +8,7 @@ use App\Modules\Identity\Infrastructure\Http\AuthController;
 use App\Modules\Identity\Infrastructure\Http\PasswordController;
 use App\Modules\Identity\Infrastructure\Http\RoleController;
 use App\Modules\Identity\Infrastructure\Http\UserController;
+use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Students\Infrastructure\Http\StudentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -83,6 +84,13 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:enrollments.manage')->group(function () {
         Route::post('/courses/{courseId}/enrollments', [CourseEnrollmentController::class, 'store'])->name('enrollments.store');
         Route::patch('/enrollments/{enrollment}/status', [EnrollmentController::class, 'status'])->name('enrollments.status');
+    });
+
+    Route::middleware('can:study')->group(function () {
+        Route::get('/my/courses', [StudyController::class, 'index'])->name('study.courses.index');
+        Route::get('/my/courses/{course}', [StudyController::class, 'show'])->name('study.courses.show');
+        Route::post('/lessons/{lesson}/complete', [StudyController::class, 'complete'])->name('study.lessons.complete');
+        Route::get('/lessons/{lesson}/content', [StudyController::class, 'content'])->name('study.lessons.content');
     });
     Route::get('/my/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'myProgress'])
         ->middleware('can:study')
