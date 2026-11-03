@@ -84,4 +84,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/courses/{courseId}/enrollments', [CourseEnrollmentController::class, 'store'])->name('enrollments.store');
         Route::patch('/enrollments/{enrollment}/status', [EnrollmentController::class, 'status'])->name('enrollments.status');
     });
+    Route::get('/my/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'myProgress'])
+        ->middleware('can:study')
+        ->name('progress.my');
+    Route::get('/courses/{course}/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'courseProgress'])
+        ->name('progress.course');
+    Route::middleware('can:reports.view')->group(function () {
+        Route::get('/reports/enrollments', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'enrollments'])->name('reports.enrollments');
+        Route::get('/reports/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'progress'])->name('reports.progress');
+        Route::get('/reports/results', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'results'])->name('reports.results');
+    });
 });

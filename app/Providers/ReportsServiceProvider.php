@@ -2,13 +2,22 @@
 
 namespace App\Providers;
 
+use App\Modules\Reports\Application\ReportRepository;
+use App\Modules\Reports\Infrastructure\EloquentReportRepository;
+use App\Modules\Reports\Infrastructure\Policies\ReportPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
-/** Enlaza los puertos del módulo Reports con sus adaptadores. */
 class ReportsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Los puertos se enlazan aquí a medida que existan (principio YAGNI).
+        $this->app->bind(ReportRepository::class, EloquentReportRepository::class);
+    }
+
+    public function boot(): void
+    {
+        Gate::define('viewCourseProgress', [ReportPolicy::class, 'viewCourseProgress']);
+        Gate::define('viewMyProgress', [ReportPolicy::class, 'viewMyProgress']);
     }
 }

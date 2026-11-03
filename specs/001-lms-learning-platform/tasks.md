@@ -220,16 +220,16 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 
 ### Tests for User Story 6
 
-- [ ] T096 [P] [US6] Prueba Feature de progreso por curso y por estudiante con alcance por rol en `tests/Feature/Reports/ProgressViewTest.php`
-- [ ] T097 [P] [US6] Prueba Feature de reportes (inscritos, avance, resultados), filtros, exportación CSV y alcance del docente en `tests/Feature/Reports/ReportsTest.php`
+- [X] T096 [P] [US6] Prueba Feature de progreso por curso y por estudiante con alcance por rol en `tests/Feature/Reports/ProgressViewTest.php`
+- [X] T097 [P] [US6] Prueba Feature de reportes (inscritos, avance, resultados), filtros, exportación CSV y alcance del docente en `tests/Feature/Reports/ReportsTest.php`
 
 ### Implementation for User Story 6
 
-- [ ] T098 [US6] Implementar los casos de uso de consulta de reportes con filtros por curso, estudiante y estado, y consultas optimizadas sin N+1, en `app/Modules/Reports/Application/`
-- [ ] T099 [US6] Implementar la exportación CSV en streaming en `app/Modules/Reports/Infrastructure/CsvExporter.php`
-- [ ] T100 [US6] Implementar controladores, Policies de alcance (docente: cursos asignados; gestor y admin: todos) y rutas de Reportes y Progreso en `app/Modules/Reports/Infrastructure/Http/` y `routes/web.php`
-- [ ] T101 [P] [US6] Crear las páginas de progreso por curso y "Mi progreso" (incluido el historial de inscripciones canceladas), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Progress/`
-- [ ] T102 [P] [US6] Crear las páginas de reportes con filtros, botón de exportar y estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Reports/`
+- [X] T098 [US6] Implementar los casos de uso de consulta de reportes con filtros por curso, estudiante y estado, y consultas optimizadas sin N+1, en `app/Modules/Reports/Application/`
+- [X] T099 [US6] Implementar la exportación CSV en streaming en `app/Modules/Reports/Infrastructure/CsvExporter.php`
+- [X] T100 [US6] Implementar controladores, Policies de alcance (docente: cursos asignados; gestor y admin: todos) y rutas de Reportes y Progreso en `app/Modules/Reports/Infrastructure/Http/` y `routes/web.php`
+- [X] T101 [P] [US6] Crear las páginas de progreso por curso y "Mi progreso" (incluido el historial de inscripciones canceladas), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Progress/`
+- [X] T102 [P] [US6] Crear las páginas de reportes con filtros, botón de exportar y estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Reports/`
 - [ ] T103 [US6] Prueba E2E de generación y exportación de un reporte en `tests/e2e/reports.spec.ts`
 
 ---
