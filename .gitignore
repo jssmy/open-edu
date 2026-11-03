@@ -37,3 +37,7 @@ Thumbs.db
 /test-results/
 /playwright-report/
 /.phpunit.cache
+
+# Local agent skills; core Speckit skills already tracked remain versioned.
+/.agents/skills/
+/.claude/skills/
