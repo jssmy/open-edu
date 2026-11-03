@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Assessments\Infrastructure\Http\AssessmentController;
 use App\Modules\Courses\Infrastructure\Http\ContentController;
 use App\Modules\Courses\Infrastructure\Http\CourseController;
 use App\Modules\Enrollments\Infrastructure\Http\CourseEnrollmentController;
@@ -9,6 +10,7 @@ use App\Modules\Identity\Infrastructure\Http\PasswordController;
 use App\Modules\Identity\Infrastructure\Http\RoleController;
 use App\Modules\Identity\Infrastructure\Http\UserController;
 use App\Modules\Progress\Infrastructure\Http\StudyController;
+use App\Modules\Reports\Infrastructure\Http\ReportController;
 use App\Modules\Students\Infrastructure\Http\StudentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -91,15 +93,35 @@ Route::middleware('auth')->group(function () {
         Route::get('/my/courses/{course}', [StudyController::class, 'show'])->name('study.courses.show');
         Route::post('/lessons/{lesson}/complete', [StudyController::class, 'complete'])->name('study.lessons.complete');
         Route::get('/lessons/{lesson}/content', [StudyController::class, 'content'])->name('study.lessons.content');
+        Route::get('/my/results', [AssessmentController::class, 'myResults'])->name('assessments.my-results');
+        Route::get('/my/progress', [ReportController::class, 'myProgress'])->name('progress.my');
     });
-    Route::get('/my/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'myProgress'])
-        ->middleware('can:study')
-        ->name('progress.my');
-    Route::get('/courses/{course}/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'courseProgress'])
+
+    Route::get('/courses/{course}/progress', [ReportController::class, 'courseProgress'])
         ->name('progress.course');
+
     Route::middleware('can:reports.view')->group(function () {
-        Route::get('/reports/enrollments', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'enrollments'])->name('reports.enrollments');
-        Route::get('/reports/progress', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'progress'])->name('reports.progress');
-        Route::get('/reports/results', [\App\Modules\Reports\Infrastructure\Http\ReportController::class, 'results'])->name('reports.results');
+        Route::get('/reports/enrollments', [ReportController::class, 'enrollments'])->name('reports.enrollments');
+        Route::get('/reports/progress', [ReportController::class, 'progress'])->name('reports.progress');
+        Route::get('/reports/results', [ReportController::class, 'results'])->name('reports.results');
     });
+
+    Route::get('/courses/{course}/assessments/create', [AssessmentController::class, 'create'])
+        ->name('assessments.create');
+    Route::post('/courses/{course}/assessments', [AssessmentController::class, 'store'])
+        ->name('assessments.store');
+    Route::get('/assessments/{assessment}/edit', [AssessmentController::class, 'edit'])
+        ->name('assessments.edit');
+    Route::put('/assessments/{assessment}', [AssessmentController::class, 'update'])
+        ->name('assessments.update');
+    Route::delete('/assessments/{assessment}', [AssessmentController::class, 'destroy'])
+        ->name('assessments.destroy');
+    Route::patch('/assessments/{assessment}/publish', [AssessmentController::class, 'publish'])
+        ->name('assessments.publish');
+    Route::get('/assessments/{assessment}/take', [AssessmentController::class, 'take'])
+        ->name('assessments.take');
+    Route::post('/assessments/{assessment}/attempts', [AssessmentController::class, 'submit'])
+        ->name('assessments.attempts.store');
+    Route::get('/assessments/{assessment}/results', [AssessmentController::class, 'results'])
+        ->name('assessments.results');
 });

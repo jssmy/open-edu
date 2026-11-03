@@ -56,7 +56,11 @@ class CourseController extends Controller
     {
         Gate::authorize('view', $course);
 
-        $course->load(['teachers:id,name', 'units.lessons']);
+        $course->load([
+            'teachers:id,name',
+            'units.lessons',
+            'assessments:id,course_id,title,is_published',
+        ]);
 
         return Inertia::render('Courses/Show', [
             'course' => [
@@ -81,6 +85,11 @@ class CourseController extends Controller
                         'content' => $lesson->content,
                         'is_archived' => $lesson->is_archived,
                     ])->all(),
+                ])->all(),
+                'assessments' => $course->assessments->map(fn ($assessment): array => [
+                    'id' => $assessment->id,
+                    'title' => $assessment->title,
+                    'is_published' => $assessment->is_published,
                 ])->all(),
             ],
             'canManageCourses' => $request->user()->can('courses.manage'),

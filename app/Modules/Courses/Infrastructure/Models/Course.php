@@ -3,6 +3,7 @@
 namespace App\Modules\Courses\Infrastructure\Models;
 
 use App\Models\User;
+use App\Modules\Assessments\Infrastructure\Models\Assessment;
 use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use Database\Factories\Modules\Courses\Infrastructure\Models\CourseFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -42,5 +43,11 @@ class Course extends Model
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    /** @return HasMany<Assessment, $this> */
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(Assessment::class);
     }
 }

@@ -37,6 +37,7 @@ interface Course {
             is_archived: boolean;
         }[];
     }[];
+    assessments: { id: number; title: string; is_published: boolean }[];
 }
 
 const props = defineProps<{
@@ -87,9 +88,20 @@ function deleteCourse() {
             <div>
                 <h1 class="text-xl font-semibold">{{ course.name }}</h1>
                 <Badge :variant="statusVariant(course.status)">{{ statusLabel(course.status) }}</Badge>
-                <div v-if="canManageCourses" class="mt-2">
-                    <Link :href="`/courses/${course.id}/students`" class="text-sm text-primary">
+                <div class="mt-2 flex flex-wrap gap-4">
+                    <Link
+                        v-if="canManageCourses"
+                        :href="`/courses/${course.id}/students`"
+                        class="text-sm text-primary"
+                    >
                         Gestionar inscripciones
+                    </Link>
+                    <Link
+                        v-if="canManageContent"
+                        :href="`/courses/${course.id}/assessments/create`"
+                        class="text-sm text-primary"
+                    >
+                        Nueva evaluación
                     </Link>
                 </div>
             </div>
@@ -147,5 +159,34 @@ function deleteCourse() {
             :units="course.units"
             :can-manage-content="canManageContent"
         />
+
+        <section
+            v-if="course.assessments.length > 0"
+            class="mt-8 flex flex-col gap-3"
+            aria-labelledby="assessments-heading"
+        >
+            <h2 id="assessments-heading" class="text-xl font-semibold">Evaluaciones</h2>
+            <div class="flex flex-col gap-3">
+                <div
+                    v-for="assessment in course.assessments"
+                    :key="assessment.id"
+                    class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-panel p-4"
+                >
+                    <div class="flex flex-col gap-1">
+                        <span class="font-medium">{{ assessment.title }}</span>
+                        <span class="text-sm text-text-muted">
+                            {{ assessment.is_published ? 'Publicada' : 'Borrador' }}
+                        </span>
+                    </div>
+                    <Link
+                        v-if="canManageContent"
+                        :href="`/assessments/${assessment.id}/edit`"
+                        class="text-sm font-medium text-primary hover:underline"
+                    >
+                        Editar evaluación
+                    </Link>
+                </div>
+            </div>
+        </section>
     </AppLayout>
 </template>

@@ -105,7 +105,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [ ] T042 [P] [US2] Prueba Feature de unidades/lecciones, reordenamiento y archivado (no eliminar con progreso) en `tests/Feature/Courses/ContentManagementTest.php`
 - [X] T043 [P] [US2] Prueba Feature de alcance del docente (solo cursos asignados) y subida de archivos en `tests/Feature/Courses/TeacherScopeTest.php`
 - [X] T044 [P] [US2] Pruebas unitarias de reglas de curso y lección sin framework ni BD en `tests/Unit/Courses/`
-- [ ] T118 [P] [US2] Prueba Feature de que al desasignar a un docente se conservan sus evaluaciones en `tests/Feature/Courses/TeacherUnassignTest.php`
+- [X] T118 [P] [US2] Prueba Feature de que al desasignar a un docente se conservan sus evaluaciones en `tests/Feature/Courses/TeacherUnassignTest.php`
 - [X] T119 [P] [US2] Prueba Feature de rechazo de contenido en formato o tamaño no admitido en `tests/Feature/Courses/ContentUploadTest.php`
 - [X] T120 [P] [US2] Prueba Feature de eliminación lógica de un curso con inscripciones: conserva historial y lo oculta de los listados en `tests/Feature/Courses/CourseSoftDeleteTest.php`
 
@@ -192,23 +192,23 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 
 ### Tests for User Story 5
 
-- [ ] T083 [P] [US5] Prueba Feature de creación de evaluaciones y de rechazo de publicación sin pregunta válida en `tests/Feature/Assessments/AssessmentManagementTest.php`
-- [ ] T084 [P] [US5] Prueba Feature de rendir evaluación: cálculo de puntaje, aprobado/reprobado, intentos agotados y acceso denegado en `tests/Feature/Assessments/TakeAssessmentTest.php`
-- [ ] T085 [P] [US5] Pruebas unitarias de calificación y de `attempt_number ≤ max_attempts` en `tests/Unit/Assessments/`
-- [ ] T121 [P] [US5] Prueba Feature de curso desactivado durante un intento: se puede enviar el intento en curso y no se permiten nuevos, en `tests/Feature/Assessments/CourseDeactivatedDuringAttemptTest.php`
+- [X] T083 [P] [US5] Prueba Feature de creación de evaluaciones y de rechazo de publicación sin pregunta válida en `tests/Feature/Assessments/AssessmentManagementTest.php`
+- [X] T084 [P] [US5] Prueba Feature de rendir evaluación: cálculo de puntaje, aprobado/reprobado, intentos agotados y acceso denegado en `tests/Feature/Assessments/TakeAssessmentTest.php`
+- [X] T085 [P] [US5] Pruebas unitarias de calificación y de `attempt_number ≤ max_attempts` en `tests/Unit/Assessments/`
+- [X] T121 [P] [US5] Prueba Feature de curso desactivado durante un intento: se puede enviar el intento en curso y no se permiten nuevos, en `tests/Feature/Assessments/CourseDeactivatedDuringAttemptTest.php`
 
 ### Implementation for User Story 5
 
-- [ ] T086 [US5] Crear las migraciones de `assessments` en `database/migrations/` con max_attempts (defecto 1), passing_score (entre 0 y total_score), total_score (suma de los puntos de sus preguntas), is_published
-- [ ] T087 [US5] Crear las migraciones de `questions`, `choices` (is_correct), `attempts` y `attempt_answers` en `database/migrations/`
-- [ ] T088 [P] [US5] Crear entidades Assessment, Question, Choice y Attempt con las reglas "cada pregunta tiene al menos 2 alternativas y exactamente 1 correcta", "el resultado oficial = último intento" y "passing_score entre 0 y total_score" en `app/Modules/Assessments/Domain/`
-- [ ] T089 [US5] Implementar los casos de uso CreateAssessment, UpdateAssessment, PublishAssessment y gestión de preguntas en `app/Modules/Assessments/Application/`
-- [ ] T090 [US5] Implementar el caso de uso SubmitAttempt (calificación automática síncrona, validación de intentos y acceso) y GetResults en `app/Modules/Assessments/Application/`
-- [ ] T091 [US5] Implementar modelos, repositorio Eloquent, Form Requests, Policies y controladores en `app/Modules/Assessments/Infrastructure/`
-- [ ] T092 [US5] Registrar las rutas de Evaluaciones y Resultados en `routes/web.php`
-- [ ] T093 [P] [US5] Crear el editor de evaluaciones (preguntas, alternativas, puntajes, nota mínima, intentos), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Assessments/Edit.vue`
-- [ ] T094 [P] [US5] Crear las páginas para rendir la evaluación y ver resultados, con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Assessments/Take.vue` y `Results.vue`
-- [ ] T095 [US5] Prueba E2E de crear y rendir una evaluación en `tests/e2e/assessments.spec.ts`
+- [X] T086 [US5] Crear las migraciones de `assessments` en `database/migrations/` con max_attempts (defecto 1), passing_score (entre 0 y total_score), total_score (suma de los puntos de sus preguntas), is_published
+- [X] T087 [US5] Crear las migraciones de `questions`, `choices` (is_correct), `attempts` y `attempt_answers` en `database/migrations/`
+- [X] T088 [P] [US5] Crear entidades Assessment, Question, Choice y Attempt con las reglas "cada pregunta tiene al menos 2 alternativas y exactamente 1 correcta", "el resultado oficial = último intento" y "passing_score entre 0 y total_score" en `app/Modules/Assessments/Domain/`
+- [X] T089 [US5] Implementar los casos de uso CreateAssessment, UpdateAssessment, PublishAssessment y gestión de preguntas en `app/Modules/Assessments/Application/`
+- [X] T090 [US5] Implementar el caso de uso SubmitAttempt (calificación automática síncrona, validación de intentos y acceso) y GetResults en `app/Modules/Assessments/Application/`
+- [X] T091 [US5] Implementar modelos, repositorio Eloquent, Form Requests, Policies y controladores en `app/Modules/Assessments/Infrastructure/`
+- [X] T092 [US5] Registrar las rutas de Evaluaciones y Resultados en `routes/web.php`
+- [X] T093 [P] [US5] Crear el editor de evaluaciones (preguntas, alternativas, puntajes, nota mínima, intentos), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Assessments/Edit.vue`
+- [X] T094 [P] [US5] Crear las páginas para rendir la evaluación y ver resultados, con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Assessments/Take.vue` y `Results.vue`
+- [X] T095 [US5] Prueba E2E de crear y rendir una evaluación en `tests/e2e/assessments.spec.ts`
 
 ---
 
