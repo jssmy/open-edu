@@ -97,7 +97,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 
 **Goal**: CRUD de cursos, publicar/desactivar, asignar docentes, unidades y lecciones con contenidos.
 
-**Independent Test**: Crear un curso con unidades y lecciones (texto, documento, imagen, enlace, video), reordenar y publicar.
+**Independent Test**: Crear y publicar un curso con unidades y lecciones; guardar y reabrir formato enriquecido, una imagen con texto alternativo y un video permitido; comprobar que editar cursos y lecciones ocurre en páginas independientes, que una URL HTTPS de video externo se conserva, y que un guardado con versión obsoleta se rechaza sin reemplazar cambios recientes.
 
 ### Tests for User Story 2
 
@@ -124,6 +124,33 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [X] T055 [P] [US2] Crear las páginas de cursos (listado, crear/editar, detalle), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Courses/`
 - [X] T056 [P] [US2] Crear el componente de unidades/lecciones con reordenamiento y el editor de contenido por tipo en `resources/js/components/courses/`
 - [X] T057 [US2] Prueba E2E de creación y publicación de un curso con contenido en `tests/e2e/courses.spec.ts`
+
+### Editor enriquecido, imágenes y video de presentación (FR-030–FR-034)
+
+- [X] T122 [US2] Instalar Tiptap v3 para Vue con `@tiptap/vue-3`, `@tiptap/pm`, `@tiptap/starter-kit` y `@tiptap/extension-image` en `package.json` y `package-lock.json`; mantener `allowBase64` desactivado.
+- [X] T123 [P] [US2] Añadir pruebas Feature para guardar y recuperar documentos JSON Tiptap válidos, rechazar nodos/marcas no permitidos, HTML ejecutable y enlaces que no sean HTTP/HTTPS en `tests/Feature/Courses/RichContentTest.php`.
+- [X] T124 [P] [US2] Añadir pruebas Feature para carga y lectura de imágenes JPEG, PNG y WebP de máximo 5120 KB, rechazo de MIME/tamaño inválido, texto alternativo requerido o `alt=""` decorativo y autorización por curso en `tests/Feature/Courses/ContentImageTest.php`.
+- [X] T125 [P] [US2] Añadir pruebas Vitest para la barra de herramientas accesible por teclado, etiquetas accesibles, foco visible, inserción de imagen con alternativa descriptiva o decorativa y rechazo de protocolos inseguros en `resources/js/__tests__/RichTextEditor.test.ts`.
+- [X] T126 [P] [US2] Crear migraciones para `courses.description` y `courses.objectives` JSONB, `intro_video_provider` nullable (`youtube` | `vimeo`), `intro_video_id` nullable, `lessons.content` JSONB y `course_media_images` con course_id, storage_path privado, mime_type, size_bytes y uploaded_by en `database/migrations/`; convertir el texto existente a documentos Tiptap sin perder su contenido.
+- [X] T127 [P] [US2] Implementar un validador backend reutilizable del esquema de documentos Tiptap que permita solo párrafos, negrita, cursiva, encabezados, listas, citas, enlaces e imágenes; validar atributos `alt` y protocolos HTTP/HTTPS para enlaces y solo HTTPS para imágenes en `app/Shared/RichText/RichTextDocumentValidator.php`.
+- [X] T128 [US2] Actualizar persistencia, modelos y Form Requests de cursos y lecciones para validar y guardar descripción, objetivos y contenido textual como documentos Tiptap JSON; normalizar `intro_video_url` a proveedor e ID tras validar HTTPS y hosts exactos de YouTube/Vimeo en `app/Modules/Courses/Infrastructure/Models/Course.php`, `app/Modules/Courses/Infrastructure/Models/Lesson.php`, `app/Modules/Courses/Infrastructure/Http/Requests/SaveCourseRequest.php`, `app/Modules/Courses/Infrastructure/Http/Requests/SaveLessonRequest.php` y `app/Modules/Courses/Infrastructure/Http/CourseController.php`.
+- [X] T129 [US2] Implementar carga y lectura autenticada de imágenes de contenido usando almacenamiento privado, nombre aleatorio, MIME real permitido y máximo 5120 KB; autorizar Admin/Gestor, Docente asignado y Estudiante con inscripción activa en curso publicado, y responder con MIME validado y `X-Content-Type-Options: nosniff` en `app/Modules/Courses/Domain/FileStorage.php`, `app/Modules/Courses/Infrastructure/LocalFileStorage.php`, `app/Modules/Courses/Infrastructure/Http/ContentImageController.php`, `app/Modules/Courses/Infrastructure/Http/Requests/SaveContentImageRequest.php` y `routes/web.php`.
+- [X] T130 [US2] Crear el componente reutilizable Tiptap con formato básico, inserción de imagen subida o URL HTTPS, captura explícita de texto alternativo/decorativa, mensajes de error, controles accesibles y distribución adaptable a móvil en `resources/js/components/editor/RichTextEditor.vue`.
+- [X] T131 [US2] Reemplazar los campos de texto extenso de descripción, objetivos y contenido textual de lección por `RichTextEditor.vue`, conservar controles simples para nombres/títulos y conectar la carga de imágenes al curso correspondiente en `resources/js/pages/Courses/Index.vue`, `resources/js/pages/Courses/Show.vue` y `resources/js/components/courses/CourseContentEditor.vue`.
+- [X] T132 [US2] Mostrar la descripción, los objetivos y el video de presentación en la ficha del curso usando un visor Tiptap de solo lectura y un iframe construido solo desde el proveedor/ID validados; usar `youtube-nocookie.com`, `player.vimeo.com` y `referrerpolicy="no-referrer"` para imágenes externas en `resources/js/components/editor/RichTextContent.vue` y `resources/js/pages/Courses/Show.vue`.
+- [X] T133 [US2] Ampliar la prueba E2E de cursos para crear/editar formato e imágenes, comprobar persistencia al reabrir, probar el video permitido y verificar editor por teclado y viewport de 375 px en `tests/e2e/courses.spec.ts`.
+
+### Páginas de edición, cambios sin guardar y concurrencia (FR-035–FR-036)
+
+- [X] T144 [P] [US2] Añadir pruebas Feature que verifiquen rechazo HTTP 409 de actualizaciones obsoletas de cursos y lecciones, sin sobrescribir los datos actuales, en `tests/Feature/Courses/ConcurrentContentUpdateTest.php`.
+- [X] T145 [P] [US2] Añadir pruebas Feature para aceptar enlaces de video de lección HTTPS y rechazar enlaces HTTP o archivos de video en `tests/Feature/Courses/LessonVideoLinkTest.php`.
+- [X] T146 [P] [US2] Añadir pruebas Vitest para confirmar que el guard de cambios sin guardar bloquea navegación Inertia y activa `beforeunload` solo cuando el formulario está modificado en `resources/js/__tests__/UnsavedChangesGuard.test.ts`.
+- [X] T147 [US2] Añadir escenarios Playwright que verifiquen que crear/editar cursos y lecciones se abre en páginas independientes y que las opciones de quedarse o descartar funcionan en `tests/e2e/courses.spec.ts`.
+- [X] T148 [P] [US2] Crear una migración que agregue `lock_version` entero no nulo, inicializado para registros existentes, a `courses` y `lessons` en `database/migrations/`.
+- [X] T149 [US2] Exigir la versión enviada por el cliente e implementar comparación e incremento atómicos de `lock_version` para actualizaciones de curso y lección; responder 409 sin guardar ante versión obsoleta en `app/Modules/Courses/Infrastructure/Http/CourseController.php`, `app/Modules/Courses/Infrastructure/Http/ContentController.php`, `app/Modules/Courses/Infrastructure/Http/Requests/SaveCourseRequest.php` y `app/Modules/Courses/Infrastructure/Http/Requests/SaveLessonRequest.php`.
+- [X] T150 [US2] Validar que el video de lección sea una URL HTTPS y tratarlo como enlace externo, sin aceptar subida de archivos de video, en `app/Modules/Courses/Infrastructure/Http/Requests/SaveLessonRequest.php`, `app/Modules/Courses/Infrastructure/Http/ContentController.php` y `tests/Feature/Courses/LessonVideoLinkTest.php`.
+- [X] T151 [US2] Presentar creación y edición de curso y lección en páginas Inertia independientes, retirar el editor de cualquier modal o diálogo y mostrar el conflicto HTTP 409 sin perder los datos locales en `resources/js/pages/Courses/Index.vue`, `resources/js/pages/Courses/Show.vue`, `resources/js/components/courses/CourseContentEditor.vue` y `routes/web.php`.
+- [X] T152 [US2] Crear `useUnsavedChangesGuard` con interceptores de navegación Inertia y `beforeunload`, y conectarlo a los formularios de curso y lección para permitir quedarse o confirmar descarte en `resources/js/composables/useUnsavedChangesGuard.ts`, `resources/js/pages/Courses/Index.vue`, `resources/js/pages/Courses/Show.vue` y `resources/js/components/courses/CourseContentEditor.vue`.
 
 **Checkpoint**: US1 y US2 funcionan de forma independiente.
 
@@ -163,7 +190,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 
 **Goal**: El estudiante navega sus cursos y completa lecciones.
 
-**Independent Test**: Estudiante inscrito en un curso publicado completa una lección y su progreso se actualiza.
+**Independent Test**: Estudiante inscrito en un curso publicado ve el formato enriquecido y las imágenes autorizadas de una lección, la completa y su progreso se actualiza; usuarios sin acceso no pueden obtener los medios.
 
 ### Tests for User Story 4
 
@@ -181,6 +208,8 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [X] T080 [P] [US4] Crear las páginas `MyCourses.vue`, `CourseViewer.vue` y el visor de lección por tipo de contenido, con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Study/`
 - [X] T081 [P] [US4] Crear el componente de barra de progreso en `resources/js/components/progress/ProgressBar.vue`
 - [X] T082 [US4] Prueba E2E del recorrido del estudiante en `tests/e2e/study.spec.ts`
+- [X] T134 [P] [US4] Añadir pruebas Feature y E2E que confirmen que un estudiante con inscripción activa en curso publicado ve el formato enriquecido y las imágenes subidas, mientras que estudiantes no inscritos, suspendidos o con curso no publicado no pueden leer esas imágenes en `tests/Feature/Progress/StudentAccessTest.php` y `tests/e2e/study.spec.ts`.
+- [X] T135 [US4] Integrar el visor Tiptap en modo solo lectura al contenido textual de las lecciones, sin `v-html`, y asegurar que la vista de estudio carga el contenido y las imágenes privadas solo mediante rutas autorizadas en `resources/js/pages/Study/CourseViewer.vue` y `resources/js/components/editor/RichTextContent.vue`.
 
 ---
 
@@ -188,7 +217,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 
 **Goal**: Crear evaluaciones con preguntas y alternativas; el estudiante las rinde y obtiene resultado.
 
-**Independent Test**: Crear una evaluación de 3 preguntas, resolverla como estudiante y verificar puntaje y aprobado/reprobado.
+**Independent Test**: Crear una evaluación de 3 preguntas con instrucciones y enunciados enriquecidos en una página independiente, reabrirla, resolverla como estudiante y verificar formato, puntaje y resultado; comprobar que un guardado concurrente con versión obsoleta se rechaza sin reemplazar la evaluación ni sus preguntas y alternativas guardadas.
 
 ### Tests for User Story 5
 
@@ -196,6 +225,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [X] T084 [P] [US5] Prueba Feature de rendir evaluación: cálculo de puntaje, aprobado/reprobado, intentos agotados y acceso denegado en `tests/Feature/Assessments/TakeAssessmentTest.php`
 - [X] T085 [P] [US5] Pruebas unitarias de calificación y de `attempt_number ≤ max_attempts` en `tests/Unit/Assessments/`
 - [X] T121 [P] [US5] Prueba Feature de curso desactivado durante un intento: se puede enviar el intento en curso y no se permiten nuevos, en `tests/Feature/Assessments/CourseDeactivatedDuringAttemptTest.php`
+- [X] T136 [P] [US5] Añadir pruebas Feature para guardar y recuperar instrucciones y enunciados como JSON Tiptap, permitir `instructions` nullable y rechazar estructuras o protocolos no permitidos en `tests/Feature/Assessments/AssessmentRichTextTest.php`.
 
 ### Implementation for User Story 5
 
@@ -209,6 +239,15 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [X] T093 [P] [US5] Crear el editor de evaluaciones (preguntas, alternativas, puntajes, nota mínima, intentos), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Assessments/Edit.vue`
 - [X] T094 [P] [US5] Crear las páginas para rendir la evaluación y ver resultados, con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Assessments/Take.vue` y `Results.vue`
 - [X] T095 [US5] Prueba E2E de crear y rendir una evaluación en `tests/e2e/assessments.spec.ts`
+- [X] T137 [US5] Crear migraciones para `assessments.instructions` JSONB nullable y `questions.statement` JSONB, preservando los enunciados existentes como documentos de párrafo Tiptap en `database/migrations/`.
+- [X] T138 [US5] Actualizar modelos, repositorio, controlador y `SaveAssessmentRequest` para validar con `RichTextDocumentValidator`, persistir documentos Tiptap para `instructions` nullable y `questions.*.statement`, y conservar preguntas y alternativas existentes en `app/Modules/Assessments/Infrastructure/Models/Assessment.php`, `app/Modules/Assessments/Infrastructure/Models/Question.php`, `app/Modules/Assessments/Infrastructure/EloquentAssessmentRepository.php`, `app/Modules/Assessments/Infrastructure/Http/Requests/SaveAssessmentRequest.php` y `app/Modules/Assessments/Infrastructure/Http/AssessmentController.php`.
+- [X] T139 [P] [US5] Reemplazar el enunciado extenso de pregunta e instrucciones de evaluación por el editor reutilizable, conectando la subida de imágenes a la ruta del curso de la evaluación, y mantener campos breves y alternativas como controles simples en `resources/js/pages/Assessments/Edit.vue`.
+- [X] T140 [US5] Mostrar instrucciones y enunciados con el visor Tiptap de solo lectura en las vistas de rendición y resultados sin `v-html` en `resources/js/pages/Assessments/Take.vue` y `resources/js/pages/Assessments/Results.vue`.
+- [X] T141 [US5] Ampliar la prueba E2E para redactar, guardar, reabrir y consultar formato enriquecido en instrucciones y enunciados, y validar su operación por teclado en `tests/e2e/assessments.spec.ts`.
+- [X] T153 [P] [US5] Añadir pruebas Feature para rechazar con 409 la actualización obsoleta de una evaluación, incluyendo modificaciones concurrentes de preguntas y alternativas, y preservar los datos guardados en `tests/Feature/Assessments/ConcurrentAssessmentUpdateTest.php`.
+- [X] T154 [US5] Añadir escenarios Playwright que confirmen que el editor de evaluaciones está en una página independiente y que la navegación con cambios sin guardar permite quedarse o confirmar descarte en `tests/e2e/assessments.spec.ts`.
+- [X] T155 [P] [US5] Crear una migración que agregue `lock_version` entero no nulo, inicializado para registros existentes, a `assessments` en `database/migrations/`.
+- [X] T156 [US5] Exigir la versión enviada por el cliente e implementar comparación e incremento atómicos de `lock_version` para actualizaciones de evaluaciones, preguntas y alternativas; garantizar que la edición sea una página independiente, integrar el guard de cambios sin guardar, responder 409 en versiones obsoletas y mostrar el conflicto en `app/Modules/Assessments/Infrastructure/EloquentAssessmentRepository.php`, `app/Modules/Assessments/Infrastructure/Http/AssessmentController.php`, `app/Modules/Assessments/Infrastructure/Http/Requests/SaveAssessmentRequest.php`, `resources/js/pages/Assessments/Edit.vue` y `routes/web.php`.
 
 ---
 
@@ -237,15 +276,18 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 ## Phase 9: Polish & Cross-Cutting Concerns
 
 - [X] T104 [P] Crear seeders y factories de datos de demostración en `database/seeders/DemoDataSeeder.php` y `database/factories/`
-- [X] T105 [P] Revisar accesibilidad WCAG 2.1 AA y responsive de todas las pantallas
-- [X] T106 [P] Verificar que no queden estilos ni componentes fuera del sistema de diseño (revisión contra el principio VI)
-- [X] T107 [P] Prueba de rendimiento: reporte de 500 estudiantes < 30 s, resultado de evaluación < 5 s y progreso reflejado en < 1 minuto tras completar una lección (SC-005, SC-006, SC-007)
-- [ ] T112 [P] Prueba de carga con k6 de 500 usuarios concurrentes: el 95% de las páginas responde en menos de 2 s (SC-008) en `tests/load/concurrency.js` (pendiente de ejecución: k6 no está instalado en este entorno)
+- [X] T105 [P] Revisar accesibilidad WCAG 2.1 AA y responsive de todas las pantallas en `resources/js/pages/` y `tests/e2e/`
+- [X] T106 [P] Verificar que no queden estilos ni componentes fuera del sistema de diseño (revisión contra el principio VI) en `resources/js/design-system/tokens.ts` y `resources/js/components/`
+- [X] T107 [P] Prueba de rendimiento: reporte de 500 estudiantes < 30 s, resultado de evaluación < 5 s y progreso reflejado en < 1 minuto tras completar una lección (SC-005, SC-006, SC-007) en `tests/Feature/Reports/ReportsTest.php`, `tests/Feature/Assessments/TakeAssessmentTest.php` y `tests/Feature/Progress/LessonCompletionTest.php`
+- [ ] T112 [P] Prueba de carga con k6 de 500 usuarios concurrentes: el 95% de las páginas responde en menos de 2 s (SC-008) en `tests/load/concurrency.js` (tres ejecuciones locales con 500 VUs en servidores PHP compartiendo máquina con k6 no cumplen: los servidores de desarrollo dieron p95 2,84–5,74 s y 62,56–73,60% de checks; PHP-FPM dio p95 3,89 s y 9,44% de checks. Repetir con el generador separado y configuración de staging antes de atribuir el resultado a la aplicación)
 - [X] T113 [P] Plan y registro de la prueba de usabilidad con 5 estudiantes (SC-004) en `docs/usability-test.md`
-- [X] T108 [P] Revisión de seguridad: autorización en cada ruta, CSRF, rate limiting y ausencia de datos sensibles en logs
+- [X] T108 [P] Revisión de seguridad: autorización en cada ruta, CSRF, rate limiting y ausencia de datos sensibles en logs en `routes/web.php`, `app/Modules/` y `storage/logs/`
 - [X] T109 [P] Documentar decisiones de arquitectura y variables de entorno en `docs/architecture.md` y `.env.example`
-- [X] T110 Verificar que la constitución v1.1.1 (TypeScript en el frontend) coincide con plan y tareas en `.specify/memory/constitution.md`
+- [X] T110 Verificar que la constitución v1.2.0 (TypeScript en el frontend y páginas independientes para editores) coincide con plan y tareas en `.specify/memory/constitution.md`
 - [X] T111 Ejecutar los escenarios de `quickstart.md` y confirmar que pasan todas las pruebas y linters
+- [X] T142 [P] Añadir una política CSP que permita `frame-src` solo desde `https://www.youtube-nocookie.com` y `https://player.vimeo.com`, preservando las directivas necesarias de Inertia/Vite en `app/Http/Middleware/ContentSecurityPolicy.php` y `bootstrap/app.php`.
+- [ ] T157 Configurar y documentar respaldos recuperables de PostgreSQL y medios privados con cobertura de 24 horas, escribir el procedimiento de recuperación y ejecutar una restauración en staging que demuestre RTO ≤24 h y RPO ≤24 h en `docs/backup-recovery.md`.
+- [ ] T143 Ejecutar, después de completar T157, los escenarios 8–13 de editor, medios, accesibilidad, seguridad, móvil, navegación con cambios sin guardar, ediciones simultáneas y recuperación de `specs/001-lms-learning-platform/quickstart.md`; registrar y corregir cualquier fallo en las pruebas afectadas.
 
 ---
 
@@ -258,6 +300,9 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - **US4** (P2): depende de US2 y US3.
 - **US5** (P2): depende de US2 y US3; reutiliza T077 (US3).
 - **US6** (P3): depende de US3, US4 y US5.
+- Las tareas nuevas de editor/medios de US2 (T122–T133) habilitan la visualización enriquecida de US4 (T134–T135) y los campos largos de evaluaciones de US5 (T136–T141); T142 y T143 cierran CSP y validación integral.
+- Las tareas de páginas y concurrencia de US2 (T144–T152) dependen de la infraestructura existente; el guard común se integra a US5 mediante T154 y T156. T153, T154 y T155 preceden al control concurrente de evaluaciones T156, que también depende del guard T152.
+- T157 y el escenario 13 de quickstart requieren un entorno de staging configurado; completar T157 y las implementaciones de US2 y US5 antes de ejecutar T143 como validación manual final de los escenarios 8–13.
 - **Polish**: tras las historias deseadas.
 
 Dentro de cada historia: pruebas (fallando) → migraciones → dominio → casos de uso → infraestructura → rutas → frontend → E2E.
@@ -268,11 +313,15 @@ Dentro de cada historia: pruebas (fallando) → migraciones → dominio → caso
 - Cada historia: todas las pruebas `[P]` juntas; dominio y puertos `[P]`; páginas y componentes Vue `[P]`.
 - Ejemplo US1: T023–T028 en paralelo, luego T029 y T030, luego T038 y T039.
 - Con varios desarrolladores, US2 y el frontend de US1 pueden avanzar a la vez tras la Fase 2.
+- Editor enriquecido: T123–T125 son pruebas en archivos distintos; T126 y T127 pueden prepararse en paralelo; T130 puede avanzar en paralelo con la implementación backend T128–T129. En US5, T139 puede integrarse después de disponer de T130, mientras T137–T138 adaptan persistencia y validación.
+- Nuevos flujos de edición: T144–T146 y T153 pueden implementarse en paralelo porque usan archivos de prueba distintos; T148 y T155 pueden prepararse en paralelo después de sus pruebas. T149/T150 son backend de cursos/lecciones; T151/T152 son frontend y pueden avanzar en paralelo con el backend. T156 depende de T152–T155; T157 es una actividad operativa independiente una vez habilitado staging.
 
 ## Implementation Strategy
 
 - **MVP**: Fases 1–2 + US1 (acceso y usuarios); validar y demostrar.
 - **Administrativo completo**: añadir US2 y US3 (cursos, estudiantes e inscripciones).
+- **Editor y medios**: completar T122–T133 en US2 antes de T134–T135 y T136–T141 para consumo estudiantil y evaluaciones.
+- **Edición segura**: completar T144–T152 en US2 y T153–T156 en US5 para páginas independientes, avisos de cambios sin guardar y rechazo de escrituras obsoletas.
 - **Valor pedagógico**: US4 (estudio) y US5 (evaluaciones).
-- **Gestión**: US6 (reportes) y Polish.
+- **Gestión y operación**: US6 (reportes), T157 para recuperación y Polish, incluyendo la carga k6 pendiente T112.
 - Verificar cada checkpoint con sus pruebas antes de continuar.

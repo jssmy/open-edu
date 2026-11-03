@@ -27,9 +27,20 @@ todos los cursos y estudiantes; Docente = cursos asignados; Estudiante = solo lo
 
 ### Reglas de cursos y contenido
 - `DELETE /courses/{id}` elimina lógicamente el curso. Si tiene inscripciones, requiere `confirm_impact=true`; las inscripciones y el historial se conservan.
-- `POST /units/{id}/lessons` acepta archivos PDF, DOC/DOCX, PPT/PPTX para documentos; JPG/JPEG, PNG o WebP para imágenes; MP4, WebM o MOV para videos. El máximo se configura con `COURSE_MAX_UPLOAD_KB` (por defecto 10 240 KB).
+- `POST /units/{id}/lessons` acepta archivos PDF, DOC/DOCX, PPT/PPTX para documentos y JPG/JPEG, PNG o WebP para imágenes. Los videos de lección se guardan como enlaces HTTPS; no se aceptan archivos de video. El máximo para archivos se configura con `COURSE_MAX_UPLOAD_KB` (por defecto 10 240 KB).
 - Las lecciones con progreso no se pueden eliminar; deben archivarse.
+- Los flujos para crear o editar cursos, lecciones y evaluaciones con editor enriquecido se presentan en páginas Inertia independientes, nunca en modales o diálogos. Una navegación con cambios sin guardar pide confirmación para quedarse o descartarlos.
+- Las actualizaciones de curso, lección y evaluación envían el `lock_version` recibido al cargar el formulario. El backend actualiza de forma atómica solo si esa versión sigue vigente e incrementa el contador al guardar. Las modificaciones de preguntas y alternativas incrementan la versión de su evaluación.
+
+### Contratos de contenido enriquecido y medios
+- `POST /courses/{id}/content-images` recibe `multipart/form-data` con una imagen JPEG, PNG o WebP de máximo 5120 KB. Solo Admin, Gestor o Docente asignado puede subir a ese curso. Laravel valida el archivo y genera su identificador/nombre; no confía en nombre, extensión o MIME del cliente. Responde JSON con `id` y `src` de lectura interna para insertar en el documento Tiptap.
+- `GET /courses/{id}/content-images/{image}` entrega una imagen desde almacenamiento privado y verifica que el usuario pueda acceder al contenido del curso: Admin/Gestor, Docente asignado o Estudiante con inscripción activa en curso publicado. Un recurso fuera del alcance responde 404. La respuesta especifica el MIME validado y `X-Content-Type-Options: nosniff`.
+- Las solicitudes de curso incluyen `description` y `objectives` como documentos JSON Tiptap y `intro_video_url` como URL de YouTube o Vimeo. Las solicitudes de lección incluyen `content` como JSON Tiptap cuando el tipo es texto. Las solicitudes de evaluación incluyen `instructions` opcional y las de pregunta incluyen `statement`, ambos documentos JSON Tiptap.
+- El servidor rechaza nodos, marcas, atributos y esquemas URL fuera del allowlist. Los enlaces solo admiten HTTP/HTTPS; las imágenes externas solo HTTPS. Las imágenes subidas deben tener `alt` descriptivo o `alt=""` para decorativas. No se admiten HTML/iframes arbitrarios ni `data:` URLs.
+- `intro_video_url` acepta solo URLs válidas de YouTube/Vimeo. El servidor persiste proveedor e ID validados y devuelve la URL canónica para edición; el reproductor construye un iframe seguro de `youtube-nocookie.com` o `player.vimeo.com`.
+- Las imágenes externas se cargan directamente desde el navegador, sin proxy ni descarga del servidor, y se muestran con `referrerpolicy="no-referrer"`.
 
 ## Respuestas de error
 - 422: validación (mensajes por campo). 403: sin permiso o sin inscripción activa. 404: recurso fuera de alcance.
+- 409: conflicto de edición; no se guarda la versión obsoleta y se indica al usuario que recargue para revisar el contenido actual.
 - 429: límite de intentos de inicio de sesión. Los errores internos no exponen detalles.

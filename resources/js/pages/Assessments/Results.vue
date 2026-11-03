@@ -5,6 +5,8 @@ import Alert from '@/design-system/Alert.vue';
 import Badge from '@/design-system/Badge.vue';
 import Card from '@/design-system/Card.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
+import RichTextContent from '@/components/editor/RichTextContent.vue';
+import type { RichTextDocument } from '@/types/richText';
 
 interface Result {
     assessment_id?: number;
@@ -18,7 +20,13 @@ interface Result {
 }
 
 defineProps<{
-    assessment: { id: number; title: string; total_score: number } | null;
+    assessment: {
+        id: number;
+        title: string;
+        total_score: number;
+        instructions: RichTextDocument | null;
+        questions: { id: number; statement: RichTextDocument }[];
+    } | null;
     result: Result | null;
     results: Result[];
 }>();
@@ -43,6 +51,32 @@ function submittedAt(value: string): string {
                     {{ assessment ? `Resultados: ${assessment.title}` : 'Mis resultados' }}
                 </h1>
             </header>
+
+            <section
+                v-if="assessment"
+                class="flex flex-col gap-4"
+                aria-labelledby="assessment-content-heading"
+            >
+                <h2 id="assessment-content-heading" class="text-lg font-semibold">
+                    Contenido de la evaluación
+                </h2>
+                <RichTextContent
+                    v-if="assessment.instructions"
+                    :content="assessment.instructions"
+                    label="Instrucciones de la evaluación"
+                />
+                <article
+                    v-for="(question, index) in assessment.questions"
+                    :key="question.id"
+                    class="flex flex-col gap-2 rounded-card border border-border bg-panel p-4"
+                >
+                    <h3 class="font-semibold">Pregunta {{ index + 1 }}</h3>
+                    <RichTextContent
+                        :content="question.statement"
+                        :label="`Enunciado de la pregunta ${index + 1}`"
+                    />
+                </article>
+            </section>
 
             <Alert v-if="result" :variant="result.passed ? 'success' : 'warning'">
                 <span class="font-semibold">{{ result.passed ? 'Aprobado' : 'No aprobado' }}</span>

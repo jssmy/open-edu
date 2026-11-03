@@ -11,19 +11,21 @@ final class UpdateAssessment
     /**
      * @param array{
      *     title: string,
+     *     instructions?: array|null,
      *     max_attempts: int|string,
      *     passing_score: int|string,
      *     questions: list<array{
-     *         statement: string,
+     *         statement: array,
      *         points: int|string,
      *         choices: list<array{text: string, is_correct: bool|int|string}>
      *     }>
      * } $attributes
      */
-    public function __invoke(int $assessmentId, array $attributes): void
+    public function __invoke(int $assessmentId, int $expectedVersion, array $attributes): void
     {
         $this->assessments->update(
             $assessmentId,
+            $expectedVersion,
             (new AssessmentData($attributes))->validated(),
         );
     }

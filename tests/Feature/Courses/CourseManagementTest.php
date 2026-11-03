@@ -2,6 +2,7 @@
 
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Identity\Domain\Role;
+use Inertia\Testing\AssertableInertia as Assert;
 
 it('creates courses in draft status for an authorized course manager', function () {
     $manager = userWithRole(Role::GestorDeCursos);
@@ -18,6 +19,15 @@ it('creates courses in draft status for an authorized course manager', function 
     ]);
 });
 
+it('opens the new course page without resolving create as a course id', function () {
+    $manager = userWithRole(Role::GestorDeCursos);
+
+    $this->actingAs($manager)->get('/courses/create')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Courses/Edit')
+            ->where('course', null));
+});
+
 it('updates and shows a course', function () {
     $manager = userWithRole(Role::GestorDeCursos);
     $course = Course::query()->create([
@@ -26,12 +36,14 @@ it('updates and shows a course', function () {
         'objectives' => 'Objetivos',
         'status' => 'draft',
     ]);
+    $course->refresh();
 
     $this->actingAs($manager)->put("/courses/{$course->id}", [
         'name' => 'Curso actualizado',
         'description' => 'Nueva descripción',
         'objectives' => 'Nuevos objetivos',
-    ])->assertRedirect();
+        'lock_version' => $course->lock_version,
+    ])->assertRedirect()->assertSessionHasNoErrors();
 
     expect($course->fresh()->name)->toBe('Curso actualizado');
     $this->actingAs($manager)->get("/courses/{$course->id}")->assertOk();

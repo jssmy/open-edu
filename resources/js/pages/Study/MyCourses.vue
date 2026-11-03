@@ -4,11 +4,13 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Card from '@/design-system/Card.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
 import ProgressBar from '@/components/progress/ProgressBar.vue';
+import RichTextContent from '@/components/editor/RichTextContent.vue';
+import type { RichTextDocument } from '@/types/richText';
 
 interface Course {
     id: number;
     name: string;
-    description: string | null;
+    description: RichTextDocument | null;
     progress: {
         completed_lessons: number;
         total_lessons: number;
@@ -46,9 +48,11 @@ defineProps<{ courses: Course[] }>();
                                 {{ course.name }}
                             </Link>
                         </h2>
-                        <p v-if="course.description" class="text-sm text-text-muted">
-                            {{ course.description }}
-                        </p>
+                        <RichTextContent
+                            v-if="course.description"
+                            :content="course.description"
+                            label="Descripción del curso"
+                        />
                     </div>
                     <div class="mt-auto flex flex-col gap-2">
                         <div class="flex justify-between gap-3 text-sm">

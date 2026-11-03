@@ -5,6 +5,8 @@ import Alert from '@/design-system/Alert.vue';
 import Button from '@/design-system/Button.vue';
 import Card from '@/design-system/Card.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
+import RichTextContent from '@/components/editor/RichTextContent.vue';
+import type { RichTextDocument } from '@/types/richText';
 
 interface Choice {
     id: number;
@@ -13,7 +15,7 @@ interface Choice {
 
 interface Question {
     id: number;
-    statement: string;
+    statement: RichTextDocument;
     points: number;
     choices: Choice[];
 }
@@ -22,6 +24,7 @@ const props = defineProps<{
     assessment: {
         id: number;
         title: string;
+        instructions: RichTextDocument | null;
         total_score: number;
         attempt_number: number;
         questions: Question[];
@@ -51,6 +54,11 @@ function submitAttempt() {
                 <p class="text-sm text-text-muted">
                     Intento {{ assessment.attempt_number }} · Puntaje total: {{ assessment.total_score }}
                 </p>
+                <RichTextContent
+                    v-if="assessment.instructions"
+                    :content="assessment.instructions"
+                    label="Instrucciones de la evaluación"
+                />
             </header>
 
             <Alert v-if="form.errors.answers" variant="danger" role="alert">
@@ -69,7 +77,13 @@ function submitAttempt() {
                     class="flex flex-col gap-4"
                 >
                     <div class="flex flex-wrap items-start justify-between gap-3">
-                        <h2 class="font-semibold">{{ questionIndex + 1 }}. {{ question.statement }}</h2>
+                        <div class="flex min-w-0 flex-col gap-2">
+                            <h2 class="font-semibold">Pregunta {{ questionIndex + 1 }}</h2>
+                            <RichTextContent
+                                :content="question.statement"
+                                :label="`Enunciado de la pregunta ${questionIndex + 1}`"
+                            />
+                        </div>
                         <span class="text-sm text-text-muted">{{ question.points }} puntos</span>
                     </div>
                     <fieldset class="flex flex-col gap-3">

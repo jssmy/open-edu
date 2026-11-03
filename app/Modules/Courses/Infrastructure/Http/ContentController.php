@@ -12,11 +12,53 @@ use App\Modules\Courses\Infrastructure\Http\Requests\SaveUnitRequest;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Courses\Infrastructure\Models\Lesson;
 use App\Modules\Courses\Infrastructure\Models\Unit;
+use App\Shared\Exceptions\StaleContentVersionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ContentController extends Controller
 {
+    public function createLesson(Unit $unit): Response
+    {
+        Gate::authorize('manageContent', $unit->course);
+
+        return Inertia::render('Courses/LessonEdit', [
+            'unit' => [
+                'id' => $unit->id,
+                'title' => $unit->title,
+                'course_id' => $unit->course_id,
+                'course_name' => $unit->course->name,
+            ],
+            'lesson' => null,
+            'nextPosition' => (int) $unit->lessons()->max('position') + 1,
+        ]);
+    }
+
+    public function editLesson(Lesson $lesson): Response
+    {
+        Gate::authorize('manageContent', $lesson->unit->course);
+
+        return Inertia::render('Courses/LessonEdit', [
+            'unit' => [
+                'id' => $lesson->unit->id,
+                'title' => $lesson->unit->title,
+                'course_id' => $lesson->unit->course_id,
+                'course_name' => $lesson->unit->course->name,
+            ],
+            'lesson' => [
+                'id' => $lesson->id,
+                'title' => $lesson->title,
+                'position' => $lesson->position,
+                'content_type' => $lesson->content_type,
+                'content' => $lesson->content,
+                'lock_version' => $lesson->lock_version,
+            ],
+            'nextPosition' => $lesson->position,
+        ]);
+    }
+
     public function storeUnit(SaveUnitRequest $request, int $courseId, ManageCourseContent $content): RedirectResponse
     {
         $course = Course::query()->findOrFail($courseId);
@@ -44,8 +86,9 @@ class ContentController extends Controller
         $course = $unit->course;
         $storedPaths = $unit->lessons()
             ->whereNotNull('content')
+            ->get(['content'])
             ->pluck('content')
-            ->filter(fn ($path): bool => str_starts_with($path, 'courses/'));
+            ->filter(fn ($path): bool => is_string($path) && str_starts_with($path, 'courses/'));
         $content->deleteUnit($unit->id);
 
         foreach ($storedPaths as $path) {
@@ -109,6 +152,8 @@ class ContentController extends Controller
     ): RedirectResponse {
         Gate::authorize('manageContent', $lesson->unit->course);
         $data = $request->validated();
+        $expectedVersion = (int) $data['lock_version'];
+        unset($data['lock_version']);
         $oldContent = $lesson->content;
         $data['content'] = $request->hasFile('file')
             ? $files->store(
@@ -118,7 +163,15 @@ class ContentController extends Controller
             )
             : ($data['content'] ?? null);
         unset($data['file']);
-        $content->updateLesson($lesson->id, $data);
+        try {
+            $content->updateLesson($lesson->id, $expectedVersion, $data);
+        } catch (StaleContentVersionException $exception) {
+            if ($request->hasFile('file') && is_string($data['content']) && str_starts_with($data['content'], 'courses/')) {
+                $files->delete($data['content']);
+            }
+
+            throw $exception;
+        }
 
         if ($request->hasFile('file') && is_string($oldContent) && str_starts_with($oldContent, 'courses/')) {
             $files->delete($oldContent);

@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Middleware\ContentSecurityPolicy;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Modules\Identity\Infrastructure\Http\Middleware\EnsurePasswordChanged;
 use App\Modules\Identity\Infrastructure\Http\Middleware\EnsureUserIsActive;
 use App\Shared\Exceptions\DomainException;
+use App\Shared\Exceptions\StaleContentVersionException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,10 +22,20 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             EnsureUserIsActive::class,
             EnsurePasswordChanged::class,
+            ContentSecurityPolicy::class,
         ]);
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (StaleContentVersionException $e, Request $request) {
+            $message = $e->getMessage();
+
+            if ($request->expectsJson() || $request->header('X-Inertia') !== null) {
+                return response()->json(['message' => $message], 409);
+            }
+
+            return response($message, 409);
+        });
         $exceptions->render(function (DomainException $e, Request $request) {
             $errors = [$e->field() => $e->getMessage()];
 

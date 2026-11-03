@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { Buffer } from 'node:buffer';
 
 const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@openedu.test';
 const adminPassword = process.env.ADMIN_PASSWORD ?? '';
@@ -48,6 +49,14 @@ async function signInAsAdmin(page: Page) {
     await expect(page).toHaveURL(/dashboard/);
 }
 
+async function fillAndBoldEditor(page: Page, label: string, text: string) {
+    const editor = page.getByRole('textbox', { name: label });
+    await editor.fill(text);
+    await editor.press('Control+A');
+    await editor.press('Control+B');
+    await expect(editor.locator('strong')).toHaveText(text);
+}
+
 test('lets an enrolled student complete a lesson and see course progress', async ({ page }) => {
     await signInAsAdmin(page);
 
@@ -76,7 +85,25 @@ test('lets an enrolled student complete a lesson and see course progress', async
     await page.getByRole('button', { name: 'Agregar unidad' }).click();
     await page.getByRole('button', { name: 'Agregar lección' }).click();
     await page.getByLabel('Título').fill('Lección de estudio');
-    await page.getByLabel('Contenido o URL').fill('Contenido de lección E2E');
+    const lessonContent = 'Contenido de lección E2E';
+    await fillAndBoldEditor(page, 'Contenido de la lección', lessonContent);
+    await page.getByRole('textbox', { name: 'Contenido de la lección' }).press('Control+End');
+    await page
+        .getByRole('textbox', { name: 'Contenido de la lección' })
+        .locator('xpath=../..')
+        .getByRole('button', { name: 'Mostrar opciones de imagen' })
+        .click();
+    await page.getByLabel('Texto alternativo').fill('Imagen privada de la lección');
+    await page.locator('#lesson-content-rich-image-file').setInputFiles({
+        name: 'lesson.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==',
+            'base64',
+        ),
+    });
+    await page.getByRole('button', { name: 'Subir e insertar imagen' }).click();
+    await expect(page.getByRole('status')).toContainText('Imagen insertada en el contenido.');
     await page.getByRole('button', { name: 'Guardar lección' }).click();
 
     await page.getByRole('link', { name: 'Gestionar inscripciones' }).click();
@@ -100,7 +127,14 @@ test('lets an enrolled student complete a lesson and see course progress', async
 
     await page.goto('/my/courses');
     await page.getByRole('link', { name: courseName }).click();
-    await expect(page.getByText('Contenido de lección E2E')).toBeVisible();
+    await expect(page.locator('[aria-label="Contenido de Lección de estudio"] strong')).toHaveText(
+        lessonContent,
+    );
+    await expect(
+        page.locator(
+            '[aria-label="Contenido de Lección de estudio"] img[alt="Imagen privada de la lección"]',
+        ),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Marcar como completada' }).click();
 
     await expect(page.getByRole('progressbar', { name: 'Progreso del curso' })).toHaveAttribute(

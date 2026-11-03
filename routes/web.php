@@ -2,6 +2,7 @@
 
 use App\Modules\Assessments\Infrastructure\Http\AssessmentController;
 use App\Modules\Courses\Infrastructure\Http\ContentController;
+use App\Modules\Courses\Infrastructure\Http\ContentImageController;
 use App\Modules\Courses\Infrastructure\Http\CourseController;
 use App\Modules\Enrollments\Infrastructure\Http\CourseEnrollmentController;
 use App\Modules\Enrollments\Infrastructure\Http\EnrollmentController;
@@ -45,9 +46,17 @@ Route::middleware('auth')->group(function () {
         Route::put('/roles/{id}/permissions', [RoleController::class, 'update']);
     });
 
+    Route::middleware('can:courses.manage')->group(function () {
+        Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
+    });
+
     Route::middleware('can:courses.view')->group(function () {
         Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
         Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
+    });
+
+    Route::middleware('can:courses.manage')->group(function () {
+        Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
     });
 
     Route::middleware('can:courses.manage')->group(function () {
@@ -59,6 +68,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('can:content.manage')->group(function () {
+        Route::get('/units/{unit}/lessons/create', [ContentController::class, 'createLesson'])
+            ->name('lessons.create');
+        Route::get('/lessons/{lesson}/edit', [ContentController::class, 'editLesson'])
+            ->name('lessons.edit');
+        Route::post('/courses/{course}/content-images', [ContentImageController::class, 'store'])
+            ->name('course-images.store');
         Route::post('/courses/{courseId}/units', [ContentController::class, 'storeUnit'])->name('units.store');
         Route::patch('/units/reorder', [ContentController::class, 'reorderUnits'])->name('units.reorder');
         Route::put('/units/{unit}', [ContentController::class, 'updateUnit'])->name('units.update');
@@ -69,6 +84,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/lessons/{lesson}', [ContentController::class, 'deleteLesson'])->name('lessons.destroy');
         Route::patch('/lessons/{lesson}/archive', [ContentController::class, 'archiveLesson'])->name('lessons.archive');
     });
+
+    Route::get('/courses/{course}/content-images/{image}', [ContentImageController::class, 'show'])
+        ->name('course-images.show');
 
     Route::middleware('can:students.view')->group(function () {
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');

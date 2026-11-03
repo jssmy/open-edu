@@ -5,9 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Badge from '@/design-system/Badge.vue';
 import Button from '@/design-system/Button.vue';
 import FormField from '@/design-system/FormField.vue';
-import Input from '@/design-system/Input.vue';
 import Select from '@/design-system/Select.vue';
-import Textarea from '@/design-system/Textarea.vue';
 import { useCourses } from '@/composables/useCourses';
 import {
     assignCourseTeachers,
@@ -16,12 +14,16 @@ import {
     type CourseStatus,
 } from '@/services/courses';
 import CourseContentEditor from '@/components/courses/CourseContentEditor.vue';
+import RichTextContent from '@/components/editor/RichTextContent.vue';
+import type { RichTextDocument } from '@/types/richText';
 
 interface Course {
     id: number;
     name: string;
-    description: string | null;
-    objectives: string | null;
+    description: RichTextDocument | null;
+    objectives: RichTextDocument | null;
+    intro_video_url: string | null;
+    intro_video_embed_url: string | null;
     status: CourseStatus;
     teachers: { id: number; name: string }[];
     units: {
@@ -32,8 +34,8 @@ interface Course {
             id: number;
             title: string;
             position: number;
-            content_type: string;
-            content: string | null;
+            content_type: 'text' | 'document' | 'image' | 'link' | 'video';
+            content: RichTextDocument | string | null;
             is_archived: boolean;
         }[];
     }[];
@@ -47,11 +49,6 @@ const props = defineProps<{
     availableTeachers: { id: number; name: string }[];
 }>();
 const { statusLabel, statusVariant } = useCourses();
-const form = useForm({
-    name: props.course.name,
-    description: props.course.description ?? '',
-    objectives: props.course.objectives ?? '',
-});
 const statusForm = useForm<{ status: CourseStatus }>({ status: props.course.status });
 const selectedTeachers = ref(props.course.teachers.map((teacher) => teacher.id));
 const statusOptions = [
@@ -59,10 +56,6 @@ const statusOptions = [
     { value: 'published', label: 'Publicado' },
     { value: 'deactivated', label: 'Desactivado' },
 ];
-
-function saveCourse() {
-    form.put(`/courses/${props.course.id}`, { preserveScroll: true });
-}
 
 function saveStatus() {
     changeCourseStatus(props.course.id, statusForm.status);
@@ -91,6 +84,13 @@ function deleteCourse() {
                 <div class="mt-2 flex flex-wrap gap-4">
                     <Link
                         v-if="canManageCourses"
+                        :href="`/courses/${course.id}/edit`"
+                        class="text-sm text-primary hover:underline"
+                    >
+                        Editar curso
+                    </Link>
+                    <Link
+                        v-if="canManageCourses"
                         :href="`/courses/${course.id}/students`"
                         class="text-sm text-primary"
                     >
@@ -110,22 +110,8 @@ function deleteCourse() {
 
         <section
             v-if="canManageCourses"
-            class="mb-8 grid gap-6 rounded-card border border-border bg-panel p-5 md:grid-cols-2"
+            class="mb-8 grid gap-6 rounded-card border border-border bg-panel p-5"
         >
-            <form class="flex flex-col gap-3" @submit.prevent="saveCourse">
-                <h2 class="font-semibold">Datos del curso</h2>
-                <FormField id="name" label="Nombre" :error="form.errors.name">
-                    <Input id="name" v-model="form.name" :error="form.errors.name" />
-                </FormField>
-                <FormField id="description" label="Descripción" :error="form.errors.description">
-                    <Textarea id="description" v-model="form.description" :error="form.errors.description" />
-                </FormField>
-                <FormField id="objectives" label="Objetivos" :error="form.errors.objectives">
-                    <Textarea id="objectives" v-model="form.objectives" :error="form.errors.objectives" />
-                </FormField>
-                <Button type="submit" :loading="form.processing">Guardar cambios</Button>
-            </form>
-
             <div class="flex flex-col gap-3">
                 <h2 class="font-semibold">Estado y docentes</h2>
                 <FormField id="course-status" label="Estado">
@@ -149,9 +135,38 @@ function deleteCourse() {
                 <Button variant="secondary" @click="saveTeachers">Guardar docentes</Button>
             </div>
         </section>
-        <section v-else class="mb-8 rounded-card border border-border bg-panel p-5">
-            <p>{{ course.description }}</p>
-            <p class="mt-2 text-sm text-text-muted">{{ course.objectives }}</p>
+        <section class="mb-8 rounded-card border border-border bg-panel p-5">
+            <RichTextContent
+                v-if="course.description"
+                :content="course.description"
+                label="Descripción del curso"
+            />
+            <RichTextContent
+                v-if="course.objectives"
+                :content="course.objectives"
+                label="Objetivos del curso"
+            />
+        </section>
+
+        <section v-if="course.intro_video_embed_url" class="mb-8" aria-labelledby="course-video-heading">
+            <h2 id="course-video-heading" class="mb-3 text-lg font-semibold">Presentación del curso</h2>
+            <iframe
+                :src="course.intro_video_embed_url"
+                :title="`Video de presentación: ${course.name}`"
+                referrerpolicy="no-referrer"
+                allow="
+                    accelerometer;
+                    autoplay;
+                    clipboard-write;
+                    encrypted-media;
+                    gyroscope;
+                    picture-in-picture;
+                    web-share;
+                "
+                allowfullscreen
+                loading="lazy"
+                class="aspect-video w-full rounded-card border border-border"
+            />
         </section>
 
         <CourseContentEditor

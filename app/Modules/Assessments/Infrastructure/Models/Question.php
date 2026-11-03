@@ -13,6 +13,7 @@ class Question extends Model
     protected function casts(): array
     {
         return [
+            'statement' => 'array',
             'points' => 'integer',
             'position' => 'integer',
         ];

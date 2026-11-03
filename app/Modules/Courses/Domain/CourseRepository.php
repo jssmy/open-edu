@@ -4,11 +4,11 @@ namespace App\Modules\Courses\Domain;
 
 interface CourseRepository
 {
-    /** @param array{name: string, description: ?string, objectives: ?string} $attributes */
+    /** @param array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
     public function createCourse(array $attributes): int;
 
-    /** @param array{name: string, description: ?string, objectives: ?string} $attributes */
-    public function updateCourse(int $courseId, array $attributes): void;
+    /** @param array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
+    public function updateCourse(int $courseId, int $expectedVersion, array $attributes): void;
 
     public function setCourseStatus(int $courseId, CourseStatus $status): void;
 
@@ -36,8 +36,8 @@ interface CourseRepository
     /** @param array{unit_id: int, title: string, position: int, content_type: string, content: ?string} $attributes */
     public function createLesson(array $attributes): int;
 
-    /** @param array{title: string, position: int, content_type: string, content: ?string} $attributes */
-    public function updateLesson(int $lessonId, array $attributes): void;
+    /** @param array{title: string, position: int, content_type: string, content: array|string|null} $attributes */
+    public function updateLesson(int $lessonId, int $expectedVersion, array $attributes): void;
 
     public function archiveLesson(int $lessonId): void;
 

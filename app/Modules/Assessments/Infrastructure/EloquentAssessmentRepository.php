@@ -14,6 +14,8 @@ use App\Modules\Enrollments\Domain\EnrollmentStatus;
 use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Students\Infrastructure\Models\Student;
 use App\Shared\Exceptions\DomainException;
+use App\Shared\Exceptions\StaleContentVersionException;
+use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -26,6 +28,7 @@ final class EloquentAssessmentRepository implements AssessmentRepository
             $assessment = Assessment::query()->create([
                 'course_id' => $courseId,
                 'title' => $attributes['title'],
+                'instructions' => $attributes['instructions'],
                 'max_attempts' => $attributes['max_attempts'],
                 'passing_score' => $attributes['passing_score'],
                 'total_score' => array_sum(array_column($attributes['questions'], 'points')),
@@ -38,10 +41,29 @@ final class EloquentAssessmentRepository implements AssessmentRepository
         });
     }
 
-    public function update(int $assessmentId, array $attributes): void
+    public function update(int $assessmentId, int $expectedVersion, array $attributes): void
     {
-        DB::transaction(function () use ($assessmentId, $attributes): void {
-            $assessment = Assessment::query()->lockForUpdate()->findOrFail($assessmentId);
+        DB::transaction(function () use ($assessmentId, $expectedVersion, $attributes): void {
+            $updated = Assessment::query()
+                ->whereKey($assessmentId)
+                ->where('lock_version', $expectedVersion)
+                ->update([
+                    'title' => $attributes['title'],
+                    'instructions' => $attributes['instructions'],
+                    'max_attempts' => $attributes['max_attempts'],
+                    'passing_score' => $attributes['passing_score'],
+                    'total_score' => array_sum(array_column($attributes['questions'], 'points')),
+                    'is_published' => false,
+                    'lock_version' => DB::raw('lock_version + 1'),
+                ]);
+
+            if ($updated !== 1) {
+                throw new StaleContentVersionException(
+                    'El contenido cambió desde que abriste esta página. Recarga para revisar los cambios.',
+                );
+            }
+
+            $assessment = Assessment::query()->findOrFail($assessmentId);
 
             if ($assessment->attempts()->exists()) {
                 throw new DomainException(
@@ -50,13 +72,6 @@ final class EloquentAssessmentRepository implements AssessmentRepository
                 );
             }
 
-            $assessment->update([
-                'title' => $attributes['title'],
-                'max_attempts' => $attributes['max_attempts'],
-                'passing_score' => $attributes['passing_score'],
-                'total_score' => array_sum(array_column($attributes['questions'], 'points')),
-                'is_published' => false,
-            ]);
             $assessment->questions()->delete();
             $this->createQuestions($assessment, $attributes['questions']);
         });
@@ -70,7 +85,7 @@ final class EloquentAssessmentRepository implements AssessmentRepository
                 ->lockForUpdate()
                 ->findOrFail($assessmentId);
             $questions = $assessment->questions->map(fn (Question $question): array => [
-                'statement' => $question->statement,
+                'statement' => RichTextDocumentValidator::plainText($question->statement),
                 'points' => $question->points,
                 'choices' => $question->choices->map(fn (Choice $choice): array => [
                     'text' => $choice->text,
@@ -88,6 +103,7 @@ final class EloquentAssessmentRepository implements AssessmentRepository
             $assessment->update([
                 'total_score' => $totalScore,
                 'is_published' => true,
+                'lock_version' => DB::raw('lock_version + 1'),
             ]);
         });
     }

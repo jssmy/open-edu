@@ -49,7 +49,7 @@ it('returns a graded assessment result within five seconds', function () {
         'is_published' => true,
     ]);
     $question = $assessment->questions()->create([
-        'statement' => 'Pregunta de prueba',
+        'statement' => richTextDocument('Pregunta de prueba'),
         'points' => 1,
         'position' => 1,
     ]);

@@ -31,12 +31,12 @@ it('creates units and text lessons', function () {
         'content' => 'Contenido de introducción',
     ])->assertRedirect();
 
-    $this->assertDatabaseHas('lessons', [
-        'unit_id' => $unit->id,
-        'title' => 'Introducción',
-        'content_type' => 'text',
-        'content' => 'Contenido de introducción',
-    ]);
+    $lesson = Lesson::query()->sole();
+
+    expect($lesson->unit_id)->toBe($unit->id)
+        ->and($lesson->title)->toBe('Introducción')
+        ->and($lesson->content_type)->toBe('text')
+        ->and($lesson->content)->toEqual(richTextDocument('Contenido de introducción'));
 });
 
 it('persists the requested order of course units', function () {

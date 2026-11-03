@@ -25,7 +25,13 @@ class LessonFactory extends Factory
             'title' => fake()->sentence(4),
             'position' => 1,
             'content_type' => 'text',
-            'content' => fake()->paragraph(),
+            'content' => [
+                'type' => 'doc',
+                'content' => [[
+                    'type' => 'paragraph',
+                    'content' => [['type' => 'text', 'text' => fake()->paragraph()]],
+                ]],
+            ],
             'is_archived' => false,
         ];
     }

@@ -58,7 +58,10 @@ function handleKeydown(event: KeyboardEvent): void {
         return;
     }
 
-    if (event.shiftKey && (document.activeElement === first || !dialog.value?.contains(document.activeElement))) {
+    if (
+        event.shiftKey &&
+        (document.activeElement === first || !dialog.value?.contains(document.activeElement))
+    ) {
         event.preventDefault();
         last.focus();
     } else if (
@@ -78,10 +81,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div
-        v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-text/50"
-    >
+    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-text/50">
         <div
             ref="dialog"
             role="dialog"

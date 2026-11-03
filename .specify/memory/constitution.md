@@ -1,17 +1,10 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 1.1.1 (PATCH: TypeScript fijado para el frontend, TODO cerrado)
-- Previous change: 1.0.0 → 1.1.0
-- Modified principles: I (Arquitectura Hexagonal → Monolito Modular con Arquitectura Hexagonal),
-  III (DRY, KISS y YAGNI: añade abstracciones justificadas), IV (Clean Code: añade
-  antipatrones), V (Frontend: añade convenciones), VII (Test-First → Calidad y Pruebas)
-- Added principles: VIII Seguridad, IX Errores y Registros, X Dependencias, XI UX,
-  XII Desarrollo Asistido por IA
-- Added sections: Persistencia, Control de Versiones y Documentación, Criterios de Aceptación
+- Version change: 1.1.1 → 1.2.0 (MINOR: requisito de interfaz para flujos con editor)
+- Modified principles: XI (Interfaz y Experiencia de Usuario: el editor debe estar en una página
+  independiente, nunca en un modal)
+- Added sections: none
 - Removed sections: none
-- Reconciliation: la nueva constitución exige monolito sin abstracciones innecesarias; se
-  conserva la arquitectura hexagonal solicitada antes aplicándola DENTRO del monolito y
-  limitando puertos a fronteras reales. Se conservan PostgreSQL y el sistema de diseño.
 - Deferred TODOs: none
 -->
 
@@ -104,7 +97,10 @@ que dupliquen funcionalidad existente. Las dependencias se actualizan de forma c
 ### XI. Interfaz y Experiencia de Usuario
 Interfaz intuitiva, consistente, responsive y accesible (WCAG 2.1 AA). MUST proporcionarse
 retroalimentación en carga y procesamiento, mensajes claros de éxito y error, y estados vacíos,
-de error y de carga.
+de error y de carga. Toda página para crear o editar contenido que incluya un editor MUST ser
+una página independiente con su propia vista y MUST NOT presentar el editor dentro de un modal
+o diálogo. Esta separación ofrece espacio suficiente para editar y evita flujos complejos dentro
+de superficies transitorias.
 
 ### XII. Desarrollo Asistido por IA
 Las herramientas de IA MUST respetar esta constitución.
@@ -158,4 +154,4 @@ por nuevos principios/secciones o ampliación material; PATCH por aclaraciones y
 Cumplimiento: todo PR y revisión MUST verificar la conformidad con los principios; las
 desviaciones MUST justificarse explícitamente y aprobarse.
 
-**Version**: 1.1.1 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03
+**Version**: 1.2.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03

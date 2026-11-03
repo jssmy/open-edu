@@ -43,9 +43,11 @@ class AssessmentController extends Controller
             'assessment' => [
                 'id' => $assessment->id,
                 'title' => $assessment->title,
+                'instructions' => $assessment->instructions,
                 'max_attempts' => $assessment->max_attempts,
                 'passing_score' => $assessment->passing_score,
                 'is_published' => $assessment->is_published,
+                'lock_version' => $assessment->lock_version,
                 'questions' => $assessment->questions->map(fn ($question): array => [
                     'id' => $question->id,
                     'statement' => $question->statement,
@@ -75,7 +77,10 @@ class AssessmentController extends Controller
         Assessment $assessment,
         UpdateAssessment $update,
     ): RedirectResponse {
-        $update($assessment->id, $request->validated());
+        $attributes = $request->validated();
+        $expectedVersion = (int) $attributes['lock_version'];
+        unset($attributes['lock_version']);
+        $update($assessment->id, $expectedVersion, $attributes);
 
         return to_route('assessments.edit', $assessment)->with('success', 'Evaluación actualizada.');
     }
@@ -108,6 +113,7 @@ class AssessmentController extends Controller
             'assessment' => [
                 'id' => $assessment->id,
                 'title' => $assessment->title,
+                'instructions' => $assessment->instructions,
                 'total_score' => $assessment->total_score,
                 'attempt_number' => $attempt['attempt_number'],
                 'questions' => $assessment->questions->map(fn ($question): array => [
@@ -141,6 +147,7 @@ class AssessmentController extends Controller
     public function results(Request $request, Assessment $assessment, GetResults $getResults): Response
     {
         Gate::authorize('viewResults', $assessment);
+        $assessment->load('questions');
         $studentId = $request->user()->hasRole('estudiante')
             ? Student::query()->where('user_id', $request->user()->id)->firstOrFail()->id
             : null;
@@ -150,7 +157,12 @@ class AssessmentController extends Controller
             'assessment' => [
                 'id' => $assessment->id,
                 'title' => $assessment->title,
+                'instructions' => $assessment->instructions,
                 'total_score' => $assessment->total_score,
+                'questions' => $assessment->questions->map(fn ($question): array => [
+                    'id' => $question->id,
+                    'statement' => $question->statement,
+                ])->all(),
             ],
             ...$data,
         ]);

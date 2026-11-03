@@ -25,6 +25,8 @@ class Lesson extends Model
         return [
             'position' => 'integer',
             'is_archived' => 'boolean',
+            'content' => 'array',
+            'lock_version' => 'integer',
         ];
     }
 

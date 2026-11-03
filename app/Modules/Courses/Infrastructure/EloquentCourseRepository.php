@@ -10,6 +10,7 @@ use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Courses\Infrastructure\Models\Lesson;
 use App\Modules\Courses\Infrastructure\Models\Unit;
 use App\Shared\Exceptions\DomainException;
+use App\Shared\Exceptions\StaleContentVersionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -20,14 +21,26 @@ final class EloquentCourseRepository implements CourseRepository
         return Course::query()->create($attributes)->id;
     }
 
-    public function updateCourse(int $courseId, array $attributes): void
+    public function updateCourse(int $courseId, int $expectedVersion, array $attributes): void
     {
-        Course::query()->findOrFail($courseId)->update($attributes);
+        $updated = Course::query()
+            ->whereKey($courseId)
+            ->where('lock_version', $expectedVersion)
+            ->update([...$attributes, 'lock_version' => DB::raw('lock_version + 1')]);
+
+        if ($updated !== 1) {
+            throw new StaleContentVersionException(
+                'El contenido cambió desde que abriste esta página. Recarga para revisar los cambios.',
+            );
+        }
     }
 
     public function setCourseStatus(int $courseId, CourseStatus $status): void
     {
-        Course::query()->findOrFail($courseId)->update(['status' => $status->value]);
+        Course::query()->findOrFail($courseId)->update([
+            'status' => $status->value,
+            'lock_version' => DB::raw('lock_version + 1'),
+        ]);
     }
 
     public function isPublished(int $courseId): bool
@@ -108,7 +121,10 @@ final class EloquentCourseRepository implements CourseRepository
 
         DB::transaction(function () use ($lessonIds): void {
             foreach ($lessonIds as $index => $lessonId) {
-                Lesson::query()->whereKey($lessonId)->update(['position' => $index + 1]);
+                Lesson::query()->whereKey($lessonId)->update([
+                    'position' => $index + 1,
+                    'lock_version' => DB::raw('lock_version + 1'),
+                ]);
             }
         });
     }
@@ -118,14 +134,26 @@ final class EloquentCourseRepository implements CourseRepository
         return Lesson::query()->create($attributes)->id;
     }
 
-    public function updateLesson(int $lessonId, array $attributes): void
+    public function updateLesson(int $lessonId, int $expectedVersion, array $attributes): void
     {
-        Lesson::query()->findOrFail($lessonId)->update($attributes);
+        $updated = Lesson::query()
+            ->whereKey($lessonId)
+            ->where('lock_version', $expectedVersion)
+            ->update([...$attributes, 'lock_version' => DB::raw('lock_version + 1')]);
+
+        if ($updated !== 1) {
+            throw new StaleContentVersionException(
+                'El contenido cambió desde que abriste esta página. Recarga para revisar los cambios.',
+            );
+        }
     }
 
     public function archiveLesson(int $lessonId): void
     {
-        Lesson::query()->findOrFail($lessonId)->update(['is_archived' => true]);
+        Lesson::query()->findOrFail($lessonId)->update([
+            'is_archived' => true,
+            'lock_version' => DB::raw('lock_version + 1'),
+        ]);
     }
 
     public function deleteLesson(int $lessonId): void

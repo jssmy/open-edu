@@ -6,7 +6,9 @@ import Alert from '@/design-system/Alert.vue';
 import Button from '@/design-system/Button.vue';
 import FormField from '@/design-system/FormField.vue';
 import Input from '@/design-system/Input.vue';
-import Textarea from '@/design-system/Textarea.vue';
+import RichTextEditor from '@/components/editor/RichTextEditor.vue';
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard';
+import { emptyRichTextDocument, type RichTextDocument } from '@/types/richText';
 
 interface Choice {
     id?: number;
@@ -16,7 +18,7 @@ interface Choice {
 
 interface Question {
     id?: number;
-    statement: string;
+    statement: RichTextDocument;
     points: number;
     choices: Choice[];
 }
@@ -24,9 +26,11 @@ interface Question {
 interface Assessment {
     id: number;
     title: string;
+    instructions: RichTextDocument | null;
     max_attempts: number;
     passing_score: number;
     is_published: boolean;
+    lock_version: number;
     questions: Question[];
 }
 
@@ -37,7 +41,7 @@ const props = defineProps<{
 
 function emptyQuestion(): Question {
     return {
-        statement: '',
+        statement: emptyRichTextDocument(),
         points: 1,
         choices: [
             { text: '', is_correct: true },
@@ -48,8 +52,10 @@ function emptyQuestion(): Question {
 
 const form = useForm({
     title: props.assessment?.title ?? '',
+    instructions: props.assessment?.instructions ?? null,
     max_attempts: props.assessment?.max_attempts ?? 1,
     passing_score: props.assessment?.passing_score ?? 0,
+    lock_version: props.assessment?.lock_version ?? null,
     questions: props.assessment?.questions.map((question) => ({
         statement: question.statement,
         points: question.points,
@@ -61,6 +67,13 @@ const form = useForm({
 });
 const statusMessage = ref('');
 const requestError = ref('');
+const isSubmitting = ref(false);
+
+useUnsavedChangesGuard(() => form.isDirty && !isSubmitting.value);
+
+function currentAssessmentVersion(): number | null {
+    return props.assessment?.lock_version ?? null;
+}
 
 function fieldError(path: string): string | undefined {
     return Object.entries(form.errors).find(([key]) => key === path)?.[1];
@@ -95,19 +108,49 @@ function chooseCorrect(question: Question, choiceIndex: number) {
 function saveAssessment() {
     requestError.value = '';
     statusMessage.value = '';
+    isSubmitting.value = true;
+    const isCreatingAssessment = props.assessment === null;
     const options = {
         preserveScroll: true,
+        onFinish: () => {
+            isSubmitting.value = false;
+        },
         onSuccess: () => {
-            statusMessage.value = props.assessment ? 'Evaluación actualizada.' : 'Evaluación guardada.';
+            if (isCreatingAssessment) {
+                form.lock_version = currentAssessmentVersion();
+            }
+
+            form.defaults();
+            statusMessage.value = isCreatingAssessment ? 'Evaluación guardada.' : 'Evaluación actualizada.';
         },
         onError: (errors: Record<string, string>) => {
             requestError.value = errors.questions ?? errors.general ?? 'Revisa los datos de la evaluación.';
         },
+        onHttpException: (response: { status: number }) => {
+            if (response.status !== 409) {
+                return;
+            }
+
+            requestError.value =
+                'Esta evaluación fue actualizada por otra persona. Tus cambios siguen aquí; copia tu contenido y recarga para revisar la versión más reciente.';
+
+            return false;
+        },
     };
 
     if (props.assessment) {
+        form.transform(({ lock_version, ...data }) => ({
+            ...data,
+            lock_version: lock_version ?? 0,
+        }));
         form.put(`/assessments/${props.assessment.id}`, options);
     } else {
+        form.transform((data) => {
+            const payload = { ...data };
+            Reflect.deleteProperty(payload, 'lock_version');
+
+            return payload;
+        });
         form.post(`/courses/${props.course.id}/assessments`, options);
     }
 }
@@ -125,6 +168,8 @@ function publishAssessment() {
         {
             preserveScroll: true,
             onSuccess: () => {
+                form.lock_version = currentAssessmentVersion() ?? form.lock_version;
+                form.defaults();
                 statusMessage.value = 'Evaluación publicada.';
             },
             onError: (errors) => {
@@ -153,11 +198,17 @@ function publishAssessment() {
                 <Button
                     v-if="assessment && !assessment.is_published"
                     variant="secondary"
-                    :disabled="form.processing"
+                    :disabled="form.processing || form.isDirty"
                     @click="publishAssessment"
                 >
                     Publicar evaluación
                 </Button>
+                <p
+                    v-if="assessment && !assessment.is_published && form.isDirty"
+                    class="basis-full text-sm text-text-muted"
+                >
+                    Guarda los cambios antes de publicar la evaluación.
+                </p>
             </header>
 
             <Alert v-if="requestError" variant="danger" role="alert">{{ requestError }}</Alert>
@@ -194,6 +245,16 @@ function publishAssessment() {
                     </FormField>
                 </section>
 
+                <FormField id="assessment-instructions" label="Instrucciones">
+                    <RichTextEditor
+                        id="assessment-instructions"
+                        v-model="form.instructions"
+                        label="Instrucciones de la evaluación"
+                        :course-id="course.id"
+                        :error="form.errors.instructions"
+                    />
+                </FormField>
+
                 <section class="flex flex-col gap-4" aria-labelledby="questions-heading">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 id="questions-heading" class="text-xl font-semibold">Preguntas</h2>
@@ -219,14 +280,12 @@ function publishAssessment() {
                             </Button>
                         </div>
                         <div class="grid gap-4 md:grid-cols-[1fr_10rem]">
-                            <FormField
-                                :id="`question-${questionIndex}-statement`"
-                                label="Enunciado"
-                                :error="fieldError(`questions.${questionIndex}.statement`)"
-                            >
-                                <Textarea
+                            <FormField :id="`question-${questionIndex}-statement`" label="Enunciado">
+                                <RichTextEditor
                                     :id="`question-${questionIndex}-statement`"
                                     v-model="question.statement"
+                                    :label="`Enunciado de la pregunta ${questionIndex + 1}`"
+                                    :course-id="course.id"
                                     :error="fieldError(`questions.${questionIndex}.statement`)"
                                 />
                             </FormField>

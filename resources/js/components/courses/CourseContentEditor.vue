@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { router, Link, useForm } from '@inertiajs/vue3';
 import Button from '@/design-system/Button.vue';
 import FormField from '@/design-system/FormField.vue';
 import Input from '@/design-system/Input.vue';
-import Select from '@/design-system/Select.vue';
-import Textarea from '@/design-system/Textarea.vue';
 import { archiveLesson, removeLesson, reorderLessons, reorderUnits } from '@/services/courses';
+import type { RichTextDocument } from '@/types/richText';
 
 interface Lesson {
     id: number;
     title: string;
     position: number;
-    content_type: string;
-    content: string | null;
+    content_type: 'text' | 'document' | 'image' | 'link' | 'video';
+    content: RichTextDocument | string | null;
     is_archived: boolean;
 }
 
@@ -26,21 +24,6 @@ interface Unit {
 
 const props = defineProps<{ courseId: number; units: Unit[]; canManageContent: boolean }>();
 const unitForm = useForm({ title: '', position: 1 });
-const lessonForm = useForm({
-    title: '',
-    position: 1,
-    content_type: 'text',
-    content: '',
-    file: null as InstanceType<typeof globalThis.File> | null,
-});
-const addingLessonFor = ref<number | null>(null);
-const contentOptions = [
-    { value: 'text', label: 'Texto' },
-    { value: 'link', label: 'Enlace' },
-    { value: 'document', label: 'Documento' },
-    { value: 'image', label: 'Imagen' },
-    { value: 'video', label: 'Video' },
-];
 
 function createUnit() {
     unitForm.position = props.units.length + 1;
@@ -50,22 +33,13 @@ function createUnit() {
     });
 }
 
-function createLesson(unit: Unit) {
-    lessonForm.position = unit.lessons.length + 1;
-    lessonForm.post(`/units/${unit.id}/lessons`, {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            lessonForm.reset();
-            addingLessonFor.value = null;
-        },
-    });
-}
-
 function moveUnit(index: number, offset: number) {
     const unitIds = props.units.map((unit) => unit.id);
     const target = index + offset;
-    if (target < 0 || target >= unitIds.length) return;
+    if (target < 0 || target >= unitIds.length) {
+        return;
+    }
+
     [unitIds[index], unitIds[target]] = [unitIds[target], unitIds[index]];
     reorderUnits(unitIds);
 }
@@ -73,7 +47,10 @@ function moveUnit(index: number, offset: number) {
 function moveLesson(unit: Unit, index: number, offset: number) {
     const lessonIds = unit.lessons.map((lesson) => lesson.id);
     const target = index + offset;
-    if (target < 0 || target >= lessonIds.length) return;
+    if (target < 0 || target >= lessonIds.length) {
+        return;
+    }
+
     [lessonIds[index], lessonIds[target]] = [lessonIds[target], lessonIds[index]];
     reorderLessons(lessonIds);
 }
@@ -84,10 +61,38 @@ function deleteUnit(unitId: number) {
     }
 }
 
+function archive(lessonId: number) {
+    archiveLesson(lessonId);
+}
+
+function remove(lessonId: number) {
+    removeLesson(lessonId);
+}
+
 function lessonContentLabel(lesson: Lesson): string {
-    if (lesson.content_type === 'text') return lesson.content ?? '';
-    if (lesson.content_type === 'link' || lesson.content_type === 'video') return lesson.content ?? '';
-    return lesson.content?.split('/').at(-1) ?? 'Archivo adjunto';
+    if (lesson.content_type === 'text') {
+        return documentText(lesson.content);
+    }
+
+    if (lesson.content_type === 'link' || lesson.content_type === 'video') {
+        return typeof lesson.content === 'string' ? lesson.content : '';
+    }
+
+    return typeof lesson.content === 'string'
+        ? (lesson.content.split('/').at(-1) ?? 'Archivo adjunto')
+        : 'Archivo adjunto';
+}
+
+function documentText(content: Lesson['content']): string {
+    if (content === null || typeof content === 'string') {
+        return content ?? '';
+    }
+
+    return content.content
+        .flatMap((node) =>
+            node.type === 'text' ? [node.text ?? ''] : (node.content?.map((child) => child.text ?? '') ?? []),
+        )
+        .join('');
 }
 </script>
 
@@ -95,8 +100,17 @@ function lessonContentLabel(lesson: Lesson): string {
     <section>
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold">Unidades y lecciones</h2>
-            <form v-if="canManageContent" class="flex items-end gap-2" @submit.prevent="createUnit">
-                <FormField id="new-unit-title" label="Nueva unidad" :error="unitForm.errors.title">
+            <form
+                v-if="canManageContent"
+                class="flex w-full flex-wrap items-end gap-2 sm:w-auto"
+                @submit.prevent="createUnit"
+            >
+                <FormField
+                    id="new-unit-title"
+                    label="Nueva unidad"
+                    :error="unitForm.errors.title"
+                    class="min-w-0 flex-1"
+                >
                     <Input id="new-unit-title" v-model="unitForm.title" :error="unitForm.errors.title" />
                 </FormField>
                 <Button type="submit" :loading="unitForm.processing">Agregar unidad</Button>
@@ -116,7 +130,7 @@ function lessonContentLabel(lesson: Lesson): string {
                 :key="unit.id"
                 class="rounded-card border border-border bg-panel p-4"
             >
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <h3 class="font-semibold">{{ unit.position }}. {{ unit.title }}</h3>
                     <template v-if="canManageContent">
                         <Button
@@ -149,7 +163,13 @@ function lessonContentLabel(lesson: Lesson): string {
                             </p>
                             <p class="text-sm text-text-muted">{{ lessonContentLabel(lesson) }}</p>
                         </div>
-                        <div v-if="canManageContent" class="flex gap-2">
+                        <div v-if="canManageContent" class="flex flex-wrap gap-2">
+                            <Link
+                                :href="`/lessons/${lesson.id}/edit`"
+                                class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-3 text-sm font-medium text-text transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                                Editar
+                            </Link>
                             <Button
                                 variant="secondary"
                                 :disabled="lessonIndex === 0"
@@ -167,75 +187,22 @@ function lessonContentLabel(lesson: Lesson): string {
                             <Button
                                 v-if="!lesson.is_archived"
                                 variant="secondary"
-                                @click="archiveLesson(lesson.id)"
+                                @click="archive(lesson.id)"
                             >
                                 Archivar
                             </Button>
-                            <Button variant="danger" @click="removeLesson(lesson.id)">Eliminar</Button>
+                            <Button variant="danger" @click="remove(lesson.id)">Eliminar</Button>
                         </div>
                     </li>
                 </ul>
 
                 <div v-if="canManageContent" class="mt-3">
-                    <Button
-                        variant="secondary"
-                        @click="addingLessonFor = addingLessonFor === unit.id ? null : unit.id"
+                    <Link
+                        :href="`/units/${unit.id}/lessons/create`"
+                        class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-4 text-sm font-medium text-text transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                         Agregar lección
-                    </Button>
-                    <form
-                        v-if="addingLessonFor === unit.id"
-                        class="mt-3 grid gap-3 rounded-card bg-surface p-4 md:grid-cols-2"
-                        @submit.prevent="createLesson(unit)"
-                    >
-                        <FormField id="lesson-title" label="Título" :error="lessonForm.errors.title">
-                            <Input
-                                id="lesson-title"
-                                v-model="lessonForm.title"
-                                :error="lessonForm.errors.title"
-                            />
-                        </FormField>
-                        <FormField
-                            id="lesson-type"
-                            label="Tipo de contenido"
-                            :error="lessonForm.errors.content_type"
-                        >
-                            <Select
-                                id="lesson-type"
-                                v-model="lessonForm.content_type"
-                                :options="contentOptions"
-                            />
-                        </FormField>
-                        <FormField
-                            v-if="['text', 'link', 'video'].includes(lessonForm.content_type)"
-                            id="lesson-content"
-                            label="Contenido o URL"
-                            :error="lessonForm.errors.content"
-                        >
-                            <Textarea
-                                id="lesson-content"
-                                v-model="lessonForm.content"
-                                :error="lessonForm.errors.content"
-                            />
-                        </FormField>
-                        <FormField
-                            v-if="['document', 'image', 'video'].includes(lessonForm.content_type)"
-                            id="lesson-file"
-                            label="Archivo"
-                            :error="lessonForm.errors.file"
-                        >
-                            <input
-                                id="lesson-file"
-                                type="file"
-                                @input="
-                                    lessonForm.file = ($event.target as HTMLInputElement).files?.[0] ?? null
-                                "
-                            />
-                        </FormField>
-                        <div class="md:col-span-2">
-                            <Button type="submit" :loading="lessonForm.processing">Guardar lección</Button>
-                        </div>
-                    </form>
+                    </Link>
                 </div>
             </li>
         </ol>

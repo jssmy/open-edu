@@ -26,7 +26,7 @@ it('allows submitting an attempt started before the course was deactivated', fun
         'is_published' => true,
     ]);
     $question = $assessment->questions()->create([
-        'statement' => 'Pregunta',
+        'statement' => richTextDocument('Pregunta'),
         'points' => 1,
         'position' => 1,
     ]);

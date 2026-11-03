@@ -10,9 +10,11 @@ use App\Modules\Courses\Application\DeleteCourse;
 use App\Modules\Courses\Application\SetCourseStatus;
 use App\Modules\Courses\Application\UpdateCourse;
 use App\Modules\Courses\Domain\CourseStatus;
+use App\Modules\Courses\Domain\IntroductoryVideo;
 use App\Modules\Courses\Infrastructure\Http\Requests\AssignCourseTeachersRequest;
 use App\Modules\Courses\Infrastructure\Http\Requests\SaveCourseRequest;
 use App\Modules\Courses\Infrastructure\Models\Course;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +41,7 @@ class CourseController extends Controller
                 'name' => $course->name,
                 'description' => $course->description,
                 'objectives' => $course->objectives,
+                'intro_video_url' => $course->introVideoUrl(),
                 'status' => $course->status,
                 'teachers' => $course->teachers->map(fn ($teacher): array => [
                     'id' => $teacher->id,
@@ -49,6 +52,31 @@ class CourseController extends Controller
         return Inertia::render('Courses/Index', [
             'courses' => $courses,
             'canManageCourses' => $request->user()->can('courses.manage'),
+        ]);
+    }
+
+    public function create(): Response
+    {
+        Gate::authorize('courses.manage');
+
+        return Inertia::render('Courses/Edit', [
+            'course' => null,
+        ]);
+    }
+
+    public function edit(Course $course): Response
+    {
+        Gate::authorize('courses.manage');
+
+        return Inertia::render('Courses/Edit', [
+            'course' => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'description' => $course->description,
+                'objectives' => $course->objectives,
+                'intro_video_url' => $course->introVideoUrl(),
+                'lock_version' => $course->lock_version,
+            ],
         ]);
     }
 
@@ -68,7 +96,10 @@ class CourseController extends Controller
                 'name' => $course->name,
                 'description' => $course->description,
                 'objectives' => $course->objectives,
+                'intro_video_url' => $course->introVideoUrl(),
+                'intro_video_embed_url' => $course->introVideoEmbedUrl(),
                 'status' => $course->status,
+                'lock_version' => $course->lock_version,
                 'teachers' => $course->teachers->map(fn ($teacher): array => [
                     'id' => $teacher->id,
                     'name' => $teacher->name,
@@ -84,6 +115,7 @@ class CourseController extends Controller
                         'content_type' => $lesson->content_type,
                         'content' => $lesson->content,
                         'is_archived' => $lesson->is_archived,
+                        'lock_version' => $lesson->lock_version,
                     ])->all(),
                 ])->all(),
                 'assessments' => $course->assessments->map(fn ($assessment): array => [
@@ -105,14 +137,21 @@ class CourseController extends Controller
 
     public function store(SaveCourseRequest $request, CreateCourse $create): RedirectResponse
     {
-        $create($request->validated());
+        $courseId = $create($this->normalizeCourseAttributes($request->validated()));
 
-        return to_route('courses.index')->with('success', 'Curso creado.');
+        return to_route('courses.show', $courseId)->with('success', 'Curso creado.');
     }
 
-    public function update(SaveCourseRequest $request, Course $course, UpdateCourse $update): RedirectResponse
-    {
-        $update($course->id, $request->validated());
+    public function update(
+        SaveCourseRequest $request,
+        Course $course,
+        UpdateCourse $update,
+    ): RedirectResponse|JsonResponse {
+        $attributes = $request->validated();
+        $expectedVersion = (int) $attributes['lock_version'];
+        unset($attributes['lock_version']);
+
+        $update($course->id, $expectedVersion, $this->normalizeCourseAttributes($attributes));
 
         return to_route('courses.show', $course)->with('success', 'Curso actualizado.');
     }
@@ -141,5 +180,21 @@ class CourseController extends Controller
         $assignTeachers($course->id, $request->validated('teachers'));
 
         return to_route('courses.show', $course)->with('success', 'Docentes asignados.');
+    }
+
+    /**
+     * @param  array{name: string, description?: array|null, objectives?: array|null, intro_video_url?: string|null}  $attributes
+     * @return array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null}
+     */
+    private function normalizeCourseAttributes(array $attributes): array
+    {
+        $video = IntroductoryVideo::fromUrl($attributes['intro_video_url'] ?? null);
+        unset($attributes['intro_video_url']);
+
+        return [
+            ...$attributes,
+            'intro_video_provider' => $video?->provider,
+            'intro_video_id' => $video?->id,
+        ];
     }
 }

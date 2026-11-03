@@ -9,20 +9,23 @@ import Card from '@/design-system/Card.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
 import ProgressBar from '@/components/progress/ProgressBar.vue';
 import Spinner from '@/design-system/Spinner.vue';
+import RichTextContent from '@/components/editor/RichTextContent.vue';
+import type { RichTextDocument } from '@/types/richText';
 
 interface Lesson {
     id: number;
     title: string;
     position: number;
     content_type: 'text' | 'document' | 'image' | 'link' | 'video';
-    content: string | null;
+    content: RichTextDocument | string | null;
     is_completed: boolean;
 }
 
 interface Course {
     id: number;
     name: string;
-    description: string | null;
+    description: RichTextDocument | null;
+    intro_video_embed_url: string | null;
     units: {
         id: number;
         title: string;
@@ -68,13 +71,21 @@ function storedContentUrl(lesson: Lesson): string {
     return `/lessons/${lesson.id}/content`;
 }
 
-function externalUrl(content: string | null): string | null {
-    if (content === null || !globalThis.URL.canParse(content)) {
+function externalUrl(content: Lesson['content']): string | null {
+    if (typeof content !== 'string' || !globalThis.URL.canParse(content)) {
         return null;
     }
 
     const url = new globalThis.URL(content);
     return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+}
+
+function isRichTextDocument(content: Lesson['content']): content is RichTextDocument {
+    return content !== null && typeof content === 'object' && content.type === 'doc';
+}
+
+function isStoredContent(content: Lesson['content']): boolean {
+    return typeof content === 'string' && content.startsWith('courses/');
 }
 </script>
 
@@ -89,12 +100,41 @@ function externalUrl(content: string | null): string | null {
                 <Link href="/my/results" class="text-sm text-primary hover:underline"> Mis resultados </Link>
                 <Link href="/my/progress" class="text-sm text-primary hover:underline"> Mi progreso </Link>
                 <h1 class="text-2xl font-semibold">{{ course.name }}</h1>
-                <p v-if="course.description" class="text-sm text-text-muted">{{ course.description }}</p>
+                <RichTextContent
+                    v-if="course.description"
+                    :content="course.description"
+                    label="Descripción del curso"
+                />
             </div>
             <span class="text-sm text-text-muted">
                 {{ course.progress.completed_lessons }} de {{ course.progress.total_lessons }} lecciones
             </span>
         </div>
+
+        <section
+            v-if="course.intro_video_embed_url"
+            class="mb-6"
+            aria-labelledby="study-course-video-heading"
+        >
+            <h2 id="study-course-video-heading" class="mb-3 text-lg font-semibold">Presentación del curso</h2>
+            <iframe
+                :src="course.intro_video_embed_url"
+                :title="`Video de presentación: ${course.name}`"
+                referrerpolicy="no-referrer"
+                allow="
+                    accelerometer;
+                    autoplay;
+                    clipboard-write;
+                    encrypted-media;
+                    gyroscope;
+                    picture-in-picture;
+                    web-share;
+                "
+                allowfullscreen
+                loading="lazy"
+                class="aspect-video w-full rounded-card border border-border"
+            />
+        </section>
 
         <Card class="mb-6 flex flex-col gap-2">
             <div class="flex justify-between gap-3 text-sm font-medium">
@@ -126,19 +166,19 @@ function externalUrl(content: string | null): string | null {
                         </Badge>
                     </div>
 
-                    <p v-if="lesson.content_type === 'text' && lesson.content" class="whitespace-pre-wrap">
-                        {{ lesson.content }}
-                    </p>
+                    <RichTextContent
+                        v-if="lesson.content_type === 'text' && isRichTextDocument(lesson.content)"
+                        :content="lesson.content"
+                        :label="`Contenido de ${lesson.title}`"
+                    />
                     <img
-                        v-else-if="lesson.content_type === 'image' && lesson.content?.startsWith('courses/')"
+                        v-else-if="lesson.content_type === 'image' && isStoredContent(lesson.content)"
                         :src="storedContentUrl(lesson)"
                         :alt="lesson.title"
                         class="max-h-[32rem] w-full rounded-card object-contain"
                     />
                     <a
-                        v-else-if="
-                            lesson.content_type === 'document' && lesson.content?.startsWith('courses/')
-                        "
+                        v-else-if="lesson.content_type === 'document' && isStoredContent(lesson.content)"
                         :href="storedContentUrl(lesson)"
                         target="_blank"
                         rel="noopener noreferrer"
@@ -147,7 +187,7 @@ function externalUrl(content: string | null): string | null {
                         Abrir documento
                     </a>
                     <video
-                        v-else-if="lesson.content_type === 'video' && lesson.content?.startsWith('courses/')"
+                        v-else-if="lesson.content_type === 'video' && isStoredContent(lesson.content)"
                         :src="storedContentUrl(lesson)"
                         controls
                         class="w-full rounded-card"

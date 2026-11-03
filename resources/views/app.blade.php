@@ -6,7 +6,7 @@
     @vite('resources/js/app.ts')
     @inertiaHead
 </head>
-<body class="bg-surface text-text antialiased">
+<body class="bg-surface font-sans text-text antialiased">
     @inertia
 </body>
 </html>

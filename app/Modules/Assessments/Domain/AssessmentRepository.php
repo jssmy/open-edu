@@ -7,10 +7,11 @@ interface AssessmentRepository
     /**
      * @param array{
      *     title: string,
+     *     instructions: array|null,
      *     max_attempts: int,
      *     passing_score: int,
      *     questions: list<array{
-     *         statement: string,
+     *         statement: array,
      *         points: int,
      *         choices: list<array{text: string, is_correct: bool}>
      *     }>
@@ -21,16 +22,17 @@ interface AssessmentRepository
     /**
      * @param array{
      *     title: string,
+     *     instructions: array|null,
      *     max_attempts: int,
      *     passing_score: int,
      *     questions: list<array{
-     *         statement: string,
+     *         statement: array,
      *         points: int,
      *         choices: list<array{text: string, is_correct: bool}>
      *     }>
      * } $attributes
      */
-    public function update(int $assessmentId, array $attributes): void;
+    public function update(int $assessmentId, int $expectedVersion, array $attributes): void;
 
     public function publish(int $assessmentId): void;
 

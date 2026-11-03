@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Identity\Domain\Role;
+use App\Shared\RichText\RichTextDocumentValidator;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,4 +21,12 @@ function userWithRole(Role $role, array $attributes = []): User
     $user->assignRole($role->value);
 
     return $user;
+}
+
+/**
+ * @return array{type: 'doc', content: list<array{type: 'paragraph', content: list<array{type: 'text', text: string}>}>}
+ */
+function richTextDocument(string $text): array
+{
+    return RichTextDocumentValidator::fromPlainText($text);
 }

@@ -1,10 +1,10 @@
 <?php
 
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Modules\Courses\Infrastructure\Models\Lesson;
 use App\Modules\Courses\Infrastructure\Models\Unit;
 use App\Modules\Identity\Domain\Role;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 it('stores an accepted document upload for a lesson', function () {
@@ -25,7 +25,7 @@ it('stores an accepted document upload for a lesson', function () {
         'file' => UploadedFile::fake()->createWithContent('guia.pdf', 'contenido PDF'),
     ])->assertRedirect();
 
-    $path = DB::table('lessons')->value('content');
+    $path = Lesson::query()->sole()->content;
     expect($path)->toBeString();
     Storage::disk('local')->assertExists($path);
 });

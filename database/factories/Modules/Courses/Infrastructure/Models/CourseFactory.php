@@ -21,8 +21,20 @@ class CourseFactory extends Factory
     {
         return [
             'name' => fake()->sentence(3),
-            'description' => fake()->paragraph(),
-            'objectives' => fake()->paragraph(),
+            'description' => [
+                'type' => 'doc',
+                'content' => [[
+                    'type' => 'paragraph',
+                    'content' => [['type' => 'text', 'text' => fake()->paragraph()]],
+                ]],
+            ],
+            'objectives' => [
+                'type' => 'doc',
+                'content' => [[
+                    'type' => 'paragraph',
+                    'content' => [['type' => 'text', 'text' => fake()->paragraph()]],
+                ]],
+            ],
             'status' => 'draft',
         ];
     }

@@ -37,16 +37,16 @@ class ManageCourseContent
         $this->courses->reorderLessons($lessonIds);
     }
 
-    /** @param array{unit_id: int, title: string, position: int, content_type: string, content: ?string} $attributes */
+    /** @param array{unit_id: int, title: string, position: int, content_type: string, content: array|string|null} $attributes */
     public function createLesson(array $attributes): int
     {
         return $this->courses->createLesson($attributes);
     }
 
-    /** @param array{title: string, position: int, content_type: string, content: ?string} $attributes */
-    public function updateLesson(int $lessonId, array $attributes): void
+    /** @param array{title: string, position: int, content_type: string, content: array|string|null} $attributes */
+    public function updateLesson(int $lessonId, int $expectedVersion, array $attributes): void
     {
-        $this->courses->updateLesson($lessonId, $attributes);
+        $this->courses->updateLesson($lessonId, $expectedVersion, $attributes);
     }
 
     public function archiveLesson(int $lessonId): void

@@ -1,47 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Badge from '@/design-system/Badge.vue';
-import Button from '@/design-system/Button.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
-import FormField from '@/design-system/FormField.vue';
-import Input from '@/design-system/Input.vue';
-import Modal from '@/design-system/Modal.vue';
-import Textarea from '@/design-system/Textarea.vue';
 import { useCourses } from '@/composables/useCourses';
 
 interface CourseRow {
     id: number;
     name: string;
-    description: string | null;
-    objectives: string | null;
     status: 'draft' | 'published' | 'deactivated';
     teachers: { id: number; name: string }[];
 }
 
 defineProps<{ courses: CourseRow[]; canManageCourses: boolean }>();
 const { statusLabel, statusVariant } = useCourses();
-const creating = ref(false);
-const form = useForm({ name: '', description: '', objectives: '' });
-
-function createCourse() {
-    form.post('/courses', {
-        preserveScroll: true,
-        onSuccess: () => {
-            creating.value = false;
-            form.reset();
-        },
-    });
-}
 </script>
 
 <template>
     <Head title="Cursos" />
     <AppLayout>
-        <div class="mb-4 flex items-center justify-between">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h1 class="text-xl font-semibold">Cursos</h1>
-            <Button v-if="canManageCourses" @click="creating = true">Nuevo curso</Button>
+            <Link
+                v-if="canManageCourses"
+                href="/courses/create"
+                class="inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+                Nuevo curso
+            </Link>
         </div>
 
         <EmptyState
@@ -68,23 +54,5 @@ function createCourse() {
                 </div>
             </li>
         </ul>
-
-        <Modal :open="creating" title="Nuevo curso" @close="creating = false">
-            <form id="create-course" class="flex flex-col gap-3" @submit.prevent="createCourse">
-                <FormField id="name" label="Nombre" :error="form.errors.name">
-                    <Input id="name" v-model="form.name" :error="form.errors.name" />
-                </FormField>
-                <FormField id="description" label="Descripción" :error="form.errors.description">
-                    <Textarea id="description" v-model="form.description" :error="form.errors.description" />
-                </FormField>
-                <FormField id="objectives" label="Objetivos" :error="form.errors.objectives">
-                    <Textarea id="objectives" v-model="form.objectives" :error="form.errors.objectives" />
-                </FormField>
-            </form>
-            <template #actions>
-                <Button variant="secondary" @click="creating = false">Cancelar</Button>
-                <Button type="submit" :loading="form.processing" @click="createCourse">Crear curso</Button>
-            </template>
-        </Modal>
     </AppLayout>
 </template>

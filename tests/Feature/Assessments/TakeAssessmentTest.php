@@ -28,7 +28,7 @@ it('grades a submitted attempt and shows its result', function () {
         'is_published' => true,
     ]);
     $question = $assessment->questions()->create([
-        'statement' => '¿Qué estudia la biología?',
+        'statement' => richTextDocument('¿Qué estudia la biología?'),
         'points' => 2,
         'position' => 1,
     ]);
@@ -45,7 +45,7 @@ it('grades a submitted attempt and shows its result', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('Assessments/Take')
             ->where('assessment.id', $assessment->id)
-            ->where('assessment.questions.0.statement', '¿Qué estudia la biología?')
+            ->where('assessment.questions.0.statement.content.0.content.0.text', '¿Qué estudia la biología?')
             ->missing('assessment.questions.0.choices.0.is_correct'));
     $this->actingAs($user)->get("/assessments/{$assessment->id}/take")->assertOk();
 
@@ -95,7 +95,7 @@ it('uses the latest submitted attempt as the official result', function () {
         'is_published' => true,
     ]);
     $question = $assessment->questions()->create([
-        'statement' => 'Pregunta',
+        'statement' => richTextDocument('Pregunta'),
         'points' => 1,
         'position' => 1,
     ]);
@@ -138,7 +138,7 @@ it('forbids starting another attempt after reaching the configured limit', funct
         'is_published' => true,
     ]);
     $question = $assessment->questions()->create([
-        'statement' => 'Pregunta',
+        'statement' => richTextDocument('Pregunta'),
         'points' => 1,
         'position' => 1,
     ]);

@@ -45,6 +45,7 @@ final class StudyController extends Controller
                 'title' => $assessment->title,
                 'total_score' => $assessment->total_score,
             ])->all();
+        $courseData['intro_video_embed_url'] = $course->introVideoEmbedUrl();
 
         return Inertia::render('Study/CourseViewer', ['course' => $courseData]);
     }
