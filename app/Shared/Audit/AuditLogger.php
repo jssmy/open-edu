@@ -7,7 +7,20 @@ use Illuminate\Support\Facades\DB;
 /** Registra eventos de auditoría; descarta cualquier dato sensible de los metadatos. */
 class AuditLogger implements Auditor
 {
-    private const SENSITIVE = ['password', 'password_confirmation', 'token', 'remember_token', 'current_password'];
+    private const SENSITIVE = [
+        'access_token',
+        'api_key',
+        'authorization',
+        'current_password',
+        'email',
+        'new_password',
+        'password',
+        'password_confirmation',
+        'refresh_token',
+        'remember_token',
+        'secret',
+        'token',
+    ];
 
     /** @param array<string, mixed> $metadata */
     public function log(string $event, ?int $userId = null, ?string $subject = null, array $metadata = []): void

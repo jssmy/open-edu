@@ -53,6 +53,8 @@ test('creates an assessment and lets an enrolled student submit it', async ({ pa
     await page.getByLabel('Descripción').fill('Curso para probar evaluaciones');
     await page.getByLabel('Objetivos').fill('Resolver una evaluación');
     await page.getByRole('button', { name: 'Crear curso' }).click();
+    await expect(page.getByText('Curso creado.')).toBeVisible();
+    await page.getByRole('link', { name: courseName }).click();
     await expect(page).toHaveURL(/\/courses\/\d+$/);
     const courseUrl = page.url();
 
@@ -64,12 +66,14 @@ test('creates an assessment and lets an enrolled student submit it', async ({ pa
     await page.getByLabel('Puntaje mínimo').fill('2');
     await page.getByLabel('Enunciado').fill('¿Qué estudia la biología?');
     await page.getByLabel('Puntaje', { exact: true }).fill('2');
-    await page.getByLabel('Alternativa 1').fill('Los seres vivos');
-    await page.getByLabel('Alternativa 2').fill('Los minerales');
+    await page.getByLabel('Alternativa 1', { exact: true }).fill('Los seres vivos');
+    await page.getByLabel('Alternativa 2', { exact: true }).fill('Los minerales');
     await page.getByRole('button', { name: 'Crear evaluación' }).click();
     await expect(page.getByRole('heading', { name: 'Editar evaluación' })).toBeVisible();
     await page.getByRole('button', { name: 'Publicar evaluación' }).click();
-    await expect(page.getByText('Evaluación publicada.')).toBeVisible();
+    await expect(
+        page.getByRole('status').filter({ hasText: 'Evaluación publicada.' }).first(),
+    ).toBeVisible();
 
     await page.goto(courseUrl);
     await page.getByRole('link', { name: 'Gestionar inscripciones' }).click();

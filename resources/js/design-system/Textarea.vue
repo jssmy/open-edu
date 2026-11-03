@@ -14,6 +14,7 @@ const model = defineModel<string | null>();
         :rows="rows"
         :disabled="disabled"
         :aria-invalid="!!error"
+        :aria-describedby="error ? `${id}-error` : undefined"
         class="w-full rounded-control border bg-panel px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         :class="error ? 'border-danger' : 'border-border'"
     />

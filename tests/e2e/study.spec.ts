@@ -13,8 +13,30 @@ async function signInAsAdmin(page: Page) {
     await page.getByLabel('Contraseña').fill(adminPassword);
     await page.getByRole('button', { name: 'Entrar' }).click();
 
+    const loginOutcome = await Promise.race([
+        page
+            .waitForURL(/\/(dashboard|password\/change)$/, { timeout: 10000 })
+            .then(() => 'authenticated' as const)
+            .catch(() => 'timeout' as const),
+        page
+            .getByRole('alert')
+            .waitFor({ state: 'visible', timeout: 10000 })
+            .then(() => 'invalid' as const)
+            .catch(() => 'timeout' as const),
+    ]);
+    let activePassword = adminPassword;
+
+    if (loginOutcome === 'invalid') {
+        activePassword = changedPassword;
+        await page.getByLabel('Contraseña').fill(activePassword);
+        await page.getByRole('button', { name: 'Entrar' }).click();
+        await expect(page).toHaveURL(/dashboard|password\/change/);
+    } else if (loginOutcome === 'timeout') {
+        throw new Error('Admin login did not reach an authenticated page or return a validation error.');
+    }
+
     if (page.url().includes('/password/change')) {
-        await page.getByLabel('Contraseña actual').fill(adminPassword);
+        await page.getByLabel('Contraseña actual').fill(activePassword);
         await page.getByLabel('Nueva contraseña').fill(changedPassword);
         await page.getByLabel('Confirmar contraseña').fill(changedPassword);
         await page.getByRole('button', { name: 'Guardar' }).click();
@@ -74,7 +96,7 @@ test('lets an enrolled student complete a lesson and see course progress', async
     await page.getByLabel('Nueva contraseña').fill(changedPassword);
     await page.getByLabel('Confirmar contraseña').fill(changedPassword);
     await page.getByRole('button', { name: 'Guardar' }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    await expect(page).toHaveURL(/my\/courses/);
 
     await page.goto('/my/courses');
     await page.getByRole('link', { name: courseName }).click();

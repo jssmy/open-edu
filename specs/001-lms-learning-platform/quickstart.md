@@ -11,9 +11,12 @@ PHP 8.3, Composer, Node 20+, PostgreSQL 16 en ejecución y archivo `.env` basado
 composer install && npm install
 php artisan key:generate
 php artisan migrate --seed   # crea roles, permisos y un Administrador inicial
+php artisan db:seed --class=DemoDataSeeder  # datos de ejemplo (opcional, seguro al repetir)
 npm run dev
 php artisan serve
 ```
+
+Las cuentas de demostración se crean con contraseñas aleatorias y requieren cambio de contraseña; un Administrador puede asignarles una contraseña antes de probar el acceso.
 
 ## Pruebas automáticas
 ```bash

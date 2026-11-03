@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Identity\Domain\Role;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 
 it('inicia y cierra sesión', function () {
@@ -18,6 +19,18 @@ it('rechaza credenciales inválidas con un mensaje genérico', function () {
 
     $this->post('/login', ['email' => $user->email, 'password' => 'incorrecta'])->assertSessionHasErrors('email');
     $this->assertGuest();
+});
+
+it('omits submitted email addresses from failed-login audit metadata', function () {
+    $email = 'persona-privada@example.test';
+
+    $this->post('/login', ['email' => $email, 'password' => 'incorrecta'])
+        ->assertSessionHasErrors('email');
+
+    $metadata = DB::table('audit_logs')->where('event', 'auth.failed')->value('metadata');
+
+    expect($metadata)->not->toBeNull();
+    expect((string) $metadata)->not->toContain($email);
 });
 
 it('rechaza a un usuario inactivo', function () {

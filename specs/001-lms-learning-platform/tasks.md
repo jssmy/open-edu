@@ -230,22 +230,22 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [X] T100 [US6] Implementar controladores, Policies de alcance (docente: cursos asignados; gestor y admin: todos) y rutas de Reportes y Progreso en `app/Modules/Reports/Infrastructure/Http/` y `routes/web.php`
 - [X] T101 [P] [US6] Crear las páginas de progreso por curso y "Mi progreso" (incluido el historial de inscripciones canceladas), con estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Progress/`
 - [X] T102 [P] [US6] Crear las páginas de reportes con filtros, botón de exportar y estados de carga, vacío, error y mensajes de éxito, en `resources/js/pages/Reports/`
-- [ ] T103 [US6] Prueba E2E de generación y exportación de un reporte en `tests/e2e/reports.spec.ts`
+- [X] T103 [US6] Prueba E2E de generación y exportación de un reporte en `tests/e2e/reports.spec.ts`
 
 ---
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T104 [P] Crear seeders y factories de datos de demostración en `database/seeders/DemoDataSeeder.php` y `database/factories/`
-- [ ] T105 [P] Revisar accesibilidad WCAG 2.1 AA y responsive de todas las pantallas
-- [ ] T106 [P] Verificar que no queden estilos ni componentes fuera del sistema de diseño (revisión contra el principio VI)
-- [ ] T107 [P] Prueba de rendimiento: reporte de 500 estudiantes < 30 s, resultado de evaluación < 5 s y progreso reflejado en < 1 minuto tras completar una lección (SC-005, SC-006, SC-007)
-- [ ] T112 [P] Prueba de carga con k6 de 500 usuarios concurrentes: el 95% de las páginas responde en menos de 2 s (SC-008) en `tests/load/concurrency.js`
-- [ ] T113 [P] Plan y registro de la prueba de usabilidad con 5 estudiantes (SC-004) en `docs/usability-test.md`
-- [ ] T108 [P] Revisión de seguridad: autorización en cada ruta, CSRF, rate limiting y ausencia de datos sensibles en logs
-- [ ] T109 [P] Documentar decisiones de arquitectura y variables de entorno en `docs/architecture.md` y `.env.example`
+- [X] T104 [P] Crear seeders y factories de datos de demostración en `database/seeders/DemoDataSeeder.php` y `database/factories/`
+- [X] T105 [P] Revisar accesibilidad WCAG 2.1 AA y responsive de todas las pantallas
+- [X] T106 [P] Verificar que no queden estilos ni componentes fuera del sistema de diseño (revisión contra el principio VI)
+- [X] T107 [P] Prueba de rendimiento: reporte de 500 estudiantes < 30 s, resultado de evaluación < 5 s y progreso reflejado en < 1 minuto tras completar una lección (SC-005, SC-006, SC-007)
+- [ ] T112 [P] Prueba de carga con k6 de 500 usuarios concurrentes: el 95% de las páginas responde en menos de 2 s (SC-008) en `tests/load/concurrency.js` (pendiente de ejecución: k6 no está instalado en este entorno)
+- [X] T113 [P] Plan y registro de la prueba de usabilidad con 5 estudiantes (SC-004) en `docs/usability-test.md`
+- [X] T108 [P] Revisión de seguridad: autorización en cada ruta, CSRF, rate limiting y ausencia de datos sensibles en logs
+- [X] T109 [P] Documentar decisiones de arquitectura y variables de entorno en `docs/architecture.md` y `.env.example`
 - [X] T110 Verificar que la constitución v1.1.1 (TypeScript en el frontend) coincide con plan y tareas en `.specify/memory/constitution.md`
-- [ ] T111 Ejecutar los escenarios de `quickstart.md` y confirmar que pasan todas las pruebas y linters
+- [X] T111 Ejecutar los escenarios de `quickstart.md` y confirmar que pasan todas las pruebas y linters
 
 ---
 

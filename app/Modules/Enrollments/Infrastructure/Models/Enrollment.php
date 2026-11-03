@@ -6,7 +6,10 @@ use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Enrollments\Domain\EnrollmentStatus;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Carbon\CarbonImmutable;
+use Database\Factories\Modules\Enrollments\Infrastructure\Models\EnrollmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -19,6 +22,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['student_id', 'course_id', 'status', 'enrolled_at'])]
 class Enrollment extends Model
 {
+    /** @use HasFactory<EnrollmentFactory> */
+    use HasFactory;
+
+    protected static function newFactory(): Factory
+    {
+        return EnrollmentFactory::new();
+    }
+
     protected function casts(): array
     {
         return [

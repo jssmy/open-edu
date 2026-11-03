@@ -1,9 +1,9 @@
 export const tokens = {
     colors: {
         primary: { DEFAULT: '#2563eb', hover: '#1d4ed8', soft: '#dbeafe' },
-        danger: { DEFAULT: '#dc2626', hover: '#b91c1c', soft: '#fee2e2' },
-        success: { DEFAULT: '#16a34a', soft: '#dcfce7' },
-        warning: { DEFAULT: '#d97706', soft: '#fef3c7' },
+        danger: { DEFAULT: '#b91c1c', hover: '#991b1b', soft: '#fee2e2' },
+        success: { DEFAULT: '#166534', soft: '#dcfce7' },
+        warning: { DEFAULT: '#92400e', soft: '#fef3c7' },
         surface: '#f8fafc',
         panel: '#ffffff',
         border: '#e2e8f0',

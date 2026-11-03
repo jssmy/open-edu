@@ -21,7 +21,10 @@ const links = computed(() =>
 <template>
     <div class="min-h-screen">
         <header class="border-b border-border bg-panel">
-            <nav class="mx-auto flex max-w-6xl items-center gap-6 px-gutter py-3" aria-label="Principal">
+            <nav
+                class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-gutter py-3 sm:gap-6"
+                aria-label="Principal"
+            >
                 <span class="font-semibold text-primary">Open Edu</span>
                 <Link v-for="l in links" :key="l.href" :href="l.href" class="text-sm hover:text-primary">{{
                     l.label

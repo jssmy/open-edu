@@ -29,7 +29,16 @@ export default [
     ...vue.configs['flat/recommended'],
     {
         files: ['**/*.vue'],
-        languageOptions: { parser: vueParser, parserOptions: { parser: ts.parser } },
+        languageOptions: {
+            parser: vueParser,
+            parserOptions: { parser: ts.parser },
+            globals: {
+                document: 'readonly',
+                HTMLElement: 'readonly',
+                HTMLDivElement: 'readonly',
+                KeyboardEvent: 'readonly',
+            },
+        },
     },
     {
         files: ['resources/js/**/*.{ts,vue}'],
