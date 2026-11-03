@@ -11,12 +11,19 @@ use App\Modules\Identity\Domain\Role;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class DemoDataSeeder extends Seeder
 {
+    public const DEMO_PASSWORD = 'password';
+
     public function run(): void
     {
+        if (app()->isProduction()) {
+            $this->command?->error('DemoDataSeeder no puede ejecutarse en producción.');
+
+            return;
+        }
+
         $this->call(RolesAndPermissionsSeeder::class);
 
         $teacher = $this->findOrCreateUser(
@@ -131,12 +138,12 @@ class DemoDataSeeder extends Seeder
 
     private function findOrCreateUser(string $name, string $email, Role $role): User
     {
-        $user = User::query()->firstOrCreate(
+        $user = User::query()->updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
-                'password' => Str::password(32),
-                'must_change_password' => true,
+                'password' => self::DEMO_PASSWORD,
+                'must_change_password' => false,
                 'is_active' => true,
             ],
         );

@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, useId, useTemplateRef, watch } from 'vue';
 
-const props = defineProps<{ open: boolean; title: string }>();
+const props = withDefaults(
+    defineProps<{
+        open: boolean;
+        title: string;
+        role?: 'dialog' | 'alertdialog';
+        descriptionId?: string;
+    }>(),
+    { role: 'dialog', descriptionId: undefined },
+);
 const emit = defineEmits<{ close: [] }>();
 
 const dialog = useTemplateRef<HTMLDivElement>('dialog');
@@ -84,16 +92,19 @@ onBeforeUnmount(() => {
     <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-text/50">
         <div
             ref="dialog"
-            role="dialog"
+            :role="role"
             aria-modal="true"
             :aria-labelledby="titleId"
+            :aria-describedby="descriptionId"
             tabindex="-1"
-            class="w-full max-w-md rounded-card bg-panel p-6 shadow-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            class="mx-4 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-card border border-border bg-panel p-6 shadow-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:mx-0 sm:p-7"
             @keydown="handleKeydown"
         >
-            <h2 :id="titleId" class="mb-4 text-lg font-semibold">{{ title }}</h2>
+            <slot name="header" :title-id="titleId">
+                <h2 :id="titleId" class="mb-4 text-lg font-semibold">{{ title }}</h2>
+            </slot>
             <slot />
-            <div class="mt-6 flex justify-end gap-2"><slot name="actions" /></div>
+            <div class="mt-6"><slot name="actions" /></div>
         </div>
     </div>
 </template>

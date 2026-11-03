@@ -4,12 +4,17 @@ import { mount } from '@vue/test-utils';
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard';
 
 const { router } = vi.hoisted(() => ({
-    router: { on: vi.fn() },
+    router: { on: vi.fn(), visit: vi.fn() },
 }));
 
+const { requestAlertDialog } = vi.hoisted(() => ({
+    requestAlertDialog: vi.fn(),
+}));
+
+vi.mock('@/composables/useAlertDialog', () => ({ requestAlertDialog }));
 vi.mock('@inertiajs/vue3', () => ({ router }));
 
-let visitGuard: ((event: unknown) => boolean | void) | undefined;
+let visitGuard: ((event: never) => boolean | void) | undefined;
 const unsubscribe = vi.fn();
 
 function mountGuard(isDirty: Ref<boolean>) {
@@ -28,12 +33,13 @@ describe('useUnsavedChangesGuard', () => {
     beforeEach(() => {
         visitGuard = undefined;
         unsubscribe.mockClear();
+        router.visit.mockClear();
+        requestAlertDialog.mockReset();
         router.on.mockImplementation((_event, callback) => {
             visitGuard = callback;
 
             return unsubscribe;
         });
-        vi.stubGlobal('confirm', vi.fn());
     });
 
     afterEach(() => {
@@ -43,25 +49,38 @@ describe('useUnsavedChangesGuard', () => {
     it('does not interrupt navigation when the form is clean', () => {
         const wrapper = mountGuard(ref(false));
 
-        expect(visitGuard?.({})).toBeUndefined();
-        expect(globalThis.confirm).not.toHaveBeenCalled();
+        expect(visitGuard?.({} as never)).toBeUndefined();
+        expect(requestAlertDialog).not.toHaveBeenCalled();
 
         wrapper.unmount();
     });
 
-    it('lets the user stay or confirm discarding before an Inertia visit', () => {
+    it('shows a custom warning and resumes the Inertia visit only after confirmation', async () => {
         const isDirty = ref(true);
         const wrapper = mountGuard(isDirty);
-        const confirm = vi.mocked(globalThis.confirm);
+        const url = new URL('/courses', window.location.origin);
+        const visit = { url };
+        const event = {
+            preventDefault: vi.fn(),
+            detail: { visit },
+        };
 
-        confirm.mockReturnValue(false);
-        expect(visitGuard?.({})).toBe(false);
+        requestAlertDialog.mockResolvedValueOnce(false);
+        expect(visitGuard?.(event as never)).toBe(false);
+        expect(event.preventDefault).toHaveBeenCalledOnce();
+        expect(requestAlertDialog).toHaveBeenCalledWith({
+            variant: 'warning',
+            title: '¿Salir sin guardar?',
+            message: 'Hay cambios sin guardar. Si sales ahora, perderás los cambios realizados.',
+            confirmLabel: 'Salir sin guardar',
+        });
+        await Promise.resolve();
+        expect(router.visit).not.toHaveBeenCalled();
 
-        confirm.mockReturnValue(true);
-        expect(visitGuard?.({})).toBe(true);
-        expect(confirm).toHaveBeenCalledWith(
-            'Hay cambios sin guardar. ¿Deseas quedarte en esta página? Selecciona Aceptar para descartar y salir.',
-        );
+        requestAlertDialog.mockResolvedValueOnce(true);
+        expect(visitGuard?.(event as never)).toBe(false);
+        await Promise.resolve();
+        expect(router.visit).toHaveBeenCalledWith(url, visit);
 
         wrapper.unmount();
     });

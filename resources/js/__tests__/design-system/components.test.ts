@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import Button from '@/design-system/Button.vue';
 import Input from '@/design-system/Input.vue';
 import Modal from '@/design-system/Modal.vue';
+import AlertDialog from '@/design-system/AlertDialog.vue';
 import Select from '@/design-system/Select.vue';
 import Textarea from '@/design-system/Textarea.vue';
 import Alert from '@/design-system/Alert.vue';
@@ -77,8 +78,50 @@ describe('design system', () => {
         expect(w.find('[role=alert]').text()).toBe('Inválido');
     });
 
-    it('Alert danger usa role alert', () => {
-        expect(mount(Alert, { props: { variant: 'danger' } }).attributes('role')).toBe('alert');
+    it('Alert muestra contenido accesible para cada variante', () => {
+        const variants = [
+            ['info', 'status'],
+            ['success', 'status'],
+            ['warning', 'status'],
+            ['danger', 'alert'],
+        ] as const;
+
+        for (const [variant, role] of variants) {
+            const alert = mount(Alert, {
+                props: { variant, title: 'Aviso' },
+                slots: { default: 'Detalles del aviso' },
+            });
+
+            expect(alert.attributes('role')).toBe(role);
+            expect(alert.text()).toContain('Aviso');
+            expect(alert.text()).toContain('Detalles del aviso');
+            expect(alert.find('svg').exists()).toBe(true);
+        }
+    });
+
+    it('AlertDialog presenta una confirmación visual con acciones accesibles', async () => {
+        const wrapper = mount(AlertDialog, {
+            props: {
+                open: true,
+                variant: 'danger',
+                title: '¿Eliminar el curso?',
+                message: 'Esta acción no se puede deshacer.',
+                confirmLabel: 'Eliminar curso',
+            },
+        });
+
+        expect(wrapper.get('[role="alertdialog"]').attributes('aria-describedby')).toBe(
+            wrapper.get('p').attributes('id'),
+        );
+        expect(wrapper.text()).toContain('Esta acción no se puede deshacer.');
+        expect(wrapper.get('[role="alertdialog"]').get('h2').text()).toBe('¿Eliminar el curso?');
+        expect(wrapper.get('[role="alertdialog"]').get('svg')).toBeDefined();
+        expect(wrapper.get('[role="alertdialog"]').findAll('button')[0]?.text()).toBe('Cancelar');
+
+        await wrapper.get('button.bg-danger').trigger('click');
+        expect(wrapper.emitted('confirm')).toHaveLength(1);
+
+        wrapper.unmount();
     });
 
     it('Badge y EmptyState renderizan contenido', () => {

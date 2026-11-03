@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import type { SharedProps } from '@/types';
 import Alert from '@/design-system/Alert.vue';
+import AlertDialogHost from '@/components/AlertDialogHost.vue';
 
 const page = usePage<SharedProps>();
 const permissions = computed(() => page.props.auth?.permissions ?? []);
@@ -394,5 +395,6 @@ function logout(): void {
                 Open Edu <span aria-hidden="true">·</span> Plataforma institucional de aprendizaje
             </footer>
         </div>
+        <AlertDialogHost />
     </div>
 </template>

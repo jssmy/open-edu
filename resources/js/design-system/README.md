@@ -9,10 +9,11 @@ puede usar colores o valores de estilo fijos: ESLint lo impide fuera de este dir
 | `Input`, `Textarea`, `Select` | normal, `error`, `disabled`                                           | `aria-invalid` y `aria-describedby` hacia el mensaje |
 | `Checkbox`                    | marcado, `disabled`                                                   | `label` asociado                                     |
 | `FormField`                   | con/sin error                                                         | `label for`; error con `role="alert"`                |
-| `Alert`                       | `info`, `success`, `warning`, `danger`                                | `role="alert"` (danger) o `status`                   |
+| `Alert`                       | `info`, `success`, `warning`, `danger`; título opcional                | Icono y color por variante; `role="alert"` (danger) o `status` |
+| `AlertDialog`                 | Confirmación `info`, `success`, `warning`, `danger`                    | `alertdialog`, descripción asociada y acciones accesibles |
 | `Spinner`                     | —                                                                     | `role="status"` y `aria-label`                       |
 | `EmptyState`                  | con/sin descripción y acción (slot)                                   | Texto visible                                        |
-| `Modal`                       | abierto/cerrado; slot de acciones                                     | `role="dialog"`, `aria-modal`, cierra con Esc        |
+| `Modal`                       | abierto/cerrado; roles `dialog` y `alertdialog`; slot de acciones      | `aria-modal`, foco atrapado, cierra con Esc          |
 | `Toast`                       | `success`, `danger`                                                   | `role="status"`                                      |
 | `Table`                       | cargando, vacío (slot `empty`), celdas personalizables (`cell-<key>`) | `th scope="col"`                                     |
 | `Pagination`                  | primera/última página deshabilitadas                                  | `nav` con `aria-label`                               |
