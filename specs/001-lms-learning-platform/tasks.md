@@ -102,7 +102,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 ### Tests for User Story 2
 
 - [X] T041 [P] [US2] Prueba Feature de CRUD de cursos, publicar/desactivar y confirmación al eliminar con inscripciones en `tests/Feature/Courses/CourseManagementTest.php`
-- [ ] T042 [P] [US2] Prueba Feature de unidades/lecciones, reordenamiento y archivado (no eliminar con progreso) en `tests/Feature/Courses/ContentManagementTest.php`
+- [X] T042 [P] [US2] Prueba Feature de unidades/lecciones, reordenamiento y archivado (no eliminar con progreso) en `tests/Feature/Courses/ContentManagementTest.php`
 - [X] T043 [P] [US2] Prueba Feature de alcance del docente (solo cursos asignados) y subida de archivos en `tests/Feature/Courses/TeacherScopeTest.php`
 - [X] T044 [P] [US2] Pruebas unitarias de reglas de curso y lección sin framework ni BD en `tests/Unit/Courses/`
 - [X] T118 [P] [US2] Prueba Feature de que al desasignar a un docente se conservan sus evaluaciones en `tests/Feature/Courses/TeacherUnassignTest.php`
