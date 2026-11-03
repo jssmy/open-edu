@@ -244,7 +244,7 @@ Monolito Laravel: `app/Modules/<Módulo>/{Domain,Application,Infrastructure}`, f
 - [ ] T113 [P] Plan y registro de la prueba de usabilidad con 5 estudiantes (SC-004) en `docs/usability-test.md`
 - [ ] T108 [P] Revisión de seguridad: autorización en cada ruta, CSRF, rate limiting y ausencia de datos sensibles en logs
 - [ ] T109 [P] Documentar decisiones de arquitectura y variables de entorno en `docs/architecture.md` y `.env.example`
-- [ ] T110 Verificar que la constitución v1.1.1 (TypeScript en el frontend) coincide con plan y tareas en `.specify/memory/constitution.md`
+- [X] T110 Verificar que la constitución v1.1.1 (TypeScript en el frontend) coincide con plan y tareas en `.specify/memory/constitution.md`
 - [ ] T111 Ejecutar los escenarios de `quickstart.md` y confirmar que pasan todas las pruebas y linters
 
 ---
