@@ -1,8 +1,10 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.1 → 1.2.0 (MINOR: requisito de interfaz para flujos con editor)
-- Modified principles: XI (Interfaz y Experiencia de Usuario: el editor debe estar en una página
-  independiente, nunca en un modal)
+- Version change: 1.2.0 → 1.4.0 (MINOR: guías normativas nuevas; el pie de página aún indicaba
+  1.2.0 aunque el reporte previo declaraba 1.3.0)
+- Modified principles: XI (Interfaz y Experiencia de Usuario: reordenamiento por arrastrar y
+  soltar con la librería única vuedraggable; confirmación de acciones destructivas con el
+  componente AlertDialog del sistema de diseño; formularios con campos visibles y amplios)
 - Added sections: none
 - Removed sections: none
 - Deferred TODOs: none
@@ -102,6 +104,19 @@ una página independiente con su propia vista y MUST NOT presentar el editor den
 o diálogo. Esta separación ofrece espacio suficiente para editar y evita flujos complejos dentro
 de superficies transitorias.
 
+Todo reordenamiento manual de elementos (unidades, lecciones, preguntas u otras listas) MUST
+ofrecer arrastrar y soltar usando la librería única `vuedraggable` (basada en SortableJS); MUST
+NOT introducirse otra librería ni una implementación propia de arrastre. El arrastre MUST
+usar un asa con etiqueta accesible, funcionar con puntero y táctil, y MUST persistir el nuevo
+orden en el servidor validando autorización y pertenencia de los elementos.
+
+Toda acción destructiva o irreversible (eliminar, descartar cambios sin guardar) MUST pedir
+confirmación previa mediante el componente `AlertDialog` del sistema de diseño
+(`requestAlertDialog`), con la variante adecuada (info, warning, success, danger). MUST NOT
+usarse `alert`, `confirm` ni `prompt` nativos del navegador. Los formularios MUST mostrar
+etiqueta visible, campos de ancho suficiente para su contenido, errores junto al campo y
+objetivos táctiles de al menos 44px.
+
 ### XII. Desarrollo Asistido por IA
 Las herramientas de IA MUST respetar esta constitución.
 - Antes: revisar especificación y plan, comprender la estructura, identificar componentes y
@@ -154,4 +169,4 @@ por nuevos principios/secciones o ampliación material; PATCH por aclaraciones y
 Cumplimiento: todo PR y revisión MUST verificar la conformidad con los principios; las
 desviaciones MUST justificarse explícitamente y aprobarse.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03
+**Version**: 1.4.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03
