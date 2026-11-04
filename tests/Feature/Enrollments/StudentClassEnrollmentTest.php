@@ -70,12 +70,90 @@ it('displays published courses with their academic offerings, sessions, teachers
         ->assertInertia(fn (Assert $page) => $page
             ->component('Enrollments/Index')
             ->where('selectedStudentId', $studentId)
-            ->has('courses', 1)
-            ->where('courses.0.name', 'Cálculo Diferencial')
-            ->where('courses.0.offerings.0.group_code', 'Grupo A - Mañana')
-            ->where('courses.0.offerings.0.available_spots', 15)
-            ->where('courses.0.offerings.0.sessions.0.title', 'Límites y continuidad')
-            ->where('courses.0.offerings.0.sessions.0.classroom_name', 'Aula 201')
+            ->has('courses.data', 1)
+            ->where('courses.meta.total', 1)
+            ->where('courses.data.0.name', 'Cálculo Diferencial')
+            ->where('courses.data.0.offerings.0.group_code', 'Grupo A - Mañana')
+            ->where('courses.data.0.offerings.0.available_spots', 15)
+            ->where('courses.data.0.offerings.0.sessions.0.title', 'Límites y continuidad')
+            ->where('courses.data.0.offerings.0.sessions.0.classroom_name', 'Aula 201')
+        );
+});
+
+it('orders published courses with available spots first and paginates the catalog', function () {
+    $studentId = createActiveStudentForEnrollment('Estudiante Con Cupo');
+    $occupiedStudentId = createActiveStudentForEnrollment('Estudiante Ocupado');
+    $teacher = userWithRole(Role::Docente);
+
+    $courseNoOfferings = Course::factory()->create(['name' => 'A - Sin programación', 'status' => 'published']);
+
+    $courseFullOffering = Course::factory()->create(['name' => 'B - Cupo lleno', 'status' => 'published']);
+    $fullOffering = CourseOffering::factory()->create([
+        'course_id' => $courseFullOffering->id,
+        'group_code' => 'GRP-01',
+        'starts_on' => '2026-11-01',
+        'ends_on' => '2026-12-15',
+        'max_students' => 1,
+        'modality' => 'virtual',
+        'status' => 'published',
+    ]);
+    $fullOffering->teachers()->sync([$teacher->id]);
+    $this->actingAs($this->admin)->post('/enrollments', [
+        'student_id' => $occupiedStudentId,
+        'course_offering_id' => $fullOffering->id,
+    ])->assertRedirect();
+
+    $courseWithSpots = Course::factory()->create(['name' => 'Z - Con vacantes disponibles', 'status' => 'published']);
+    $openOffering = CourseOffering::factory()->create([
+        'course_id' => $courseWithSpots->id,
+        'group_code' => 'GRP-01',
+        'starts_on' => '2026-11-01',
+        'ends_on' => '2026-12-15',
+        'max_students' => 10,
+        'modality' => 'in_person',
+        'status' => 'published',
+    ]);
+    $openOffering->teachers()->sync([$teacher->id]);
+
+    foreach (range(1, 5) as $idx) {
+        Course::factory()->create(['name' => sprintf('M - Curso Extra %02d', $idx), 'status' => 'published']);
+    }
+
+    $this->actingAs($this->admin)->get("/enrollments?student_id={$studentId}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('courses.data', 6)
+            ->where('courses.meta.total', 8)
+            ->where('courses.meta.page', 1)
+            ->where('courses.meta.last_page', 2)
+            ->where('courses.data.0.name', 'Z - Con vacantes disponibles')
+            ->where('courses.data.0.total_available_spots', 10)
+            ->has('courses.data.0.cover_url')
+            ->has('courses.data.0.units_count')
+        );
+
+    $this->actingAs($this->admin)->get("/enrollments?student_id={$studentId}&page=2")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('courses.data', 2)
+            ->where('courses.meta.page', 2)
+            ->where('courses.meta.from', 7)
+            ->where('courses.meta.to', 8)
+        );
+
+    // Search filter behaves case-insensitively with %term% matching (like/ilike)
+    $this->actingAs($this->admin)->get("/enrollments?student_id={$studentId}&q=vacantes")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('courses.data', 1)
+            ->where('courses.data.0.name', 'Z - Con vacantes disponibles')
+        );
+
+    $this->actingAs($this->admin)->get("/enrollments?student_id={$studentId}&q=VACANTES")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('courses.data', 1)
+            ->where('courses.data.0.name', 'Z - Con vacantes disponibles')
         );
 });
 
@@ -119,8 +197,8 @@ it('enrolls a student in a course offering, decrements available spots and updat
     $this->actingAs($this->admin)->get("/enrollments?student_id={$studentId}")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('courses.0.is_enrolled', true)
-            ->where('courses.0.offerings.0.available_spots', 1)
+            ->where('courses.data.0.is_enrolled', true)
+            ->where('courses.data.0.offerings.0.available_spots', 1)
             ->has('studentEnrollments', 1)
             ->where('studentEnrollments.0.group_code', 'Grupo Único')
             ->has('calendarBlocks', 1)
@@ -323,8 +401,8 @@ it('unenrolls a student, frees the spot immediately, preserves lesson progress a
     $this->actingAs($this->admin)->get("/enrollments?student_id={$studentId}")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('courses.0.is_enrolled', false)
-            ->where('courses.0.offerings.0.available_spots', 1)
+            ->where('courses.data.0.is_enrolled', false)
+            ->where('courses.data.0.offerings.0.available_spots', 1)
             ->has('studentEnrollments', 0)
             ->has('calendarBlocks', 0)
         );

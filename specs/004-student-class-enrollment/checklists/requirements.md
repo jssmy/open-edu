@@ -31,5 +31,5 @@
 
 ## Notes
 
-- All validation checks passed on iteration 1. Ready for `/speckit-clarify` or `/speckit-plan`.
+- All validation checks passed (updated 2026-11-04 with full-width student schedule, bounded enrolled courses container, available-spots-first ordering, server pagination, and reusable `CourseCard`). Ready for `/speckit-clarify` or `/speckit-plan`.
 

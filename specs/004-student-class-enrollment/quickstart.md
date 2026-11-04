@@ -12,15 +12,18 @@
 2. **Matricular estudiante viendo su horario en tiempo real (`/enrollments`)**:
    - Abrir `/enrollments` como administrador (y verificar que un rol sin permiso `enrollments.manage` recibe 403).
    - Seleccionar un estudiante activo en el buscador (`SearchableSelect`).
-   - Hacer clic en un curso disponible → se abre el modal de programación académica detallando los grupos (`CourseOffering`), docentes, fechas/días, horarios de sesiones y cupos disponibles, con su botón `Cancelar`.
-   - Confirmar la matrícula en el grupo → el estudiante queda matriculado, los cupos disponibles disminuyen en 1 y las sesiones aparecen inmediatamente en el calendario en tiempo real del estudiante (`ScheduleCalendar`).
+   - Explorar la sección "Cursos publicados disponibles", verificando que los cursos con vacantes disponibles se listan primero en una cuadrícula de tarjetas reutilizables (`CourseCard`) con paginación (`Pagination`).
+   - Hacer clic en "Ver programación y cupos" de un curso disponible → se abre el modal de programación académica detallando los grupos (`CourseOffering`), docentes, fechas/días, horarios de sesiones y cupos disponibles, con su botón `Cancelar`.
+   - Confirmar la matrícula en el grupo → el estudiante queda matriculado, los cupos disponibles disminuyen en 1 y las sesiones aparecen inmediatamente en el horario a ancho completo del estudiante (`ScheduleCalendar`).
+   - Observar que la tarjeta superior muestra los cursos matriculados en una lista compacta con scroll vertical interno (`max-h-44 overflow-y-auto`) sin hacer crecer la tarjeta indefinidamente.
 
 3. **Validar cruces de horario y límite de cupos**:
    - Intentar matricular al mismo estudiante en otro curso cuyo `CourseOffering` tenga una sesión en la misma fecha y horario traslapado → el sistema rechaza con error 422 indicando el cruce de horario (`student_schedule_conflict`).
    - Matricular a otros estudiantes hasta agotar `max_students` e intentar matricular a uno más → el sistema rechaza por falta de vacantes (`offering_full`).
 
-4. **Desmatricular y verificar liberación de cupo y horario en tiempo real**:
-   - En `/enrollments`, hacer clic en "Desmatricular" sobre uno de los cursos del estudiante y confirmar en el `AlertDialog`.
+4. **Desmatricular desde el calendario o listado y verificar liberación de cupo en tiempo real**:
+   - En `/enrollments`, hacer clic sobre cualquier ítem o bloque de programación académica dentro del horario del estudiante (`ScheduleCalendar`), o en el botón "Desmatricular" del listado superior de cursos matriculados.
+   - En el modal de confirmación (`AlertDialog`), confirmar que desea desmatricular al estudiante del curso.
    - Verificar que las sesiones de ese curso desaparecen al instante del horario del estudiante, que el cupo disponible en el `CourseOffering` aumenta en 1 y que el estudiante puede volver a matricularse posteriormente conservando su progreso de lecciones.
 
 **Pruebas automatizadas**:

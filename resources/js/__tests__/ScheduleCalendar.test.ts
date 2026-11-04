@@ -117,11 +117,12 @@ describe('ScheduleCalendar', () => {
         const clickFn = capturedOptions.eventClick as (arg: unknown) => void;
         clickFn({
             event: {
-                extendedProps: { scheduleId: 10 },
+                extendedProps: { scheduleId: 10, enrollmentId: 42 },
             },
         });
 
         expect(wrapper.emitted('eventClick')?.[0]?.[0]).toBe(10);
+        expect(wrapper.emitted('eventClick')?.[0]?.[1]).toEqual({ scheduleId: 10, enrollmentId: 42 });
 
         const revert = vi.fn();
         const dropFn = capturedOptions.eventDrop as (arg: unknown) => void;

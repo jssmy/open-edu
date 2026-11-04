@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 export interface CalendarScheduleBlock {
     id?: number;
     scheduleId: number;
+    enrollmentId?: number;
     sessionId?: number;
     blockIndex: number;
     title?: string;
@@ -132,6 +133,7 @@ export function useScheduleCalendar(blocks: () => CalendarScheduleBlock[], edita
                 textColor: '#ffffff',
                 extendedProps: {
                     scheduleId: block.scheduleId,
+                    enrollmentId: block.enrollmentId,
                     sessionId: block.sessionId,
                     blockIndex: block.blockIndex,
                     sessionDate: dateStr,

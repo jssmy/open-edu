@@ -39,7 +39,7 @@ const props = withDefaults(
 const emit = defineEmits<{
     select: [selection: CalendarSelection];
     move: [move: CalendarBlockMove];
-    eventClick: [scheduleId: number];
+    eventClick: [scheduleId: number, eventProps?: Record<string, unknown>];
 }>();
 
 const { currentView, initialDate, calendarEvents } = useScheduleCalendar(
@@ -58,7 +58,7 @@ function handleSelect(arg: DateSelectInfo): void {
 function handleEventClick(arg: EventClickInfo): void {
     const scheduleId = Number(arg.event.extendedProps.scheduleId);
     if (!Number.isNaN(scheduleId) && scheduleId > 0) {
-        emit('eventClick', scheduleId);
+        emit('eventClick', scheduleId, arg.event.extendedProps as Record<string, unknown>);
     }
 }
 

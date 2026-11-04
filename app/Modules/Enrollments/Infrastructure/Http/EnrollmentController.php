@@ -14,14 +14,18 @@ use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use App\Modules\Scheduling\Infrastructure\Models\CourseSession;
 use App\Modules\Students\Domain\StudentRepository;
+use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EnrollmentController extends Controller
 {
+    private const COURSES_PER_PAGE = 6;
+
     public function __construct(private readonly StudentRepository $students) {}
 
     public function index(Request $request): Response
@@ -80,6 +84,7 @@ class EnrollmentController extends Controller
         $coursesQuery = Course::query()
             ->where('status', 'published')
             ->with([
+                'teachers:id,name',
                 'offerings' => fn ($q) => $q
                     ->whereNotNull('starts_on')
                     ->with([
@@ -91,28 +96,46 @@ class EnrollmentController extends Controller
                     ->orderBy('starts_on')
                     ->orderBy('id'),
             ])
+            ->withCount('units')
             ->when($search !== '', function ($q) use ($search): void {
+                $operator = $q->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
                 $like = '%'.addcslashes($search, '%_\\').'%';
-                $q->where('name', 'like', $like);
+                $q->where(fn ($inner) => $inner->where('name', $operator, $like)
+                    ->orWhereHas('teachers', fn ($teachers) => $teachers->where('name', $operator, $like)));
             })
             ->orderBy('name')
+            ->orderBy('id')
             ->get();
 
-        $courses = $coursesQuery->map(function (Course $course) use ($enrolledByCourse): array {
+        $mappedCourses = $coursesQuery->map(function (Course $course) use ($enrolledByCourse): array {
             $offerings = $course->offerings
                 ->filter(fn (CourseOffering $offering): bool => $offering->isEnrollable())
                 ->values()
                 ->map(fn (CourseOffering $offering): array => $this->serializeOffering($offering))
                 ->all();
 
+            usort($offerings, fn (array $a, array $b): int => (($b['available_spots'] > 0) <=> ($a['available_spots'] > 0))
+                ?: ($b['available_spots'] <=> $a['available_spots'])
+                ?: strcmp((string) ($a['starts_on'] ?? ''), (string) ($b['starts_on'] ?? ''))
+                ?: ($a['id'] <=> $b['id']));
+
             $totalAvailableSpots = array_sum(array_column($offerings, 'available_spots'));
             $enrollmentInfo = $enrolledByCourse[$course->id] ?? null;
+            $excerpt = Str::limit(trim(RichTextDocumentValidator::plainText($course->description)), 180);
 
             return [
                 'id' => $course->id,
                 'name' => $course->name,
                 'code' => null,
-                'description' => is_string($course->description) ? $course->description : null,
+                'description' => $excerpt !== '' ? $excerpt : null,
+                'excerpt' => $excerpt,
+                'cover_url' => $course->coverUrl(),
+                'units_count' => (int) ($course->units_count ?? 0),
+                'status' => $course->status,
+                'teachers' => $course->teachers->map(fn ($teacher): array => [
+                    'id' => $teacher->id,
+                    'name' => $teacher->name,
+                ])->values()->all(),
                 'offerings_count' => count($offerings),
                 'total_available_spots' => $totalAvailableSpots,
                 'is_enrolled' => $enrollmentInfo !== null,
@@ -121,6 +144,28 @@ class EnrollmentController extends Controller
                 'offerings' => $offerings,
             ];
         })->values()->all();
+
+        usort($mappedCourses, fn (array $a, array $b): int => (($b['total_available_spots'] > 0) <=> ($a['total_available_spots'] > 0))
+            ?: ($b['total_available_spots'] <=> $a['total_available_spots'])
+            ?: strcmp($a['name'], $b['name'])
+            ?: ($a['id'] <=> $b['id']));
+
+        $totalCourses = count($mappedCourses);
+        $lastPage = max(1, (int) ceil($totalCourses / self::COURSES_PER_PAGE));
+        $currentPage = min(max(1, $request->integer('page', 1)), $lastPage);
+        $offset = ($currentPage - 1) * self::COURSES_PER_PAGE;
+        $pagedCourses = array_values(array_slice($mappedCourses, $offset, self::COURSES_PER_PAGE));
+
+        $courses = [
+            'data' => $pagedCourses,
+            'meta' => [
+                'page' => $currentPage,
+                'last_page' => $lastPage,
+                'total' => $totalCourses,
+                'from' => $totalCourses === 0 ? 0 : $offset + 1,
+                'to' => $totalCourses === 0 ? 0 : min($offset + count($pagedCourses), $totalCourses),
+            ],
+        ];
 
         $studentEnrollments = $activeEnrollments->map(function (Enrollment $enrollment): array {
             $offering = $enrollment->courseOffering;
@@ -253,6 +298,7 @@ class EnrollmentController extends Controller
                 $events[] = [
                     'id' => $session->id,
                     'scheduleId' => $offering->id,
+                    'enrollmentId' => $enrollment->id,
                     'sessionId' => $session->id,
                     'blockIndex' => $index,
                     'title' => $session->title,
