@@ -7,10 +7,20 @@ const props = withDefaults(
         title: string;
         role?: 'dialog' | 'alertdialog';
         descriptionId?: string;
+        size?: 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
     }>(),
-    { role: 'dialog', descriptionId: undefined },
+    { role: 'dialog', descriptionId: undefined, size: 'md' },
 );
 const emit = defineEmits<{ close: [] }>();
+
+const sizeClasses: Record<NonNullable<typeof props.size>, string> = {
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+};
 
 const dialog = useTemplateRef<HTMLDivElement>('dialog');
 const titleId = useId();
@@ -97,7 +107,8 @@ onBeforeUnmount(() => {
             :aria-labelledby="titleId"
             :aria-describedby="descriptionId"
             tabindex="-1"
-            class="mx-4 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-card border border-border bg-panel p-6 shadow-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:mx-0 sm:p-7"
+            class="mx-4 max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-card border border-border bg-panel p-6 shadow-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:mx-6 sm:p-7"
+            :class="sizeClasses[size]"
             @keydown="handleKeydown"
         >
             <slot name="header" :title-id="titleId">

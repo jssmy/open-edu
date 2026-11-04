@@ -20,8 +20,10 @@ interface Student {
 
 interface Course {
     id: number;
+    enrollment_id?: number;
     name: string;
     status: string;
+    group_code?: string | null;
     enrolled_at: string;
 }
 
@@ -29,6 +31,7 @@ const props = defineProps<{
     student: Student;
     courses: Course[];
     canManageStudents: boolean;
+    canManageEnrollments?: boolean;
 }>();
 const form = useForm({
     name: props.student.name,
@@ -82,7 +85,16 @@ const form = useForm({
         </Card>
 
         <section>
-            <h2 class="mb-3 text-lg font-semibold">Cursos</h2>
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-lg font-semibold">Cursos</h2>
+                <Link
+                    v-if="canManageEnrollments"
+                    :href="`/enrollments?student_id=${student.id}`"
+                    class="text-sm font-medium text-primary hover:underline"
+                >
+                    Gestionar matrícula y horario →
+                </Link>
+            </div>
             <EmptyState v-if="courses.length === 0" title="Sin cursos inscritos" />
             <ul v-else class="flex flex-col gap-2">
                 <li
@@ -90,9 +102,12 @@ const form = useForm({
                     :key="course.id"
                     class="flex flex-wrap items-center justify-between gap-2 rounded-card border border-border bg-panel p-3"
                 >
-                    <Link :href="`/courses/${course.id}`" class="font-medium text-primary">
-                        {{ course.name }}
-                    </Link>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Link :href="`/courses/${course.id}`" class="font-medium text-primary">
+                            {{ course.name }}
+                        </Link>
+                        <Badge v-if="course.group_code" variant="neutral">{{ course.group_code }}</Badge>
+                    </div>
                     <span class="text-sm text-text-muted">
                         {{ course.status }} · {{ new Date(course.enrolled_at).toLocaleDateString() }}
                     </span>

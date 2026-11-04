@@ -6,7 +6,7 @@ use App\Modules\Identity\Domain\Role;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
-beforeEach(fn () => $this->manager = userWithRole(Role::GestorDeCursos));
+beforeEach(fn () => $this->manager = userWithRole(Role::Administrador));
 
 function createRegisteredStudentForEnrollment(): int
 {

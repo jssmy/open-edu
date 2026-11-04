@@ -4,6 +4,7 @@ namespace App\Modules\Enrollments\Infrastructure\Models;
 
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Enrollments\Domain\EnrollmentStatus;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Carbon\CarbonImmutable;
 use Database\Factories\Modules\Enrollments\Infrastructure\Models\EnrollmentFactory;
@@ -16,10 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $student_id
  * @property int $course_id
+ * @property ?int $course_offering_id
  * @property EnrollmentStatus $status
  * @property CarbonImmutable $enrolled_at
  */
-#[Fillable(['student_id', 'course_id', 'status', 'enrolled_at'])]
+#[Fillable(['student_id', 'course_id', 'course_offering_id', 'status', 'enrolled_at'])]
 class Enrollment extends Model
 {
     /** @use HasFactory<EnrollmentFactory> */
@@ -48,5 +50,11 @@ class Enrollment extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class)->withTrashed();
+    }
+
+    /** @return BelongsTo<CourseOffering, $this> */
+    public function courseOffering(): BelongsTo
+    {
+        return $this->belongsTo(CourseOffering::class, 'course_offering_id');
     }
 }

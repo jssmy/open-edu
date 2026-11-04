@@ -11,11 +11,13 @@ import { submit } from '@/services/http';
 
 interface StudentEnrollment {
     id: number;
+    enrollment_id?: number;
     name: string;
     email: string;
     identifier: string | null;
     phone: string | null;
     status: 'active' | 'suspended' | 'cancelled';
+    group_code?: string | null;
     enrolled_at: string;
 }
 
@@ -45,7 +47,16 @@ function changeStatus(enrollmentId: number, status: string) {
                 <Link :href="`/courses/${course.id}`" class="text-sm text-primary">Volver al curso</Link>
                 <h1 class="text-xl font-semibold">Inscritos · {{ course.name }}</h1>
             </div>
-            <Button v-if="canManageEnrollments" @click="enrolling = true">Inscribir estudiante</Button>
+            <div class="flex flex-wrap items-center gap-2">
+                <Link
+                    v-if="canManageEnrollments"
+                    href="/enrollments"
+                    class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-4 py-2 text-sm font-medium text-text hover:bg-surface"
+                >
+                    Ir al módulo de matrículas
+                </Link>
+                <Button v-if="canManageEnrollments" @click="enrolling = true">Inscribir estudiante</Button>
+            </div>
         </div>
 
         <EmptyState v-if="students.length === 0" title="Aún no hay estudiantes inscritos" />
@@ -56,9 +67,12 @@ function changeStatus(enrollmentId: number, status: string) {
                 class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-panel p-4"
             >
                 <div>
-                    <Link :href="`/students/${student.id}`" class="font-semibold text-primary">
-                        {{ student.name }}
-                    </Link>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Link :href="`/students/${student.id}`" class="font-semibold text-primary">
+                            {{ student.name }}
+                        </Link>
+                        <Badge v-if="student.group_code" variant="neutral">{{ student.group_code }}</Badge>
+                    </div>
                     <p class="text-sm text-text-muted">{{ student.email }}</p>
                 </div>
                 <div class="flex items-center gap-3">

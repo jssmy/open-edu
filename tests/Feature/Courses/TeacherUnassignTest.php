@@ -3,7 +3,6 @@
 use App\Modules\Assessments\Infrastructure\Models\Assessment;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Identity\Domain\Role;
-use App\Modules\Scheduling\Infrastructure\Models\AcademicPeriod;
 use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
 
 it('preserves course assessments when a teacher schedule is deleted', function () {
@@ -17,10 +16,9 @@ it('preserves course assessments when a teacher schedule is deleted', function (
     ]);
     $schedule = CourseSchedule::factory()->create([
         'course_id' => $course->id,
-        'teacher_id' => $teacher->id,
-        'academic_period_id' => AcademicPeriod::factory()->create()->id,
         'modality' => 'virtual',
     ]);
+    $schedule->teachers()->sync([$teacher->id]);
     $course->teachers()->sync([$teacher->id]);
     $assessment = Assessment::query()->create([
         'course_id' => $course->id,

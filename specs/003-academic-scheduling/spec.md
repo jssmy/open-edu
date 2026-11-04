@@ -15,7 +15,7 @@
 - Q: ¿Qué pasa con la asignación de docentes en el detalle del curso? → A: Se elimina; el detalle del curso solo muestra los docentes en modo lectura y la asignación se hace únicamente desde Programación académica.
 - Q: ¿Quién puede gestionar la programación académica? → A: Un permiso nuevo asignable a roles; por defecto lo tiene el administrador.
 - Q: ¿Se rechaza el traslape de docente en clases virtuales? → A: Sí, el traslape de docente se rechaza siempre, sea presencial o virtual.
-- Q: ¿Cómo se selecciona el docente al crear o editar una programación académica? → A: Mediante un desplegable reutilizable con buscador (`SearchableSelect`) que muestra como máximo 5 docentes visibles a la vez con desplazamiento interno (scroll) para no ocupar toda la pantalla.
+- Q: ¿Cómo se selecciona el curso y el docente al crear o editar una programación académica? → A: Mediante un desplegable reutilizable con buscador (`SearchableSelect`) que muestra como máximo 5 opciones visibles a la vez con desplazamiento interno (scroll) para no ocupar toda la pantalla.
 - Q: ¿Los horarios son semanales sin límite o dentro de un periodo académico? → A: Cada programación pertenece a un periodo académico con fechas de inicio y fin; los conflictos se validan solo dentro del mismo periodo.
 - Q: ¿A qué periodo se asocian las asignaciones existentes al migrar? → A: Se crean como programaciones pendientes, sin periodo ni horario, en una lista "Por programar" hasta completarse.
 - Q: ¿Qué pasa con las programaciones de un periodo ya terminado? → A: Se bloquean por completo (solo lectura) y no se pueden reabrir.
@@ -100,7 +100,7 @@ Se puede modificar o eliminar una programación (cambiar docente, horario, aula/
 - **FR-012**: Cada programación MUST pertenecer a un periodo académico con fecha de inicio y fin; el sistema MUST permitir gestionar periodos.
 - **FR-013**: Los conflictos de docente y aula (FR-005, FR-006) MUST validarse solo entre programaciones del mismo periodo.
 - **FR-014**: Las programaciones de un periodo cuya fecha de fin ya pasó MUST quedar bloqueadas (solo lectura), sin posibilidad de edición, eliminación ni reapertura.
-- **FR-015**: El selector de docente en el formulario de programación académica MUST utilizar un desplegable reutilizable con buscador (`SearchableSelect`) que muestre un máximo de 5 opciones visibles con scroll vertical y todos los modales MUST incluir un botón "Cancelar".
+- **FR-015**: Los selectores de curso y de docente en el formulario de programación académica MUST utilizar un desplegable reutilizable con buscador (`SearchableSelect`) que muestre un máximo de 5 opciones visibles con scroll vertical y todos los modales MUST incluir un botón "Cancelar".
 
 ### Key Entities
 

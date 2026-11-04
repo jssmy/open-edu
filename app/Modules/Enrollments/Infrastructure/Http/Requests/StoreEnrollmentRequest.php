@@ -13,6 +13,13 @@ class StoreEnrollmentRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['student_id' => ['required', 'integer', 'exists:students,id']];
+        return [
+            'student_id' => ['required', 'integer', 'exists:students,id'],
+            'course_offering_id' => [
+                $this->routeIs('enrollments.offering.store') ? 'required' : 'nullable',
+                'integer',
+                'exists:course_offerings,id',
+            ],
+        ];
     }
 }

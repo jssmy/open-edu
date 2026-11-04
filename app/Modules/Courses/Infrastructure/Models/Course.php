@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Assessments\Infrastructure\Models\Assessment;
 use App\Modules\Courses\Domain\IntroductoryVideo;
 use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use Database\Factories\Modules\Courses\Infrastructure\Models\CourseFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -83,6 +84,12 @@ class Course extends Model
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    /** @return HasMany<CourseOffering, $this> */
+    public function offerings(): HasMany
+    {
+        return $this->hasMany(CourseOffering::class, 'course_id');
     }
 
     /** @return HasMany<Assessment, $this> */

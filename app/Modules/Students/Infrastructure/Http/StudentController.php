@@ -59,6 +59,7 @@ class StudentController extends Controller
             'student' => $this->present($record),
             'courses' => $this->students->coursesFor($studentId, $teacherId),
             'canManageStudents' => $request->user()->can('students.manage'),
+            'canManageEnrollments' => $request->user()->can('enrollments.manage'),
         ]);
     }
 

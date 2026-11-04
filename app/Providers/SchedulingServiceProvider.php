@@ -4,7 +4,7 @@ namespace App\Providers;
 
 use App\Modules\Scheduling\Domain\ScheduleRepository;
 use App\Modules\Scheduling\Infrastructure\EloquentScheduleRepository;
-use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use App\Modules\Scheduling\Infrastructure\Policies\SchedulePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -19,7 +19,6 @@ class SchedulingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Gate::policy(CourseSchedule::class, SchedulePolicy::class);
+        Gate::policy(CourseOffering::class, SchedulePolicy::class);
     }
 }
-

@@ -49,12 +49,14 @@ $studentManagementRoutes = [
 ];
 
 $enrollmentManagementRoutes = [
+    ['GET', '/enrollments', []],
+    ['POST', '/enrollments', []],
     ['POST', '/courses/{courseId}/enrollments', []],
 ];
 
 $routeAccessCases = [];
 foreach ([
-    [Role::GestorDeCursos, $adminOnlyRoutes],
+    [Role::GestorDeCursos, [...$adminOnlyRoutes, ...$enrollmentManagementRoutes]],
     [Role::Docente, [...$adminOnlyRoutes, ...$courseManagementRoutes, ...array_slice($studentManagementRoutes, 1), ...$enrollmentManagementRoutes]],
     [Role::Estudiante, [
         ...$adminOnlyRoutes,

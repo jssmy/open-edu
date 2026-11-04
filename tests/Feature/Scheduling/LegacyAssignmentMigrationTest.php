@@ -2,22 +2,23 @@
 
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Identity\Domain\Role;
-use App\Modules\Scheduling\Infrastructure\Models\AcademicPeriod;
-use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 
-it('lists pending schedules without period and completes them when scheduled', function () {
+it('lists pending offerings without dates and completes them when scheduled', function () {
     $admin = userWithRole(Role::Administrador);
     $teacher = userWithRole(Role::Docente);
     $course = Course::factory()->create(['name' => 'Álgebra Lineal']);
-    $period = AcademicPeriod::factory()->create();
 
-    $pending = CourseSchedule::query()->create([
+    $pending = CourseOffering::query()->create([
         'course_id' => $course->id,
-        'teacher_id' => $teacher->id,
-        'academic_period_id' => null,
+        'group_code' => 'PEND-'.$teacher->id,
+        'starts_on' => null,
+        'ends_on' => null,
+        'max_students' => 30,
         'modality' => 'virtual',
-        'classroom_id' => null,
+        'status' => 'draft',
     ]);
+    $pending->teachers()->sync([$teacher->id]);
     $course->teachers()->sync([$teacher->id]);
 
     $response = $this->actingAs($admin)->get('/scheduling/pending')->assertOk();
@@ -25,12 +26,18 @@ it('lists pending schedules without period and completes them when scheduled', f
 
     $this->actingAs($admin)->put("/scheduling/schedules/{$pending->id}", [
         'course_id' => $course->id,
-        'teacher_id' => $teacher->id,
-        'academic_period_id' => $period->id,
+        'group_code' => 'ALG-01',
+        'starts_on' => '2026-11-01',
+        'ends_on' => '2026-12-31',
+        'max_students' => 30,
         'modality' => 'virtual',
-        'blocks' => [['day_of_week' => 5, 'starts_at' => '14:00', 'ends_at' => '16:00']],
+        'status' => 'published',
+        'teacher_ids' => [$teacher->id],
+        'sessions' => [
+            ['title' => 'Sesión 1', 'session_date' => '2026-11-15', 'starts_at' => '14:00', 'ends_at' => '16:00', 'teacher_id' => $teacher->id],
+        ],
     ])->assertRedirect();
 
-    expect(CourseSchedule::query()->whereNull('academic_period_id')->count())->toBe(0);
+    expect(CourseOffering::query()->whereNull('starts_on')->count())->toBe(0);
     $this->assertDatabaseHas('course_teacher', ['course_id' => $course->id, 'user_id' => $teacher->id]);
 });

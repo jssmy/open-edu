@@ -25,7 +25,6 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->call(RolesAndPermissionsSeeder::class);
-        $this->call(CatalogDemoSeeder::class);
 
         $teacher = $this->findOrCreateUser(
             'Docente de demostración',

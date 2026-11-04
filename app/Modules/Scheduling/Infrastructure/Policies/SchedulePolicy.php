@@ -3,7 +3,7 @@
 namespace App\Modules\Scheduling\Infrastructure\Policies;
 
 use App\Models\User;
-use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 
 final class SchedulePolicy
 {
@@ -12,13 +12,17 @@ final class SchedulePolicy
         return $user->can('scheduling.manage');
     }
 
-    public function viewOwn(User $user, ?CourseSchedule $schedule = null): bool
+    public function viewOwn(User $user, ?CourseOffering $offering = null): bool
     {
         if (! $user->can('scheduling.view-own')) {
             return false;
         }
 
-        return $schedule === null || $schedule->teacher_id === $user->id;
+        if ($offering === null) {
+            return true;
+        }
+
+        return $offering->teachers()->whereKey($user->id)->exists()
+            || $offering->sessions()->where('teacher_id', $user->id)->exists();
     }
 }
-

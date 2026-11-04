@@ -4,26 +4,46 @@ namespace App\Modules\Scheduling\Domain;
 
 interface ScheduleRepository
 {
-    /** @return list<TimeBlock> */
-    public function teacherBlocks(int $periodId, int $teacherId, ?int $exceptScheduleId = null): array;
+    /** @return list<CourseSession> */
+    public function teacherSessions(int $teacherId, ?int $exceptOfferingId = null, ?int $exceptSessionId = null): array;
 
-    /** @return list<TimeBlock> */
-    public function classroomBlocks(int $periodId, int $classroomId, ?int $exceptScheduleId = null): array;
+    /** @return list<CourseSession> */
+    public function classroomSessions(int $classroomId, ?int $exceptOfferingId = null, ?int $exceptSessionId = null): array;
 
-    /** @param array{course_id:int,teacher_id:int,academic_period_id:int,modality:string,classroom_id:?int} $data */
-    public function create(array $data, array $blocks): int;
+    /** @return list<CourseSession> */
+    public function studentActiveSessions(int $studentId, ?int $exceptCourseId = null): array;
 
-    public function update(int $scheduleId, array $data, array $blocks): void;
+    /**
+     * @param  array{course_id:int,group_code:string,starts_on:string,ends_on:string,max_students:int,modality:string,status:string}  $data
+     * @param  list<int>  $teacherIds
+     * @param  list<array{title:string,session_date:string,starts_at:string,ends_at:string,teacher_id:int,classroom_id?:?int,meeting_url?:?string,status?:string}>  $sessions
+     */
+    public function create(array $data, array $teacherIds, array $sessions): int;
 
-    public function delete(int $scheduleId): void;
+    /**
+     * @param  array{course_id:int,group_code:string,starts_on:string,ends_on:string,max_students:int,modality:string,status:string}  $data
+     * @param  list<int>  $teacherIds
+     * @param  list<array{id?:?int,title:string,session_date:string,starts_at:string,ends_at:string,teacher_id:int,classroom_id?:?int,meeting_url?:?string,status?:string}>  $sessions
+     */
+    public function update(int $offeringId, array $data, array $teacherIds, array $sessions): void;
 
-    public function periodHasEnded(int $periodId): bool;
+    public function delete(int $offeringId): void;
 
-    public function scheduleEnded(int $scheduleId): bool;
+    /**
+     * @param  array{title:string,session_date:string,starts_at:string,ends_at:string,teacher_id:int,classroom_id?:?int,meeting_url?:?string,status?:string}  $data
+     */
+    public function saveSession(int $offeringId, array $data, ?int $sessionId = null): int;
+
+    public function deleteSession(int $sessionId): void;
+
+    /** @return array{id:int,course_id:int,modality:string,teacher_ids:list<int>}|null */
+    public function findOfferingMeta(int $offeringId): ?array;
+
+    public function offeringIdOfSession(int $sessionId): int;
 
     public function syncCourseTeachers(int $courseId): void;
 
-    public function courseIdOf(int $scheduleId): int;
+    public function courseIdOf(int $offeringId): int;
 
     /** @param array{name:string,capacity:?int,is_active:bool} $data */
     public function saveClassroom(array $data, ?int $classroomId = null): int;
@@ -31,11 +51,4 @@ interface ScheduleRepository
     public function deleteClassroom(int $classroomId): void;
 
     public function classroomHasSchedules(int $classroomId): bool;
-
-    /** @param array{name:string,starts_on:string,ends_on:string} $data */
-    public function savePeriod(array $data, ?int $periodId = null): int;
-
-    public function deletePeriod(int $periodId): void;
-
-    public function periodHasSchedules(int $periodId): bool;
 }

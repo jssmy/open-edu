@@ -15,33 +15,46 @@ import SearchableSelect from '@/design-system/SearchableSelect.vue';
 import Select from '@/design-system/Select.vue';
 import Table from '@/design-system/Table.vue';
 import { requestAlertDialog } from '@/composables/useAlertDialog';
-import type {
-    CalendarBlockMove,
-    CalendarScheduleBlock,
-    CalendarSelection,
+import {
+    dateForIsoDay,
+    type CalendarBlockMove,
+    type CalendarScheduleBlock,
+    type CalendarSelection,
 } from '@/composables/useScheduleCalendar';
 import { useListFilters } from '@/services/listFilters';
 
-interface ScheduleBlockItem {
+interface SessionItem {
     id?: number;
-    day_of_week: number;
+    title: string;
+    session_date: string;
+    day_of_week?: number;
     starts_at: string;
     ends_at: string;
+    teacher_id: number;
+    teacher_name?: string;
+    classroom_id: number | null;
+    classroom_name?: string | null;
+    meeting_url: string | null;
+    status: 'scheduled' | 'in_progress' | 'finished' | 'cancelled';
 }
 
-interface ScheduleRow {
+interface OfferingRow {
     id: number;
     course_id: number;
     course_name: string;
-    teacher_id: number;
+    group_code: string;
+    starts_on: string;
+    ends_on: string;
+    max_students: number;
+    enrolled_count: number;
+    available_spots: number;
+    modality: 'in_person' | 'virtual' | 'hybrid';
+    status: 'draft' | 'published' | 'in_progress' | 'finished' | 'cancelled';
+    raw_status: 'draft' | 'published' | 'in_progress' | 'finished' | 'cancelled';
+    teacher_ids: number[];
+    teacher_names: string[];
     teacher_name: string;
-    academic_period_id: number;
-    period_name: string;
-    period_has_ended: boolean;
-    modality: 'in_person' | 'virtual';
-    classroom_id: number | null;
-    classroom_name: string | null;
-    blocks: ScheduleBlockItem[];
+    sessions: SessionItem[];
 }
 
 interface PageMeta {
@@ -53,19 +66,19 @@ interface PageMeta {
 }
 
 const props = defineProps<{
-    schedules: { data: ScheduleRow[]; meta: PageMeta };
+    schedules: { data: OfferingRow[]; meta: PageMeta };
     calendarBlocks: CalendarScheduleBlock[];
+    calendarOfferings?: OfferingRow[];
     filters: {
         q: string;
         course: string;
         teacher: string;
         classroom: string;
-        period: string;
+        status: string;
     };
-    courses: { id: number; name: string }[];
+    courses: { id: number; name: string; next_group_code?: string }[];
     teachers: { id: number; name: string }[];
     classrooms: { id: number; name: string; capacity: number | null }[];
-    periods: { id: number; name: string; starts_on: string; ends_on: string; has_ended: boolean }[];
     pendingCount: number;
 }>();
 
@@ -74,7 +87,7 @@ const { filters, goToPage, reset } = useListFilters('/scheduling', {
     course: props.filters.course ?? '',
     teacher: props.filters.teacher ?? '',
     classroom: props.filters.classroom ?? '',
-    period: props.filters.period ?? '',
+    status: props.filters.status ?? '',
 });
 
 const hasFilters = computed(
@@ -82,23 +95,46 @@ const hasFilters = computed(
         filters.q !== '' ||
         filters.course !== '' ||
         filters.teacher !== '' ||
-        filters.classroom !== '',
+        filters.classroom !== '' ||
+        filters.status !== '',
 );
 
-const dayNames: Record<number, string> = {
-    1: 'Lunes',
-    2: 'Martes',
-    3: 'Miércoles',
-    4: 'Jueves',
-    5: 'Viernes',
-    6: 'Sábado',
-    7: 'Domingo',
+const modalityLabels: Record<string, string> = {
+    in_person: 'Presencial',
+    virtual: 'Virtual',
+    hybrid: 'Híbrida',
 };
 
-const dayOptions = Object.entries(dayNames).map(([value, label]) => ({ value, label }));
+const statusLabels: Record<string, string> = {
+    draft: 'Borrador',
+    published: 'Publicada',
+    in_progress: 'En curso',
+    finished: 'Finalizada',
+    cancelled: 'Cancelada',
+};
+
+const sessionStatusLabels: Record<string, string> = {
+    scheduled: 'Programada',
+    in_progress: 'En curso',
+    finished: 'Finalizada',
+    cancelled: 'Cancelada',
+};
+
 const modalityOptions = [
     { value: 'in_person', label: 'Presencial' },
     { value: 'virtual', label: 'Virtual' },
+    { value: 'hybrid', label: 'Híbrida' },
+];
+
+const offeringStatusOptions = [
+    { value: 'draft', label: 'Borrador' },
+    { value: 'published', label: 'Publicada (en curso / finalizada automático)' },
+    { value: 'cancelled', label: 'Cancelada' },
+];
+
+const sessionStatusOptions = [
+    { value: 'scheduled', label: 'Programada (automático por fecha)' },
+    { value: 'cancelled', label: 'Cancelada' },
 ];
 
 const courseFilterOptions = computed(() => [
@@ -113,14 +149,15 @@ const classroomFilterOptions = computed(() => [
     { value: '', label: 'Todas las aulas' },
     ...props.classrooms.map((c) => ({ value: String(c.id), label: c.name })),
 ]);
-const periodFilterOptions = computed(() => [
-    { value: '', label: 'Todos los periodos' },
-    ...props.periods.map((p) => ({ value: String(p.id), label: p.name })),
-]);
+const statusFilterOptions = [
+    { value: '', label: 'Todos los estados' },
+    { value: 'draft', label: 'Borrador' },
+    { value: 'published', label: 'Publicada' },
+    { value: 'in_progress', label: 'En curso' },
+    { value: 'finished', label: 'Finalizada' },
+    { value: 'cancelled', label: 'Cancelada' },
+];
 
-const activePeriodOptions = computed(() =>
-    props.periods.filter((p) => !p.has_ended).map((p) => ({ value: String(p.id), label: p.name })),
-);
 const courseOptions = computed(() =>
     props.courses.map((c) => ({ value: String(c.id), label: c.name })),
 );
@@ -129,93 +166,168 @@ const teacherOptions = computed(() =>
 );
 const classroomOptions = computed(() => [
     { value: '', label: 'Seleccione un aula' },
-    ...props.classrooms.map((c) => ({ value: String(c.id), label: c.name })),
+    ...props.classrooms.map((c) => ({
+        value: String(c.id),
+        label: c.capacity ? `${c.name} (${c.capacity} cupos)` : c.name,
+    })),
 ]);
 
 const columns = [
-    { key: 'course', label: 'Curso y periodo' },
-    { key: 'teacher', label: 'Docente' },
-    { key: 'location', label: 'Modalidad / Aula' },
-    { key: 'blocks', label: 'Horario semanal' },
+    { key: 'course', label: 'Curso y grupo' },
+    { key: 'teachers', label: 'Docente asignado' },
+    { key: 'modality', label: 'Modalidad y cupos' },
+    { key: 'sessions', label: 'Sesiones programadas' },
     { key: 'actions', label: 'Acciones' },
 ];
 
 const modalOpen = ref(false);
 const editingId = ref<number | null>(null);
 
-const form = useForm<{
-    course_id: string;
-    teacher_id: string;
-    academic_period_id: string;
-    modality: 'in_person' | 'virtual';
-    classroom_id: string;
-    blocks: { day_of_week: string; starts_at: string; ends_at: string }[];
-}>({
+const todayIso = new Date().toISOString().slice(0, 10);
+
+function nextGroupCodeForCourse(courseId: string | number | null | undefined): string {
+    const id = Number(courseId);
+    const course = props.courses.find((c) => c.id === id);
+    if (course?.next_group_code) {
+        return course.next_group_code;
+    }
+    const existingForCourse = props.schedules.data.filter((row) => row.course_id === id).length;
+    return `GRP-${String(existingForCourse + 1).padStart(2, '0')}`;
+}
+
+function handleCourseChange(value: string | number | null | undefined): void {
+    const courseId = value ? String(value) : '';
+    form.course_id = courseId;
+    if (editingId.value === null) {
+        form.group_code = nextGroupCodeForCourse(courseId);
+    }
+}
+
+const form = useForm({
     course_id: props.courses[0] ? String(props.courses[0].id) : '',
+    group_code: props.courses[0] ? nextGroupCodeForCourse(props.courses[0].id) : 'GRP-01',
+    starts_on: todayIso,
+    ends_on: '2026-12-31',
+    max_students: '30',
+    modality: 'in_person' as 'in_person' | 'virtual' | 'hybrid',
+    status: 'published' as 'draft' | 'published' | 'in_progress' | 'finished' | 'cancelled',
     teacher_id: props.teachers[0] ? String(props.teachers[0].id) : '',
-    academic_period_id: activePeriodOptions.value[0]?.value ?? '',
-    modality: 'in_person',
-    classroom_id: props.classrooms[0] ? String(props.classrooms[0].id) : '',
-    blocks: [{ day_of_week: '1', starts_at: '08:00', ends_at: '10:00' }],
+    sessions: [
+        {
+            title: 'Sesión 1',
+            session_date: todayIso,
+            starts_at: '08:00',
+            ends_at: '10:00',
+            classroom_id: props.classrooms[0] ? String(props.classrooms[0].id) : '',
+            meeting_url: '',
+            status: 'scheduled' as 'scheduled' | 'in_progress' | 'finished' | 'cancelled',
+        },
+    ],
 });
+
+const isSaving = computed(() => form.processing);
 
 function openCreate(initialBlock?: CalendarSelection): void {
     editingId.value = null;
     form.clearErrors();
+    const defaultTeacher = props.teachers[0] ? String(props.teachers[0].id) : '';
+    const defaultClassroom = props.classrooms[0] ? String(props.classrooms[0].id) : '';
     form.course_id = props.courses[0] ? String(props.courses[0].id) : '';
-    form.teacher_id = props.teachers[0] ? String(props.teachers[0].id) : '';
-    form.academic_period_id = activePeriodOptions.value[0]?.value ?? '';
+    form.group_code = nextGroupCodeForCourse(form.course_id);
+    form.starts_on = todayIso;
+    form.ends_on = '2026-12-31';
+    form.max_students = String(props.classrooms[0]?.capacity ?? 30);
     form.modality = 'in_person';
-    form.classroom_id = props.classrooms[0] ? String(props.classrooms[0].id) : '';
-    form.blocks = [
+    form.status = 'published';
+    form.teacher_id = defaultTeacher;
+    form.sessions = [
         initialBlock
             ? {
-                  day_of_week: String(initialBlock.dayOfWeek),
+                  title: 'Sesión 1',
+                  session_date: dateForIsoDay(initialBlock.dayOfWeek),
                   starts_at: initialBlock.startsAt,
                   ends_at: initialBlock.endsAt,
+                  classroom_id: defaultClassroom,
+                  meeting_url: '',
+                  status: 'scheduled',
               }
-            : { day_of_week: '1', starts_at: '08:00', ends_at: '10:00' },
+            : {
+                  title: 'Sesión 1',
+                  session_date: todayIso,
+                  starts_at: '08:00',
+                  ends_at: '10:00',
+                  classroom_id: defaultClassroom,
+                  meeting_url: '',
+                  status: 'scheduled',
+              },
     ];
     modalOpen.value = true;
 }
 
-function openEdit(row: ScheduleRow): void {
+function openEdit(row: OfferingRow): void {
     editingId.value = row.id;
     form.clearErrors();
     form.course_id = String(row.course_id);
-    form.teacher_id = String(row.teacher_id);
-    form.academic_period_id = String(row.academic_period_id);
+    form.group_code = row.group_code;
+    form.starts_on = row.starts_on;
+    form.ends_on = row.ends_on;
+    form.max_students = String(row.max_students);
     form.modality = row.modality;
-    form.classroom_id = row.classroom_id ? String(row.classroom_id) : '';
-    form.blocks = row.blocks.map((b) => ({
-        day_of_week: String(b.day_of_week),
-        starts_at: b.starts_at,
-        ends_at: b.ends_at,
+    form.status = row.raw_status === 'draft' || row.raw_status === 'cancelled' ? row.raw_status : 'published';
+    form.teacher_id = row.teacher_ids[0] ? String(row.teacher_ids[0]) : '';
+    form.sessions = row.sessions.map((s) => ({
+        title: s.title,
+        session_date: s.session_date,
+        starts_at: s.starts_at,
+        ends_at: s.ends_at,
+        classroom_id: s.classroom_id ? String(s.classroom_id) : '',
+        meeting_url: s.meeting_url ?? '',
+        status: s.status === 'cancelled' ? 'cancelled' : 'scheduled',
     }));
     modalOpen.value = true;
 }
 
-function addBlock(): void {
-    form.blocks.push({ day_of_week: '1', starts_at: '08:00', ends_at: '10:00' });
+function addSession(): void {
+    const defaultClassroom = props.classrooms[0] ? String(props.classrooms[0].id) : '';
+    form.sessions.push({
+        title: `Sesión ${form.sessions.length + 1}`,
+        session_date: form.starts_on || todayIso,
+        starts_at: '08:00',
+        ends_at: '10:00',
+        classroom_id: form.modality === 'virtual' ? '' : defaultClassroom,
+        meeting_url: '',
+        status: 'scheduled',
+    });
 }
 
-function removeBlock(index: number): void {
-    if (form.blocks.length > 1) {
-        form.blocks.splice(index, 1);
+function removeSession(index: number): void {
+    if (form.sessions.length > 1) {
+        form.sessions.splice(index, 1);
     }
 }
 
 function saveSchedule(): void {
+    const teacherId = Number(form.teacher_id);
     const payload = {
         course_id: Number(form.course_id),
-        teacher_id: Number(form.teacher_id),
-        academic_period_id: Number(form.academic_period_id),
+        group_code: editingId.value ? form.group_code : '',
+        starts_on: form.starts_on,
+        ends_on: form.ends_on,
+        max_students: Number(form.max_students),
         modality: form.modality,
-        classroom_id: form.modality === 'in_person' && form.classroom_id ? Number(form.classroom_id) : null,
-        blocks: form.blocks.map((b) => ({
-            day_of_week: Number(b.day_of_week),
-            starts_at: b.starts_at,
-            ends_at: b.ends_at,
+        status: form.status,
+        teacher_id: teacherId,
+        teacher_ids: teacherId ? [teacherId] : [],
+        sessions: form.sessions.map((s) => ({
+            title: s.title,
+            session_date: s.session_date,
+            starts_at: s.starts_at,
+            ends_at: s.ends_at,
+            teacher_id: teacherId,
+            classroom_id:
+                form.modality !== 'virtual' && s.classroom_id ? Number(s.classroom_id) : null,
+            meeting_url: form.modality !== 'in_person' && s.meeting_url ? s.meeting_url : null,
+            status: s.status,
         })),
     };
 
@@ -230,28 +342,49 @@ function saveSchedule(): void {
     });
 }
 
+function findOfferingById(scheduleId: number): OfferingRow | undefined {
+    return (
+        props.schedules.data.find((item) => item.id === scheduleId) ??
+        props.calendarOfferings?.find((item) => item.id === scheduleId)
+    );
+}
+
+function handleCalendarEventClick(scheduleId: number): void {
+    const row = findOfferingById(scheduleId);
+    if (row) {
+        openEdit(row);
+    }
+}
+
 function handleCalendarMove(move: CalendarBlockMove): void {
-    const row = props.schedules.data.find((item) => item.id === move.scheduleId);
-    if (!row || row.period_has_ended) {
+    const row = findOfferingById(move.scheduleId);
+    if (!row) {
         move.revert();
         return;
     }
 
-    const updatedBlocks = row.blocks.map((block, idx) =>
+    const updatedSessions = row.sessions.map((session, idx) =>
         idx === move.blockIndex
-            ? { day_of_week: move.dayOfWeek, starts_at: move.startsAt, ends_at: move.endsAt }
-            : { day_of_week: block.day_of_week, starts_at: block.starts_at, ends_at: block.ends_at },
+            ? {
+                  ...session,
+                  starts_at: move.startsAt,
+                  ends_at: move.endsAt,
+              }
+            : session,
     );
 
     router.put(
         `/scheduling/schedules/${row.id}`,
         {
             course_id: row.course_id,
-            teacher_id: row.teacher_id,
-            academic_period_id: row.academic_period_id,
+            group_code: row.group_code,
+            starts_on: row.starts_on,
+            ends_on: row.ends_on,
+            max_students: row.max_students,
             modality: row.modality,
-            classroom_id: row.classroom_id,
-            blocks: updatedBlocks,
+            status: row.raw_status,
+            teacher_ids: row.teacher_ids,
+            sessions: updatedSessions.map((s) => ({ ...s })),
         },
         {
             preserveScroll: true,
@@ -260,12 +393,12 @@ function handleCalendarMove(move: CalendarBlockMove): void {
     );
 }
 
-async function confirmDelete(row: ScheduleRow): Promise<void> {
+async function confirmDelete(row: OfferingRow): Promise<void> {
     if (
         await requestAlertDialog({
             variant: 'danger',
-            title: '¿Eliminar esta programación?',
-            message: `Se quitará el horario de ${row.course_name} asignado a ${row.teacher_name}.`,
+            title: '¿Eliminar esta programación académica?',
+            message: `Se eliminará el grupo ${row.group_code} del curso ${row.course_name} junto con sus sesiones.`,
             confirmLabel: 'Eliminar programación',
         })
     ) {
@@ -281,7 +414,7 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
             <div>
                 <h1 class="text-xl font-semibold">Programación académica</h1>
                 <p class="text-sm text-text-muted">
-                    Gestiona horarios de cursos, docentes asignados y aulas por periodo académico.
+                    Gestiona grupos (CourseOffering), docentes habilitados, cupos máximos y sesiones individuales por fecha.
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
@@ -298,12 +431,6 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
                 >
                     Aulas
                 </Link>
-                <Link
-                    href="/scheduling/periods"
-                    class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-3 py-2 text-sm font-medium text-text hover:bg-surface"
-                >
-                    Periodos
-                </Link>
                 <Button @click="openCreate()">Nueva programación</Button>
             </div>
         </div>
@@ -311,11 +438,7 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
         <form class="mb-6 flex flex-wrap items-end gap-3" role="search" @submit.prevent="goToPage(1)">
             <div class="min-w-48 flex-1">
                 <label for="filter-q" class="mb-1 block text-xs text-text-muted">Buscar</label>
-                <Input id="filter-q" v-model="filters.q" placeholder="Curso o docente" />
-            </div>
-            <div class="w-48">
-                <label for="filter-period" class="mb-1 block text-xs text-text-muted">Periodo</label>
-                <Select id="filter-period" v-model="filters.period" :options="periodFilterOptions" />
+                <Input id="filter-q" v-model="filters.q" placeholder="Curso, grupo o docente" />
             </div>
             <div class="w-48">
                 <label for="filter-course" class="mb-1 block text-xs text-text-muted">Curso</label>
@@ -333,6 +456,10 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
                     :options="classroomFilterOptions"
                 />
             </div>
+            <div class="w-44">
+                <label for="filter-status" class="mb-1 block text-xs text-text-muted">Estado</label>
+                <Select id="filter-status" v-model="filters.status" :options="statusFilterOptions" />
+            </div>
             <IconButton icon="search" label="Filtrar horarios" type="submit" variant="primary" />
             <IconButton v-if="hasFilters" icon="clear" label="Limpiar filtros" @click="reset" />
         </form>
@@ -343,59 +470,83 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
                 :editable="true"
                 @select="openCreate"
                 @move="handleCalendarMove"
+                @event-click="handleCalendarEventClick"
             />
         </div>
 
         <Table :columns="columns" :rows="schedules.data as unknown as Record<string, unknown>[]">
             <template #cell-course="{ row }">
                 <p class="font-semibold">{{ row.course_name }}</p>
-                <div class="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
-                    <span>{{ row.period_name }}</span>
-                    <Badge v-if="row.period_has_ended" variant="neutral">Periodo cerrado</Badge>
+                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                    <span class="font-medium text-text">{{ row.group_code }}</span>
+                    <span>· {{ row.starts_on }} al {{ row.ends_on }}</span>
+                    <Badge
+                        :variant="
+                            row.status === 'in_progress' || row.status === 'published'
+                                ? 'success'
+                                : row.status === 'cancelled'
+                                  ? 'danger'
+                                  : 'neutral'
+                        "
+                    >
+                        {{ statusLabels[String(row.status)] ?? row.status }}
+                    </Badge>
                 </div>
             </template>
-            <template #cell-teacher="{ row }">{{ row.teacher_name }}</template>
-            <template #cell-location="{ row }">
-                <Badge :variant="row.modality === 'virtual' ? 'neutral' : 'success'">
-                    {{ row.modality === 'virtual' ? 'Virtual' : row.classroom_name || 'Presencial' }}
-                </Badge>
+            <template #cell-teachers="{ row }">
+                <span class="text-sm">{{ row.teacher_name }}</span>
             </template>
-            <template #cell-blocks="{ row }">
+            <template #cell-modality="{ row }">
+                <div class="flex flex-col gap-1">
+                    <Badge :variant="row.modality === 'virtual' ? 'neutral' : 'success'">
+                        {{ modalityLabels[String(row.modality)] ?? row.modality }}
+                    </Badge>
+                    <span class="text-xs text-text-muted">
+                        Vacantes: <strong class="text-text">{{ row.available_spots }}</strong> / {{ row.max_students }}
+                    </span>
+                </div>
+            </template>
+            <template #cell-sessions="{ row }">
                 <ul class="space-y-1 text-xs">
                     <li
-                        v-for="(block, idx) in row.blocks as ScheduleBlockItem[]"
+                        v-for="(session, idx) in row.sessions as SessionItem[]"
                         :key="idx"
+                        class="flex flex-wrap items-center gap-1"
                     >
-                        {{ dayNames[block.day_of_week] }}: {{ block.starts_at }} – {{ block.ends_at }}
+                        <span class="font-medium">{{ session.session_date }}</span>
+                        <span>({{ session.starts_at }} – {{ session.ends_at }})</span>
+                        <span v-if="session.classroom_name" class="text-text-muted">
+                            [{{ session.classroom_name }}]
+                        </span>
+                        <Badge v-if="session.status === 'cancelled'" variant="danger">
+                            {{ sessionStatusLabels[session.status] }}
+                        </Badge>
                     </li>
                 </ul>
             </template>
             <template #cell-actions="{ row }">
                 <div class="flex items-center gap-2">
                     <IconButton
-                        v-if="!row.period_has_ended"
                         icon="edit"
                         :label="`Editar programación de ${row.course_name}`"
                         variant="primary"
-                        @click="openEdit(row as unknown as ScheduleRow)"
+                        @click="openEdit(row as unknown as OfferingRow)"
                     />
                     <IconButton
-                        v-if="!row.period_has_ended"
                         icon="delete"
                         :label="`Eliminar programación de ${row.course_name}`"
                         variant="danger"
-                        @click="confirmDelete(row as unknown as ScheduleRow)"
+                        @click="confirmDelete(row as unknown as OfferingRow)"
                     />
-                    <span v-else class="text-xs text-text-muted">Solo lectura</span>
                 </div>
             </template>
             <template #empty>
                 <EmptyState
-                    :title="hasFilters ? 'Sin resultados para los filtros' : 'Aún no hay programaciones'"
+                    :title="hasFilters ? 'Sin resultados para los filtros' : 'Aún no hay programaciones académicas'"
                     :description="
                         hasFilters
-                            ? 'Prueba ajustando el curso, docente o aula filtrada.'
-                            : 'Crea una programación académica o selecciona un rango en el calendario.'
+                            ? 'Prueba ajustando el curso, docente, aula o estado filtrado.'
+                            : 'Crea una programación académica indicando el grupo, fechas, cupos y sesiones.'
                     "
                 />
             </template>
@@ -414,104 +565,147 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
         <Modal
             :open="modalOpen"
             :title="editingId ? 'Editar programación académica' : 'Nueva programación académica'"
+            size="4xl"
             @close="modalOpen = false"
         >
-            <form class="flex flex-col gap-4" @submit.prevent="saveSchedule">
+            <form class="flex flex-col gap-5" @submit.prevent="saveSchedule">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField id="schedule-course" label="Curso" :error="form.errors.course_id">
+                        <SearchableSelect
+                            id="schedule-course"
+                            v-model="form.course_id"
+                            :options="courseOptions"
+                            :error="form.errors.course_id"
+                            placeholder="Seleccione un curso..."
+                            search-placeholder="Buscar curso por nombre..."
+                            empty-message="No hay cursos disponibles."
+                            no-results-message="No se encontraron cursos."
+                            @update:model-value="handleCourseChange"
+                        />
+                    </FormField>
+
+                    <FormField id="schedule-group" label="Código del grupo (autogenerado)" :error="form.errors.group_code">
+                        <Input id="schedule-group" v-model="form.group_code" :disabled="true" />
+                    </FormField>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <FormField id="schedule-starts-on" label="Fecha de inicio" :error="form.errors.starts_on">
+                        <Input id="schedule-starts-on" v-model="form.starts_on" type="date" />
+                    </FormField>
+                    <FormField id="schedule-ends-on" label="Fecha de fin" :error="form.errors.ends_on">
+                        <Input id="schedule-ends-on" v-model="form.ends_on" type="date" />
+                    </FormField>
+                    <FormField id="schedule-max-students" label="Cupos máximos" :error="form.errors.max_students">
+                        <Input id="schedule-max-students" v-model="form.max_students" type="number" min="1" />
+                    </FormField>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField id="schedule-modality" label="Modalidad" :error="form.errors.modality">
+                        <Select id="schedule-modality" v-model="form.modality" :options="modalityOptions" />
+                    </FormField>
+                    <FormField id="schedule-status" label="Estado" :error="form.errors.status">
+                        <Select id="schedule-status" v-model="form.status" :options="offeringStatusOptions" />
+                    </FormField>
+                </div>
+
                 <FormField
-                    id="schedule-period"
-                    label="Periodo académico"
-                    :error="form.errors.academic_period_id"
+                    id="schedule-teacher"
+                    label="Docente asignado"
+                    :error="(form.errors as Record<string, string>).teacher_id || (form.errors as Record<string, string>).teacher_ids"
                 >
-                    <Select
-                        id="schedule-period"
-                        v-model="form.academic_period_id"
-                        :options="activePeriodOptions"
-                    />
-                </FormField>
-
-                <FormField id="schedule-course" label="Curso" :error="form.errors.course_id">
-                    <Select id="schedule-course" v-model="form.course_id" :options="courseOptions" />
-                </FormField>
-
-                <FormField id="schedule-teacher" label="Docente" :error="form.errors.teacher_id">
                     <SearchableSelect
                         id="schedule-teacher"
                         v-model="form.teacher_id"
                         :options="teacherOptions"
-                        :error="form.errors.teacher_id"
-                        placeholder="Seleccione un docente"
+                        :error="(form.errors as Record<string, string>).teacher_id || (form.errors as Record<string, string>).teacher_ids"
+                        placeholder="Seleccione un docente..."
                         search-placeholder="Buscar docente por nombre..."
                         empty-message="No hay docentes disponibles."
                         no-results-message="No se encontraron docentes."
                     />
                 </FormField>
 
-                <FormField id="schedule-modality" label="Modalidad" :error="form.errors.modality">
-                    <Select
-                        id="schedule-modality"
-                        v-model="form.modality"
-                        :options="modalityOptions"
-                    />
-                </FormField>
-
-                <FormField
-                    v-if="form.modality === 'in_person'"
-                    id="schedule-classroom"
-                    label="Aula física"
-                    :error="form.errors.classroom_id"
-                >
-                    <Select
-                        id="schedule-classroom"
-                        v-model="form.classroom_id"
-                        :options="classroomOptions"
-                    />
-                </FormField>
-
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <p class="text-sm font-medium text-text">Bloques de horario semanal</p>
-                        <Button type="button" variant="secondary" @click="addBlock">
-                            Añadir bloque
+                        <p class="text-sm font-medium text-text">Sesiones individuales programadas</p>
+                        <Button type="button" variant="secondary" @click="addSession">
+                            Añadir sesión
                         </Button>
                     </div>
-                    <p v-if="(form.errors as Record<string, string>).blocks" class="text-xs text-danger">
-                        {{ (form.errors as Record<string, string>).blocks }}
+                    <p v-if="(form.errors as Record<string, string>).sessions" class="text-xs text-danger">
+                        {{ (form.errors as Record<string, string>).sessions }}
+                    </p>
+                    <p v-if="(form.errors as Record<string, string>).classroom_id" class="text-xs text-danger">
+                        {{ (form.errors as Record<string, string>).classroom_id }}
                     </p>
                     <div
-                        v-for="(block, index) in form.blocks"
+                        v-for="(session, index) in form.sessions"
                         :key="index"
-                        class="grid grid-cols-1 gap-2 rounded-control border border-border p-3 sm:grid-cols-4 sm:items-end"
+                        class="space-y-3 rounded-card border border-border bg-surface/40 p-4"
                     >
-                        <div>
-                            <label :for="`block-day-${index}`" class="mb-1 block text-xs text-text-muted">
-                                Día
-                            </label>
-                            <Select
-                                :id="`block-day-${index}`"
-                                v-model="block.day_of_week"
-                                :options="dayOptions"
-                            />
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+                            <div>
+                                <label :for="`session-date-${index}`" class="mb-1 block text-xs font-medium text-text-muted">
+                                    Fecha
+                                </label>
+                                <Input :id="`session-date-${index}`" v-model="session.session_date" type="date" />
+                            </div>
+                            <div>
+                                <label :for="`session-start-${index}`" class="mb-1 block text-xs font-medium text-text-muted">
+                                    Hora inicio
+                                </label>
+                                <Input :id="`session-start-${index}`" v-model="session.starts_at" type="time" />
+                            </div>
+                            <div>
+                                <label :for="`session-end-${index}`" class="mb-1 block text-xs font-medium text-text-muted">
+                                    Hora fin
+                                </label>
+                                <Input :id="`session-end-${index}`" v-model="session.ends_at" type="time" />
+                            </div>
+                            <div>
+                                <label :for="`session-status-${index}`" class="mb-1 block text-xs font-medium text-text-muted">
+                                    Estado
+                                </label>
+                                <Select
+                                    :id="`session-status-${index}`"
+                                    v-model="session.status"
+                                    :options="sessionStatusOptions"
+                                />
+                            </div>
+                            <div class="flex justify-end">
+                                <IconButton
+                                    v-if="form.sessions.length > 1"
+                                    icon="delete"
+                                    label="Quitar sesión"
+                                    variant="danger"
+                                    @click="removeSession(index)"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label :for="`block-start-${index}`" class="mb-1 block text-xs text-text-muted">
-                                Inicio
-                            </label>
-                            <Input :id="`block-start-${index}`" v-model="block.starts_at" type="time" />
-                        </div>
-                        <div>
-                            <label :for="`block-end-${index}`" class="mb-1 block text-xs text-text-muted">
-                                Fin
-                            </label>
-                            <Input :id="`block-end-${index}`" v-model="block.ends_at" type="time" />
-                        </div>
-                        <div class="flex justify-end">
-                            <IconButton
-                                v-if="form.blocks.length > 1"
-                                icon="delete"
-                                label="Quitar bloque"
-                                variant="danger"
-                                @click="removeBlock(index)"
-                            />
+
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div v-if="form.modality !== 'virtual'">
+                                <label :for="`session-room-${index}`" class="mb-1 block text-xs text-text-muted">
+                                    Aula física
+                                </label>
+                                <Select
+                                    :id="`session-room-${index}`"
+                                    v-model="session.classroom_id"
+                                    :options="classroomOptions"
+                                />
+                            </div>
+                            <div v-if="form.modality !== 'in_person'">
+                                <label :for="`session-url-${index}`" class="mb-1 block text-xs text-text-muted">
+                                    Enlace de videoconferencia
+                                </label>
+                                <Input
+                                    :id="`session-url-${index}`"
+                                    v-model="session.meeting_url"
+                                    placeholder="https://meet.openedu.test/..."
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -520,10 +714,9 @@ async function confirmDelete(row: ScheduleRow): Promise<void> {
                     <Button type="button" variant="secondary" @click="modalOpen = false">
                         Cancelar
                     </Button>
-                    <Button type="submit" :loading="form.processing">Guardar programación</Button>
+                    <Button type="submit" :loading="isSaving">Guardar programación</Button>
                 </div>
             </form>
         </Modal>
     </AppLayout>
 </template>
-

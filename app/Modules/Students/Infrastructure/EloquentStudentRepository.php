@@ -84,17 +84,19 @@ final class EloquentStudentRepository implements StudentRepository
     public function forCourse(int $courseId): array
     {
         return Enrollment::query()
-            ->with('student.user')
+            ->with(['student.user', 'courseOffering:id,group_code'])
             ->where('course_id', $courseId)
             ->orderBy('enrolled_at')
             ->get()
             ->map(fn (Enrollment $enrollment): array => [
                 'id' => $enrollment->student->id,
+                'enrollment_id' => $enrollment->id,
                 'name' => $enrollment->student->user->name,
                 'email' => $enrollment->student->user->email,
                 'identifier' => $enrollment->student->identifier,
                 'phone' => $enrollment->student->phone,
                 'status' => $enrollment->status->value,
+                'group_code' => $enrollment->courseOffering?->group_code,
                 'enrolled_at' => $enrollment->enrolled_at->toISOString(),
             ])
             ->all();
@@ -103,7 +105,7 @@ final class EloquentStudentRepository implements StudentRepository
     public function coursesFor(int $studentId, ?int $teacherUserId = null): array
     {
         return Enrollment::query()
-            ->with('course')
+            ->with(['course', 'courseOffering:id,group_code'])
             ->where('student_id', $studentId)
             ->when(
                 $teacherUserId !== null,
@@ -116,8 +118,10 @@ final class EloquentStudentRepository implements StudentRepository
             ->get()
             ->map(fn (Enrollment $enrollment): array => [
                 'id' => $enrollment->course->id,
+                'enrollment_id' => $enrollment->id,
                 'name' => $enrollment->course->name,
                 'status' => $enrollment->status->value,
+                'group_code' => $enrollment->courseOffering?->group_code,
                 'enrolled_at' => $enrollment->enrolled_at->toISOString(),
             ])
             ->all();

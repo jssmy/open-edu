@@ -2,12 +2,13 @@
 
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Identity\Domain\Role;
-use App\Modules\Scheduling\Infrastructure\Models\AcademicPeriod;
 use App\Modules\Scheduling\Infrastructure\Models\Classroom;
-use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
+use App\Modules\Scheduling\Infrastructure\Models\CourseSession;
 
-it('manages classrooms and prevents deleting or deactivating a classroom with schedules', function () {
+it('manages classrooms and prevents deleting or deactivating a classroom with active sessions', function () {
     $admin = userWithRole(Role::Administrador);
+    $teacher = userWithRole(Role::Docente);
 
     $this->actingAs($admin)->post('/scheduling/classrooms', [
         'name' => 'Aula 201',
@@ -16,12 +17,20 @@ it('manages classrooms and prevents deleting or deactivating a classroom with sc
 
     $classroom = Classroom::query()->where('name', 'Aula 201')->firstOrFail();
 
-    CourseSchedule::factory()->create([
+    $offering = CourseOffering::factory()->create([
         'course_id' => Course::factory()->create()->id,
-        'teacher_id' => userWithRole(Role::Docente)->id,
-        'academic_period_id' => AcademicPeriod::factory()->create()->id,
         'modality' => 'in_person',
+    ]);
+    $offering->teachers()->sync([$teacher->id]);
+    CourseSession::query()->create([
+        'course_offering_id' => $offering->id,
+        'title' => 'Sesión presencial',
+        'session_date' => '2026-11-20',
+        'starts_at' => '08:00',
+        'ends_at' => '10:00',
+        'teacher_id' => $teacher->id,
         'classroom_id' => $classroom->id,
+        'status' => 'scheduled',
     ]);
 
     $this->actingAs($admin)->delete("/scheduling/classrooms/{$classroom->id}")
@@ -34,21 +43,8 @@ it('manages classrooms and prevents deleting or deactivating a classroom with sc
     ])->assertSessionHasErrors('classroom');
 });
 
-it('manages academic periods and validates date order', function () {
+it('confirms academic periods routes are removed', function () {
     $admin = userWithRole(Role::Administrador);
 
-    $this->actingAs($admin)->post('/scheduling/periods', [
-        'name' => 'Ciclo 2027-I',
-        'starts_on' => '2027-03-01',
-        'ends_on' => '2027-02-01',
-    ])->assertSessionHasErrors('ends_on');
-
-    $this->actingAs($admin)->post('/scheduling/periods', [
-        'name' => 'Ciclo 2027-I',
-        'starts_on' => '2027-03-01',
-        'ends_on' => '2027-07-15',
-    ])->assertRedirect();
-
-    $this->assertDatabaseHas('academic_periods', ['name' => 'Ciclo 2027-I']);
+    $this->actingAs($admin)->get('/scheduling/periods')->assertNotFound();
 });
-

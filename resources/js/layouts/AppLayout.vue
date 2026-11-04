@@ -61,6 +61,14 @@ const navigationGroups = computed(() => {
             matches: ['/students'],
         },
         {
+            href: '/enrollments',
+            label: 'Matrículas',
+            description: 'Matricula estudiantes en clases',
+            icon: 'students',
+            permission: 'enrollments.manage',
+            matches: ['/enrollments'],
+        },
+        {
             href: '/my/courses',
             label: 'Mis cursos',
             description: 'Continúa tu aprendizaje',
@@ -125,6 +133,7 @@ const navigationGroups = computed(() => {
                         'scheduling.manage',
                         'scheduling.view-own',
                         'students.view',
+                        'enrollments.manage',
                         'study',
                     ].includes(link.permission),
             ),

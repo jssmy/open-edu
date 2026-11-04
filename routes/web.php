@@ -14,7 +14,6 @@ use App\Modules\Identity\Infrastructure\Http\UserController;
 use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Reports\Infrastructure\Http\ReportController;
 use App\Modules\Scheduling\Infrastructure\Http\ClassroomController;
-use App\Modules\Scheduling\Infrastructure\Http\PeriodController;
 use App\Modules\Scheduling\Infrastructure\Http\SchedulingController;
 use App\Modules\Students\Infrastructure\Http\StudentController;
 use Illuminate\Support\Facades\Route;
@@ -106,6 +105,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('can:enrollments.manage')->group(function () {
+        Route::get('/enrollments', [EnrollmentController::class, 'index'])->name('enrollments.index');
+        Route::post('/enrollments', [EnrollmentController::class, 'store'])->name('enrollments.offering.store');
+        Route::delete('/enrollments/{enrollment}', [EnrollmentController::class, 'destroy'])->name('enrollments.destroy');
         Route::post('/courses/{courseId}/enrollments', [CourseEnrollmentController::class, 'store'])->name('enrollments.store');
         Route::patch('/enrollments/{enrollment}/status', [EnrollmentController::class, 'status'])->name('enrollments.status');
     });
@@ -135,15 +137,18 @@ Route::middleware('auth')->group(function () {
         Route::put('/scheduling/schedules/{schedule}', [SchedulingController::class, 'update'])->name('scheduling.update');
         Route::delete('/scheduling/schedules/{schedule}', [SchedulingController::class, 'destroy'])->name('scheduling.destroy');
 
+        Route::post('/scheduling/offerings', [SchedulingController::class, 'store'])->name('scheduling.offerings.store');
+        Route::put('/scheduling/offerings/{schedule}', [SchedulingController::class, 'update'])->name('scheduling.offerings.update');
+        Route::delete('/scheduling/offerings/{schedule}', [SchedulingController::class, 'destroy'])->name('scheduling.offerings.destroy');
+
+        Route::post('/scheduling/offerings/{offering}/sessions', [SchedulingController::class, 'storeSession'])->name('scheduling.sessions.store');
+        Route::put('/scheduling/sessions/{session}', [SchedulingController::class, 'updateSession'])->name('scheduling.sessions.update');
+        Route::delete('/scheduling/sessions/{session}', [SchedulingController::class, 'destroySession'])->name('scheduling.sessions.destroy');
+
         Route::get('/scheduling/classrooms', [ClassroomController::class, 'index'])->name('scheduling.classrooms.index');
         Route::post('/scheduling/classrooms', [ClassroomController::class, 'store'])->name('scheduling.classrooms.store');
         Route::put('/scheduling/classrooms/{classroom}', [ClassroomController::class, 'update'])->name('scheduling.classrooms.update');
         Route::delete('/scheduling/classrooms/{classroom}', [ClassroomController::class, 'destroy'])->name('scheduling.classrooms.destroy');
-
-        Route::get('/scheduling/periods', [PeriodController::class, 'index'])->name('scheduling.periods.index');
-        Route::post('/scheduling/periods', [PeriodController::class, 'store'])->name('scheduling.periods.store');
-        Route::put('/scheduling/periods/{period}', [PeriodController::class, 'update'])->name('scheduling.periods.update');
-        Route::delete('/scheduling/periods/{period}', [PeriodController::class, 'destroy'])->name('scheduling.periods.destroy');
     });
 
     Route::middleware('can:scheduling.view-own')->group(function () {

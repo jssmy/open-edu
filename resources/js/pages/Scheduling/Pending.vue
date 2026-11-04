@@ -17,7 +17,9 @@ interface PendingRow {
     id: number;
     course_id: number;
     course_name: string;
+    group_code: string;
     teacher_id: number;
+    teacher_ids: number[];
     teacher_name: string;
 }
 
@@ -32,8 +34,7 @@ interface PageMeta {
 const props = defineProps<{
     pending: { data: PendingRow[]; meta: PageMeta };
     filters: { q: string };
-    classrooms: { id: number; name: string }[];
-    periods: { id: number; name: string }[];
+    classrooms: { id: number; name: string; capacity?: number | null }[];
 }>();
 
 const { filters, goToPage, reset } = useListFilters('/scheduling/pending', {
@@ -47,41 +48,36 @@ const columns = [
     { key: 'actions', label: 'Acciones' },
 ];
 
-const dayOptions = [
-    { value: '1', label: 'Lunes' },
-    { value: '2', label: 'Martes' },
-    { value: '3', label: 'Miércoles' },
-    { value: '4', label: 'Jueves' },
-    { value: '5', label: 'Viernes' },
-    { value: '6', label: 'Sábado' },
-    { value: '7', label: 'Domingo' },
-];
-
 const modalityOptions = [
     { value: 'in_person', label: 'Presencial' },
     { value: 'virtual', label: 'Virtual' },
+    { value: 'hybrid', label: 'Híbrida' },
 ];
 
-const periodOptions = computed(() =>
-    props.periods.map((p) => ({ value: String(p.id), label: p.name })),
-);
 const classroomOptions = computed(() => [
     { value: '', label: 'Seleccione un aula' },
     ...props.classrooms.map((c) => ({ value: String(c.id), label: c.name })),
 ]);
 
+const todayIso = new Date().toISOString().slice(0, 10);
+
 const selectedRow = ref<PendingRow | null>(null);
 const form = useForm({
-    academic_period_id: props.periods[0] ? String(props.periods[0].id) : '',
-    modality: 'in_person' as 'in_person' | 'virtual',
+    group_code: 'GRP-01',
+    starts_on: todayIso,
+    ends_on: '2026-12-31',
+    max_students: '30',
+    modality: 'in_person' as 'in_person' | 'virtual' | 'hybrid',
     classroom_id: props.classrooms[0] ? String(props.classrooms[0].id) : '',
-    day_of_week: '1',
+    session_title: 'Sesión 1',
+    session_date: todayIso,
     starts_at: '08:00',
     ends_at: '10:00',
 });
 
 function openComplete(row: PendingRow): void {
     selectedRow.value = row;
+    form.group_code = `GRP-${String(row.id).padStart(2, '0')}`;
     form.clearErrors();
 }
 
@@ -94,18 +90,25 @@ function submitComplete(): void {
     form
         .transform(() => ({
             course_id: row.course_id,
-            teacher_id: row.teacher_id,
-            academic_period_id: Number(form.academic_period_id),
+            group_code: '',
+            starts_on: form.starts_on,
+            ends_on: form.ends_on,
+            max_students: Number(form.max_students),
             modality: form.modality,
-            classroom_id:
-                form.modality === 'in_person' && form.classroom_id
-                    ? Number(form.classroom_id)
-                    : null,
-            blocks: [
+            status: 'published',
+            teacher_ids: row.teacher_ids?.length ? row.teacher_ids : [row.teacher_id],
+            sessions: [
                 {
-                    day_of_week: Number(form.day_of_week),
+                    title: form.session_title,
+                    session_date: form.session_date,
                     starts_at: form.starts_at,
                     ends_at: form.ends_at,
+                    teacher_id: row.teacher_id,
+                    classroom_id:
+                        form.modality !== 'virtual' && form.classroom_id
+                            ? Number(form.classroom_id)
+                            : null,
+                    status: 'scheduled',
                 },
             ],
         }))
@@ -128,7 +131,7 @@ function submitComplete(): void {
                 </Link>
                 <h1 class="mt-1 text-xl font-semibold">Asignaciones por programar</h1>
                 <p class="text-sm text-text-muted">
-                    Docentes migrados pendientes de periodo académico, modalidad y horario.
+                    Docentes migrados pendientes de grupo, fechas, modalidad y sesiones.
                 </p>
             </div>
         </div>
@@ -167,7 +170,7 @@ function submitComplete(): void {
                     :description="
                         hasFilters
                             ? 'Prueba con otro curso o docente.'
-                            : 'Todas las asignaciones docentes cuentan con horario programado.'
+                            : 'Todas las asignaciones docentes cuentan con programación.'
                     "
                 />
             </template>
@@ -186,16 +189,26 @@ function submitComplete(): void {
         <Modal
             :open="selectedRow !== null"
             title="Completar programación académica"
+            size="2xl"
             @close="selectedRow = null"
         >
             <form class="flex flex-col gap-3" @submit.prevent="submitComplete">
-                <FormField id="pending-period" label="Periodo académico">
-                    <Select
-                        id="pending-period"
-                        v-model="form.academic_period_id"
-                        :options="periodOptions"
-                    />
-                </FormField>
+                <div class="grid grid-cols-2 gap-3">
+                    <FormField id="pending-group" label="Código del grupo (autogenerado)">
+                        <Input id="pending-group" v-model="form.group_code" :disabled="true" />
+                    </FormField>
+                    <FormField id="pending-max" label="Cupos máximos">
+                        <Input id="pending-max" v-model="form.max_students" type="number" min="1" />
+                    </FormField>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <FormField id="pending-starts" label="Fecha de inicio">
+                        <Input id="pending-starts" v-model="form.starts_on" type="date" />
+                    </FormField>
+                    <FormField id="pending-ends" label="Fecha de fin">
+                        <Input id="pending-ends" v-model="form.ends_on" type="date" />
+                    </FormField>
+                </div>
                 <FormField id="pending-modality" label="Modalidad">
                     <Select
                         id="pending-modality"
@@ -204,7 +217,7 @@ function submitComplete(): void {
                     />
                 </FormField>
                 <FormField
-                    v-if="form.modality === 'in_person'"
+                    v-if="form.modality !== 'virtual'"
                     id="pending-classroom"
                     label="Aula física"
                 >
@@ -214,8 +227,8 @@ function submitComplete(): void {
                         :options="classroomOptions"
                     />
                 </FormField>
-                <FormField id="pending-day" label="Día">
-                    <Select id="pending-day" v-model="form.day_of_week" :options="dayOptions" />
+                <FormField id="pending-session-date" label="Fecha de la sesión">
+                    <Input id="pending-session-date" v-model="form.session_date" type="date" />
                 </FormField>
                 <div class="grid grid-cols-2 gap-3">
                     <FormField id="pending-start" label="Hora de inicio">
@@ -235,4 +248,3 @@ function submitComplete(): void {
         </Modal>
     </AppLayout>
 </template>
-

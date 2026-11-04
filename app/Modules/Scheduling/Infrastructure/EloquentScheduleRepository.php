@@ -3,106 +3,154 @@
 namespace App\Modules\Scheduling\Infrastructure;
 
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Modules\Scheduling\Domain\CourseSession as DomainSession;
 use App\Modules\Scheduling\Domain\ScheduleRepository;
-use App\Modules\Scheduling\Domain\TimeBlock;
-use App\Modules\Scheduling\Infrastructure\Models\AcademicPeriod;
+use App\Modules\Scheduling\Domain\SessionStatus;
 use App\Modules\Scheduling\Infrastructure\Models\Classroom;
-use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
-use App\Modules\Scheduling\Infrastructure\Models\ScheduleBlock;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
+use App\Modules\Scheduling\Infrastructure\Models\CourseSession;
 use Illuminate\Support\Facades\DB;
 
 class EloquentScheduleRepository implements ScheduleRepository
 {
-    /** @return list<TimeBlock> */
-    public function teacherBlocks(int $periodId, int $teacherId, ?int $exceptScheduleId = null): array
+    /** @return list<DomainSession> */
+    public function teacherSessions(int $teacherId, ?int $exceptOfferingId = null, ?int $exceptSessionId = null): array
     {
-        return ScheduleBlock::query()
-            ->whereHas('schedule', function ($query) use ($periodId, $teacherId, $exceptScheduleId): void {
-                $query->where('academic_period_id', $periodId)
-                    ->where('teacher_id', $teacherId)
-                    ->when($exceptScheduleId !== null, fn ($q) => $q->whereKeyNot($exceptScheduleId));
-            })
-            ->get(['day_of_week', 'starts_at', 'ends_at'])
-            ->map(fn (ScheduleBlock $block): TimeBlock => TimeBlock::fromTimes(
-                $block->day_of_week,
-                $block->starts_at,
-                $block->ends_at,
-            ))
+        return CourseSession::query()
+            ->where('teacher_id', $teacherId)
+            ->where('status', '!=', SessionStatus::Cancelled->value)
+            ->when($exceptOfferingId !== null, fn ($q) => $q->where('course_offering_id', '!=', $exceptOfferingId))
+            ->when($exceptSessionId !== null, fn ($q) => $q->whereKeyNot($exceptSessionId))
+            ->with('offering.course:id,name')
+            ->get()
+            ->map(fn (CourseSession $s): DomainSession => $this->toDomainSession($s))
             ->all();
     }
 
-    /** @return list<TimeBlock> */
-    public function classroomBlocks(int $periodId, int $classroomId, ?int $exceptScheduleId = null): array
+    /** @return list<DomainSession> */
+    public function classroomSessions(int $classroomId, ?int $exceptOfferingId = null, ?int $exceptSessionId = null): array
     {
-        return ScheduleBlock::query()
-            ->whereHas('schedule', function ($query) use ($periodId, $classroomId, $exceptScheduleId): void {
-                $query->where('academic_period_id', $periodId)
-                    ->where('classroom_id', $classroomId)
-                    ->when($exceptScheduleId !== null, fn ($q) => $q->whereKeyNot($exceptScheduleId));
-            })
-            ->get(['day_of_week', 'starts_at', 'ends_at'])
-            ->map(fn (ScheduleBlock $block): TimeBlock => TimeBlock::fromTimes(
-                $block->day_of_week,
-                $block->starts_at,
-                $block->ends_at,
-            ))
+        return CourseSession::query()
+            ->where('classroom_id', $classroomId)
+            ->where('status', '!=', SessionStatus::Cancelled->value)
+            ->when($exceptOfferingId !== null, fn ($q) => $q->where('course_offering_id', '!=', $exceptOfferingId))
+            ->when($exceptSessionId !== null, fn ($q) => $q->whereKeyNot($exceptSessionId))
+            ->with('offering.course:id,name')
+            ->get()
+            ->map(fn (CourseSession $s): DomainSession => $this->toDomainSession($s))
             ->all();
     }
 
-    public function create(array $data, array $blocks): int
+    /** @return list<DomainSession> */
+    public function studentActiveSessions(int $studentId, ?int $exceptCourseId = null): array
     {
-        return DB::transaction(function () use ($data, $blocks): int {
-            $schedule = CourseSchedule::query()->create($data);
-            $schedule->blocks()->createMany($blocks);
+        return CourseSession::query()
+            ->where('status', '!=', SessionStatus::Cancelled->value)
+            ->whereHas('offering', function ($query) use ($studentId, $exceptCourseId): void {
+                $query->when($exceptCourseId !== null, fn ($q) => $q->where('course_id', '!=', $exceptCourseId))
+                    ->whereHas('enrollments', function ($e) use ($studentId): void {
+                        $e->where('student_id', $studentId)->where('status', 'active');
+                    });
+            })
+            ->with('offering.course:id,name')
+            ->get()
+            ->map(fn (CourseSession $s): DomainSession => $this->toDomainSession($s))
+            ->all();
+    }
 
-            return $schedule->id;
+    public function create(array $data, array $teacherIds, array $sessions): int
+    {
+        return DB::transaction(function () use ($data, $teacherIds, $sessions): int {
+            $offering = CourseOffering::query()->create($data);
+            $offering->teachers()->sync($teacherIds);
+            foreach ($sessions as $session) {
+                $offering->sessions()->create($this->normalizeSessionRow($session));
+            }
+
+            return $offering->id;
         });
     }
 
-    public function update(int $scheduleId, array $data, array $blocks): void
+    public function update(int $offeringId, array $data, array $teacherIds, array $sessions): void
     {
-        DB::transaction(function () use ($scheduleId, $data, $blocks): void {
-            $schedule = CourseSchedule::query()->lockForUpdate()->findOrFail($scheduleId);
-            $schedule->update($data);
-            $schedule->blocks()->delete();
-            $schedule->blocks()->createMany($blocks);
+        DB::transaction(function () use ($offeringId, $data, $teacherIds, $sessions): void {
+            $offering = CourseOffering::query()->lockForUpdate()->findOrFail($offeringId);
+            $offering->update($data);
+            $offering->teachers()->sync($teacherIds);
+            $offering->sessions()->delete();
+            foreach ($sessions as $session) {
+                $offering->sessions()->create($this->normalizeSessionRow($session));
+            }
         });
     }
 
-    public function delete(int $scheduleId): void
+    public function delete(int $offeringId): void
     {
-        DB::transaction(function () use ($scheduleId): void {
-            $schedule = CourseSchedule::query()->findOrFail($scheduleId);
-            $schedule->delete();
+        DB::transaction(function () use ($offeringId): void {
+            $offering = CourseOffering::query()->findOrFail($offeringId);
+            $offering->delete();
         });
     }
 
-    public function periodHasEnded(int $periodId): bool
+    public function saveSession(int $offeringId, array $data, ?int $sessionId = null): int
     {
-        return AcademicPeriod::query()->findOrFail($periodId)->hasEnded();
+        return DB::transaction(function () use ($offeringId, $data, $sessionId): int {
+            $offering = CourseOffering::query()->lockForUpdate()->findOrFail($offeringId);
+            $row = $this->normalizeSessionRow($data);
+
+            if ($sessionId === null) {
+                return $offering->sessions()->create($row)->id;
+            }
+
+            $session = $offering->sessions()->findOrFail($sessionId);
+            $session->update($row);
+
+            return $session->id;
+        });
     }
 
-    public function scheduleEnded(int $scheduleId): bool
+    public function deleteSession(int $sessionId): void
     {
-        $schedule = CourseSchedule::query()->with('period')->findOrFail($scheduleId);
+        CourseSession::query()->findOrFail($sessionId)->delete();
+    }
 
-        return $schedule->period !== null && $schedule->period->hasEnded();
+    public function findOfferingMeta(int $offeringId): ?array
+    {
+        $offering = CourseOffering::query()->with('teachers:id')->find($offeringId);
+        if ($offering === null) {
+            return null;
+        }
+
+        return [
+            'id' => $offering->id,
+            'course_id' => $offering->course_id,
+            'modality' => $offering->modality,
+            'teacher_ids' => $offering->teachers->pluck('id')->map(fn ($id) => (int) $id)->all(),
+        ];
+    }
+
+    public function offeringIdOfSession(int $sessionId): int
+    {
+        return (int) CourseSession::query()->whereKey($sessionId)->value('course_offering_id');
     }
 
     public function syncCourseTeachers(int $courseId): void
     {
-        $teacherIds = CourseSchedule::query()
-            ->where('course_id', $courseId)
+        $teacherIds = DB::table('course_offering_teacher')
+            ->join('course_offerings', 'course_offerings.id', '=', 'course_offering_teacher.course_offering_id')
+            ->where('course_offerings.course_id', $courseId)
+            ->where('course_offerings.status', '!=', 'cancelled')
             ->distinct()
-            ->pluck('teacher_id')
+            ->pluck('course_offering_teacher.teacher_id')
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         Course::query()->findOrFail($courseId)->teachers()->sync($teacherIds);
     }
 
-    public function courseIdOf(int $scheduleId): int
+    public function courseIdOf(int $offeringId): int
     {
-        return (int) CourseSchedule::query()->whereKey($scheduleId)->value('course_id');
+        return (int) CourseOffering::query()->whereKey($offeringId)->value('course_id');
     }
 
     public function saveClassroom(array $data, ?int $classroomId = null): int
@@ -124,28 +172,43 @@ class EloquentScheduleRepository implements ScheduleRepository
 
     public function classroomHasSchedules(int $classroomId): bool
     {
-        return CourseSchedule::query()->where('classroom_id', $classroomId)->exists();
+        return CourseSession::query()
+            ->where('classroom_id', $classroomId)
+            ->where('status', '!=', SessionStatus::Cancelled->value)
+            ->exists();
     }
 
-    public function savePeriod(array $data, ?int $periodId = null): int
+    /**
+     * @param  array<string, mixed>  $session
+     * @return array<string, mixed>
+     */
+    private function normalizeSessionRow(array $session): array
     {
-        if ($periodId === null) {
-            return AcademicPeriod::query()->create($data)->id;
-        }
-
-        $period = AcademicPeriod::query()->findOrFail($periodId);
-        $period->update($data);
-
-        return $period->id;
+        return [
+            'title' => trim((string) ($session['title'] ?? '')) !== '' ? trim((string) $session['title']) : 'Sesión de clase',
+            'session_date' => $session['session_date'],
+            'starts_at' => $session['starts_at'],
+            'ends_at' => $session['ends_at'],
+            'teacher_id' => (int) $session['teacher_id'],
+            'classroom_id' => $session['classroom_id'] ?? null,
+            'meeting_url' => $session['meeting_url'] ?? null,
+            'status' => $session['status'] ?? SessionStatus::Scheduled->value,
+        ];
     }
 
-    public function deletePeriod(int $periodId): void
+    private function toDomainSession(CourseSession $session): DomainSession
     {
-        AcademicPeriod::query()->findOrFail($periodId)->delete();
-    }
-
-    public function periodHasSchedules(int $periodId): bool
-    {
-        return CourseSchedule::query()->where('academic_period_id', $periodId)->exists();
+        return DomainSession::fromPrimitives(
+            title: $session->title,
+            sessionDate: $session->session_date->toDateString(),
+            startsAt: $session->starts_at,
+            endsAt: $session->ends_at,
+            teacherId: $session->teacher_id,
+            classroomId: $session->classroom_id,
+            meetingUrl: $session->meeting_url,
+            status: $session->effectiveStatus(),
+            id: $session->id,
+            courseName: $session->offering?->course?->name,
+        );
     }
 }
