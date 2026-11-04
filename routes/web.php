@@ -15,6 +15,7 @@ use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Reports\Infrastructure\Http\ReportController;
 use App\Modules\Scheduling\Infrastructure\Http\ClassroomController;
 use App\Modules\Scheduling\Infrastructure\Http\SchedulingController;
+use App\Modules\Scheduling\Infrastructure\Http\TeacherClassController;
 use App\Modules\Students\Infrastructure\Http\StudentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -59,9 +60,6 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:courses.view')->group(function () {
         Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
         Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
-    });
-
-    Route::middleware('can:courses.manage')->group(function () {
         Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
     });
 
@@ -156,6 +154,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('can:scheduling.view-own')->group(function () {
         Route::get('/my/schedule', [SchedulingController::class, 'mySchedule'])->name('scheduling.my');
+        Route::get('/my/classes', [TeacherClassController::class, 'index'])->name('teacher.classes.index');
+        Route::get('/my/classes/{offering}/viewer', [TeacherClassController::class, 'viewer'])->name('teacher.classes.viewer');
     });
 
     Route::get('/courses/{course}/assessments/create', [AssessmentController::class, 'create'])

@@ -37,6 +37,14 @@ const navigationGroups = computed(() => {
             matches: ['/courses'],
         },
         {
+            href: '/my/classes',
+            label: 'Clases',
+            description: 'Accede a tus clases y cursos asignados',
+            icon: 'study',
+            permission: 'scheduling.view-own',
+            matches: ['/my/classes'],
+        },
+        {
             href: '/scheduling',
             label: 'Programación académica',
             description: 'Gestiona horarios, docentes y aulas',

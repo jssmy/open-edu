@@ -38,4 +38,19 @@ final class CoursePolicy
 
         return Response::allow();
     }
+
+    public function update(User $user, Course $course): Response
+    {
+        if ($user->hasRole('docente')) {
+            return $course->teachers()->whereKey($user->id)->exists()
+                ? Response::allow()
+                : Response::deny();
+        }
+
+        if (! $user->can('courses.manage')) {
+            return Response::deny();
+        }
+
+        return Response::allow();
+    }
 }

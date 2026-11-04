@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Alert from '@/design-system/Alert.vue';
@@ -21,17 +21,19 @@ interface Lesson {
     is_completed: boolean;
 }
 
+interface Unit {
+    id: number;
+    title: string;
+    position: number;
+    lessons: Lesson[];
+}
+
 interface Course {
     id: number;
     name: string;
     description: RichTextDocument | null;
     intro_video_embed_url: string | null;
-    units: {
-        id: number;
-        title: string;
-        position: number;
-        lessons: Lesson[];
-    }[];
+    units: Unit[];
     progress: {
         completed_lessons: number;
         total_lessons: number;
@@ -40,9 +42,98 @@ interface Course {
     assessments: { id: number; title: string; total_score: number }[];
 }
 
-defineProps<{ course: Course }>();
+interface FlattenedLesson extends Lesson {
+    unitTitle: string;
+    unitId: number;
+    indexInCourse: number;
+}
+
+const props = withDefaults(
+    defineProps<{
+        course: Course;
+        isTeacherView?: boolean;
+        backUrl?: string;
+    }>(),
+    {
+        isTeacherView: false,
+        backUrl: '/my/courses',
+    },
+);
+
 const completingLessonId = ref<number | null>(null);
 const completionError = ref<string | null>(null);
+const isDrawerOpen = ref(false);
+
+const flattenedLessons = computed<FlattenedLesson[]>(() => {
+    const list: FlattenedLesson[] = [];
+    let count = 0;
+    for (const unit of props.course.units) {
+        for (const lesson of unit.lessons) {
+            list.push({
+                ...lesson,
+                unitTitle: unit.title,
+                unitId: unit.id,
+                indexInCourse: count,
+            });
+            count++;
+        }
+    }
+    return list;
+});
+
+// Inicializar en la primera lección no completada (si es estudiante) o en la primera
+const activeLessonIndex = ref(0);
+if (!props.isTeacherView) {
+    const firstIncomplete = flattenedLessons.value.findIndex((l) => !l.is_completed);
+    if (firstIncomplete >= 0) {
+        activeLessonIndex.value = firstIncomplete;
+    }
+}
+
+const activeLesson = computed<FlattenedLesson | null>(() => {
+    return flattenedLessons.value[activeLessonIndex.value] ?? null;
+});
+
+const canGoPrev = computed(() => activeLessonIndex.value > 0);
+const canGoNext = computed(() => activeLessonIndex.value < flattenedLessons.value.length - 1);
+
+function prevLesson() {
+    if (canGoPrev.value) {
+        activeLessonIndex.value--;
+    }
+}
+
+function nextLesson() {
+    if (canGoNext.value) {
+        activeLessonIndex.value++;
+    }
+}
+
+function selectLesson(index: number) {
+    if (index >= 0 && index < flattenedLessons.value.length) {
+        activeLessonIndex.value = index;
+        isDrawerOpen.value = false;
+    }
+}
+
+function handleKeydown(event: KeyboardEvent) {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+    }
+    if (event.key === 'ArrowRight') {
+        nextLesson();
+    } else if (event.key === 'ArrowLeft') {
+        prevLesson();
+    }
+}
+
+onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown);
+});
 
 function completeLesson(lesson: Lesson) {
     if (lesson.is_completed || completingLessonId.value !== null) {
@@ -108,183 +199,220 @@ function isStoredContent(content: Lesson['content']): boolean {
 </script>
 
 <template>
-    <Head :title="course.name" />
+    <Head :title="`${course.name} - Diapositiva`" />
     <AppLayout>
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <!-- Cabecera de Navegación del Visor -->
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <div class="flex flex-col gap-1">
-                <Link href="/my/courses" class="text-sm text-primary hover:underline"
-                    >Volver a mis cursos</Link
-                >
-                <Link href="/my/results" class="text-sm text-primary hover:underline"> Mis resultados </Link>
-                <Link href="/my/progress" class="text-sm text-primary hover:underline"> Mi progreso </Link>
-                <h1 class="text-2xl font-semibold">{{ course.name }}</h1>
-                <RichTextContent
-                    v-if="course.description"
-                    :content="course.description"
-                    label="Descripción del curso"
-                />
+                <div class="flex items-center gap-2">
+                    <Link :href="backUrl" class="text-sm font-medium text-primary hover:underline">
+                        ← Volver a {{ isTeacherView ? 'mis clases' : 'mis cursos' }}
+                    </Link>
+                    <Badge v-if="isTeacherView" variant="neutral">Modo Docente / Proyección</Badge>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight text-text">{{ course.name }}</h1>
             </div>
-            <span class="text-sm text-text-muted">
-                {{ course.progress.completed_lessons }} de {{ course.progress.total_lessons }} lecciones
-            </span>
+
+            <div class="flex items-center gap-3">
+                <Button variant="secondary" @click="isDrawerOpen = !isDrawerOpen">
+                    <span class="mr-1">📋</span> Temario ({{ flattenedLessons.length }} lecciones)
+                </Button>
+                <div v-if="!isTeacherView" class="hidden sm:flex flex-col items-end">
+                    <span class="text-xs text-text-muted">Progreso</span>
+                    <span class="text-sm font-bold text-primary">{{ course.progress.percentage }}%</span>
+                </div>
+            </div>
         </div>
 
-        <section
-            v-if="course.intro_video_embed_url"
-            class="mb-6"
-            aria-labelledby="study-course-video-heading"
-        >
-            <h2 id="study-course-video-heading" class="mb-3 text-lg font-semibold">Presentación del curso</h2>
-            <iframe
-                :src="course.intro_video_embed_url"
-                :title="`Video de presentación: ${course.name}`"
-                referrerpolicy="no-referrer"
-                allow="
-                    accelerometer;
-                    autoplay;
-                    clipboard-write;
-                    encrypted-media;
-                    gyroscope;
-                    picture-in-picture;
-                    web-share;
-                "
-                allowfullscreen
-                loading="lazy"
-                class="aspect-video w-full rounded-card border border-border"
-            />
-        </section>
-
-        <Card class="mb-6 flex flex-col gap-2">
-            <div class="flex justify-between gap-3 text-sm font-medium">
-                <span>Progreso del curso</span>
-                <span>{{ course.progress.percentage }}%</span>
-            </div>
-            <ProgressBar :percentage="course.progress.percentage" />
-        </Card>
+        <Alert v-if="completionError" variant="danger" class="mb-4">{{ completionError }}</Alert>
 
         <EmptyState
-            v-if="course.units.length === 0 || course.progress.total_lessons === 0"
+            v-if="flattenedLessons.length === 0"
             title="Este curso aún no tiene lecciones disponibles"
-            description="Vuelve más tarde para continuar tu aprendizaje."
+            description="No hay diapositivas para proyectar en este momento."
         />
-        <div v-else class="flex flex-col gap-5">
-            <Alert v-if="completionError" variant="danger">{{ completionError }}</Alert>
-            <section
-                v-for="unit in course.units"
-                :key="unit.id"
-                class="flex flex-col gap-4"
-                :aria-labelledby="`unit-${unit.id}`"
-            >
-                <h2 :id="`unit-${unit.id}`" class="text-xl font-semibold">{{ unit.title }}</h2>
-                <Card v-for="lesson in unit.lessons" :key="lesson.id" class="flex flex-col gap-4">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h3 class="font-semibold">{{ lesson.title }}</h3>
-                        <Badge :variant="lesson.is_completed ? 'success' : 'neutral'">
-                            {{ lesson.is_completed ? 'Completada' : 'Pendiente' }}
-                        </Badge>
+
+        <div v-else class="relative grid grid-cols-1 gap-6 lg:grid-cols-4">
+            <!-- Diapositiva Principal (Área de Estudio / Presentación) -->
+            <div class="flex flex-col gap-4 lg:col-span-3">
+                <Card v-if="activeLesson" class="min-h-[500px] flex flex-col justify-between border-2 border-primary/20 shadow-sm">
+                    <!-- Cabecera de la diapositiva -->
+                    <div>
+                        <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                            <div>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                                    {{ activeLesson.unitTitle }}
+                                </span>
+                                <h2 class="text-xl font-bold text-text sm:text-2xl">{{ activeLesson.title }}</h2>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Badge v-if="!isTeacherView" :variant="activeLesson.is_completed ? 'success' : 'neutral'">
+                                    {{ activeLesson.is_completed ? 'Completada' : 'Pendiente' }}
+                                </Badge>
+                                <Badge variant="neutral">
+                                    Diapositiva {{ activeLessonIndex + 1 }} / {{ flattenedLessons.length }}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <!-- Contenido interactivo de la diapositiva -->
+                        <div class="prose max-w-none py-2 text-text">
+                            <RichTextContent
+                                v-if="activeLesson.content_type === 'text' && isRichTextDocument(activeLesson.content)"
+                                :content="activeLesson.content"
+                                :label="`Contenido de ${activeLesson.title}`"
+                            />
+                            <div v-else-if="activeLesson.content_type === 'image' && isStoredContent(activeLesson.content)" class="flex justify-center">
+                                <img
+                                    :src="storedContentUrl(activeLesson)"
+                                    :alt="activeLesson.title"
+                                    class="max-h-[550px] w-full rounded-card object-contain shadow-inner"
+                                />
+                            </div>
+                            <div v-else-if="activeLesson.content_type === 'image' && externalUrl(activeLesson.content)" class="flex justify-center">
+                                <img
+                                    :src="externalUrl(activeLesson.content) ?? undefined"
+                                    :alt="activeLesson.title"
+                                    loading="lazy"
+                                    referrerpolicy="no-referrer"
+                                    class="max-h-[550px] w-full rounded-card object-contain shadow-inner"
+                                />
+                            </div>
+                            <div v-else-if="activeLesson.content_type === 'document' && isStoredContent(activeLesson.content)" class="flex flex-col items-center justify-center p-8 text-center bg-surface-muted rounded-card">
+                                <span class="text-4xl mb-2">📄</span>
+                                <p class="text-sm text-text-muted mb-4">Esta diapositiva contiene un documento descargable.</p>
+                                <a
+                                    :href="storedContentUrl(activeLesson)"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="rounded-control bg-primary px-5 py-2.5 font-medium text-white hover:bg-primary-hover shadow"
+                                >
+                                    Descargar o Ver Documento
+                                </a>
+                            </div>
+                            <div v-else-if="activeLesson.content_type === 'video' && isStoredContent(activeLesson.content)">
+                                <video
+                                    :src="storedContentUrl(activeLesson)"
+                                    controls
+                                    class="w-full rounded-card shadow aspect-video"
+                                >
+                                    Tu navegador no soporta reproducción de video.
+                                </video>
+                            </div>
+                            <div v-else-if="activeLesson.content_type === 'video' && externalVideoEmbedUrl(activeLesson.content)">
+                                <iframe
+                                    :src="externalVideoEmbedUrl(activeLesson.content) ?? undefined"
+                                    :title="`Video: ${activeLesson.title}`"
+                                    referrerpolicy="no-referrer"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowfullscreen
+                                    loading="lazy"
+                                    class="aspect-video w-full rounded-card border border-border shadow"
+                                />
+                            </div>
+                            <div v-else-if="activeLesson.content_type === 'link' && externalUrl(activeLesson.content)" class="flex flex-col items-center justify-center p-8 text-center bg-surface-muted rounded-card">
+                                <span class="text-4xl mb-2">🔗</span>
+                                <p class="text-sm text-text-muted mb-4">Enlace complementario para esta diapositiva.</p>
+                                <a
+                                    :href="externalUrl(activeLesson.content) ?? undefined"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="rounded-control bg-primary px-5 py-2.5 font-medium text-white hover:bg-primary-hover shadow"
+                                >
+                                    Abrir recurso externo
+                                </a>
+                            </div>
+                            <Alert v-else variant="warning">El contenido de esta diapositiva no está configurado.</Alert>
+                        </div>
                     </div>
 
-                    <RichTextContent
-                        v-if="lesson.content_type === 'text' && isRichTextDocument(lesson.content)"
-                        :content="lesson.content"
-                        :label="`Contenido de ${lesson.title}`"
-                    />
-                    <img
-                        v-else-if="lesson.content_type === 'image' && isStoredContent(lesson.content)"
-                        :src="storedContentUrl(lesson)"
-                        :alt="lesson.title"
-                        class="max-h-[32rem] w-full rounded-card object-contain"
-                    />
-                    <img
-                        v-else-if="lesson.content_type === 'image' && externalUrl(lesson.content)"
-                        :src="externalUrl(lesson.content) ?? undefined"
-                        :alt="lesson.title"
-                        loading="lazy"
-                        referrerpolicy="no-referrer"
-                        class="max-h-[32rem] w-full rounded-card object-contain"
-                    />
-                    <a
-                        v-else-if="lesson.content_type === 'document' && isStoredContent(lesson.content)"
-                        :href="storedContentUrl(lesson)"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="font-medium text-primary underline"
-                    >
-                        Abrir documento
-                    </a>
-                    <video
-                        v-else-if="lesson.content_type === 'video' && isStoredContent(lesson.content)"
-                        :src="storedContentUrl(lesson)"
-                        controls
-                        class="w-full rounded-card"
-                    >
-                        Tu navegador no puede reproducir este video.
-                    </video>
-                    <a
-                        v-else-if="lesson.content_type === 'link' && externalUrl(lesson.content)"
-                        :href="externalUrl(lesson.content) ?? undefined"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="font-medium text-primary underline"
-                    >
-                        Abrir recurso externo
-                    </a>
-                    <iframe
-                        v-else-if="lesson.content_type === 'video' && externalVideoEmbedUrl(lesson.content)"
-                        :src="externalVideoEmbedUrl(lesson.content) ?? undefined"
-                        :title="`Video: ${lesson.title}`"
-                        referrerpolicy="no-referrer"
-                        allow="encrypted-media; picture-in-picture; fullscreen"
-                        allowfullscreen
-                        loading="lazy"
-                        class="aspect-video w-full rounded-card border border-border"
-                    />
-                    <a
-                        v-else-if="lesson.content_type === 'video' && externalUrl(lesson.content)"
-                        :href="externalUrl(lesson.content) ?? undefined"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="font-medium text-primary underline"
-                    >
-                        Abrir video
-                    </a>
-                    <Alert v-else variant="warning"> El contenido de esta lección no está disponible. </Alert>
-
-                    <div class="flex items-center gap-3">
+                    <!-- Barra de control y navegación de diapositivas -->
+                    <div class="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
                         <Button
-                            :disabled="lesson.is_completed || completingLessonId !== null"
-                            :loading="completingLessonId === lesson.id"
-                            @click="completeLesson(lesson)"
+                            variant="secondary"
+                            :disabled="!canGoPrev"
+                            @click="prevLesson"
                         >
-                            {{ lesson.is_completed ? 'Lección completada' : 'Marcar como completada' }}
+                            ← Anterior
                         </Button>
-                        <Spinner v-if="completingLessonId === lesson.id" />
+
+                        <div class="flex items-center gap-3">
+                            <Button
+                                v-if="!isTeacherView && !activeLesson.is_completed"
+                                variant="secondary"
+                                :disabled="completingLessonId !== null"
+                                :loading="completingLessonId === activeLesson.id"
+                                @click="completeLesson(activeLesson)"
+                            >
+                                ✓ Marcar completada
+                            </Button>
+                            <span v-else-if="!isTeacherView" class="text-xs font-semibold text-emerald-600">
+                                ✓ Completada
+                            </span>
+
+                            <Button
+                                variant="primary"
+                                :disabled="!canGoNext"
+                                @click="nextLesson"
+                            >
+                                Siguiente →
+                            </Button>
+                        </div>
                     </div>
                 </Card>
-            </section>
-        </div>
-        <section
-            v-if="course.assessments.length > 0"
-            class="mt-6 flex flex-col gap-3"
-            aria-labelledby="course-assessments-heading"
-        >
-            <h2 id="course-assessments-heading" class="text-xl font-semibold">Evaluaciones</h2>
-            <Card
-                v-for="assessment in course.assessments"
-                :key="assessment.id"
-                class="flex flex-wrap items-center justify-between gap-3"
+
+                <!-- Barra de progreso general para el alumno -->
+                <Card v-if="!isTeacherView" class="flex flex-col gap-2">
+                    <div class="flex justify-between gap-3 text-xs font-medium text-text-muted">
+                        <span>Progreso global del curso</span>
+                        <span>{{ course.progress.completed_lessons }} de {{ course.progress.total_lessons }} completadas ({{ course.progress.percentage }}%)</span>
+                    </div>
+                    <ProgressBar :percentage="course.progress.percentage" />
+                </Card>
+            </div>
+
+            <!-- Panel lateral / Temario de lecciones -->
+            <div
+                class="flex flex-col gap-4 rounded-card border border-border bg-surface p-4 shadow-sm"
+                :class="{ 'fixed inset-y-0 right-0 z-50 w-80 bg-surface shadow-2xl p-6 overflow-y-auto': isDrawerOpen, 'hidden lg:flex': !isDrawerOpen }"
             >
-                <div class="flex flex-col gap-1">
-                    <h3 class="font-medium">{{ assessment.title }}</h3>
-                    <span class="text-sm text-text-muted"> Puntaje total: {{ assessment.total_score }} </span>
+                <div class="flex items-center justify-between border-b border-border pb-3">
+                    <h3 class="font-bold text-text">Temario del Curso</h3>
+                    <button
+                        v-if="isDrawerOpen"
+                        class="text-sm font-semibold text-text-muted hover:text-text lg:hidden"
+                        @click="isDrawerOpen = false"
+                    >
+                        ✕ Cerrar
+                    </button>
                 </div>
-                <Link
-                    :href="`/assessments/${assessment.id}/take`"
-                    class="rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                    Rendir evaluación
-                </Link>
-            </Card>
-        </section>
+
+                <div class="flex flex-col gap-4 overflow-y-auto pr-1">
+                    <div v-for="unit in course.units" :key="unit.id" class="flex flex-col gap-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-primary">
+                            {{ unit.title }}
+                        </span>
+                        <div class="flex flex-col gap-1">
+                            <button
+                                v-for="lesson in unit.lessons"
+                                :key="lesson.id"
+                                class="flex items-center justify-between rounded-control px-3 py-2 text-left text-sm transition-colors"
+                                :class="[
+                                    activeLesson?.id === lesson.id
+                                        ? 'bg-primary text-white font-semibold'
+                                        : 'text-text hover:bg-surface-hover'
+                                ]"
+                                @click="selectLesson(flattenedLessons.findIndex((l) => l.id === lesson.id))"
+                            >
+                                <span class="truncate pr-2">{{ lesson.title }}</span>
+                                <span v-if="!isTeacherView && lesson.is_completed" class="text-xs" :class="activeLesson?.id === lesson.id ? 'text-white' : 'text-emerald-600'">
+                                    ✓
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>
