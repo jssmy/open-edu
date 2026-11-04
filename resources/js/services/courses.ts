@@ -13,10 +13,6 @@ export function removeCourse(courseId: number): void {
     });
 }
 
-export function assignCourseTeachers(courseId: number, teachers: number[]): void {
-    router.put(`/courses/${courseId}/teachers`, { teachers }, { preserveScroll: true });
-}
-
 export function reorderUnits(unitIds: number[]): void {
     router.patch('/units/reorder', { unit_ids: unitIds }, { preserveScroll: true });
 }

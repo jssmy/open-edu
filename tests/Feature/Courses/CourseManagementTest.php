@@ -84,24 +84,23 @@ it('soft deletes a course without enrollments', function () {
     $this->assertSoftDeleted('courses', ['id' => $course->id]);
 });
 
-it('assigns teachers to a course', function () {
+it('shows assigned teachers in read-only mode on the course detail page', function () {
     $manager = userWithRole(Role::GestorDeCursos);
-    $teacher = userWithRole(Role::Docente);
+    $teacher = userWithRole(Role::Docente, ['name' => 'Elena Torres']);
     $course = Course::query()->create([
         'name' => 'Biología',
         'description' => 'Descripción',
         'objectives' => 'Objetivos',
         'status' => 'draft',
     ]);
+    $course->teachers()->attach($teacher->id);
 
-    $this->actingAs($manager)->put("/courses/{$course->id}/teachers", [
-        'teachers' => [$teacher->id],
-    ])->assertRedirect();
-
-    $this->assertDatabaseHas('course_teacher', [
-        'course_id' => $course->id,
-        'user_id' => $teacher->id,
-    ]);
+    $this->actingAs($manager)->get("/courses/{$course->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Courses/Show')
+            ->where('course.teachers.0.name', 'Elena Torres')
+            ->missing('availableTeachers'));
 });
 
 it('forbids students from managing courses', function () {

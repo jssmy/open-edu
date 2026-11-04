@@ -37,9 +37,12 @@ function enroll() {
             <p v-if="students.length === 0" class="text-sm text-text-muted">
                 No hay estudiantes activos disponibles para inscribir.
             </p>
-            <Button type="submit" :loading="form.processing" :disabled="students.length === 0">
-                Inscribir
-            </Button>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <Button type="button" variant="secondary" @click="emit('close')">Cancelar</Button>
+                <Button type="submit" :loading="form.processing" :disabled="students.length === 0">
+                    Inscribir
+                </Button>
+            </div>
         </form>
     </Modal>
 </template>

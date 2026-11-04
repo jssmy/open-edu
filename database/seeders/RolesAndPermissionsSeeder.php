@@ -17,6 +17,7 @@ class RolesAndPermissionsSeeder extends Seeder
         'administrador' => [
             'users.manage', 'roles.manage', 'courses.manage', 'courses.view', 'content.manage',
             'students.manage', 'students.view', 'enrollments.manage', 'assessments.manage', 'reports.view',
+            'scheduling.manage',
         ],
         'gestor_de_cursos' => [
             'courses.manage', 'courses.view', 'content.manage', 'students.manage', 'students.view',
@@ -24,6 +25,7 @@ class RolesAndPermissionsSeeder extends Seeder
         ],
         'docente' => [
             'courses.view', 'content.manage', 'students.view', 'assessments.manage', 'reports.view',
+            'scheduling.view-own',
         ],
         'estudiante' => ['study'],
     ];

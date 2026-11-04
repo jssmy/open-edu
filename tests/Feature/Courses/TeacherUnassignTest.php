@@ -3,9 +3,11 @@
 use App\Modules\Assessments\Infrastructure\Models\Assessment;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Identity\Domain\Role;
+use App\Modules\Scheduling\Infrastructure\Models\AcademicPeriod;
+use App\Modules\Scheduling\Infrastructure\Models\CourseSchedule;
 
-it('preserves course assessments when a teacher is unassigned', function () {
-    $manager = userWithRole(Role::GestorDeCursos);
+it('preserves course assessments when a teacher schedule is deleted', function () {
+    $admin = userWithRole(Role::Administrador);
     $teacher = userWithRole(Role::Docente);
     $course = Course::query()->create([
         'name' => 'Biología',
@@ -13,7 +15,13 @@ it('preserves course assessments when a teacher is unassigned', function () {
         'objectives' => 'Objetivos',
         'status' => 'draft',
     ]);
-    $course->teachers()->attach($teacher->id);
+    $schedule = CourseSchedule::factory()->create([
+        'course_id' => $course->id,
+        'teacher_id' => $teacher->id,
+        'academic_period_id' => AcademicPeriod::factory()->create()->id,
+        'modality' => 'virtual',
+    ]);
+    $course->teachers()->sync([$teacher->id]);
     $assessment = Assessment::query()->create([
         'course_id' => $course->id,
         'title' => 'Evaluación inicial',
@@ -23,7 +31,7 @@ it('preserves course assessments when a teacher is unassigned', function () {
         'is_published' => false,
     ]);
 
-    $this->actingAs($manager)->put("/courses/{$course->id}/teachers", ['teachers' => []])
+    $this->actingAs($admin)->delete("/scheduling/schedules/{$schedule->id}")
         ->assertRedirect();
 
     $this->assertDatabaseMissing('course_teacher', [

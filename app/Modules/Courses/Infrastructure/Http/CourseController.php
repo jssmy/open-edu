@@ -3,8 +3,6 @@
 namespace App\Modules\Courses\Infrastructure\Http;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Modules\Courses\Application\AssignTeachers;
 use App\Modules\Courses\Application\CreateCourse;
 use App\Modules\Courses\Application\DeleteCourse;
 use App\Modules\Courses\Application\SetCourseCover;
@@ -12,7 +10,6 @@ use App\Modules\Courses\Application\SetCourseStatus;
 use App\Modules\Courses\Application\UpdateCourse;
 use App\Modules\Courses\Domain\CourseStatus;
 use App\Modules\Courses\Domain\IntroductoryVideo;
-use App\Modules\Courses\Infrastructure\Http\Requests\AssignCourseTeachersRequest;
 use App\Modules\Courses\Infrastructure\Http\Requests\SaveCourseRequest;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Shared\RichText\RichTextDocumentValidator;
@@ -153,12 +150,6 @@ class CourseController extends Controller
             ],
             'canManageCourses' => $request->user()->can('courses.manage'),
             'canManageContent' => $request->user()->can('content.manage'),
-            'availableTeachers' => $request->user()->can('courses.manage')
-                ? User::role('docente')->orderBy('name')->get(['id', 'name'])->map(fn (User $teacher): array => [
-                    'id' => $teacher->id,
-                    'name' => $teacher->name,
-                ])->all()
-                : [],
         ]);
     }
 
@@ -202,16 +193,6 @@ class CourseController extends Controller
         $setStatus($course->id, CourseStatus::from($data['status']));
 
         return to_route('courses.show', $course)->with('success', 'Estado del curso actualizado.');
-    }
-
-    public function teachers(
-        AssignCourseTeachersRequest $request,
-        Course $course,
-        AssignTeachers $assignTeachers,
-    ): RedirectResponse {
-        $assignTeachers($course->id, $request->validated('teachers'));
-
-        return to_route('courses.show', $course)->with('success', 'Docentes asignados.');
     }
 
     /**

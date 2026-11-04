@@ -176,7 +176,12 @@ function register() {
                 <FormField id="phone" label="Teléfono" :error="form.errors.phone">
                     <Input id="phone" v-model="form.phone" :error="form.errors.phone" />
                 </FormField>
-                <Button type="submit" :loading="form.processing">Registrar</Button>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <Button type="button" variant="secondary" @click="creating = false">
+                        Cancelar
+                    </Button>
+                    <Button type="submit" :loading="form.processing">Registrar</Button>
+                </div>
             </form>
         </Modal>
     </AppLayout>

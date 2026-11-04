@@ -13,6 +13,8 @@ $adminOnlyRoutes = [
     ['PATCH', '/users/999999/status', ['is_active' => false]],
     ['GET', '/roles', []],
     ['PUT', '/roles/999999/permissions', ['permissions' => []]],
+    ['GET', '/scheduling', []],
+    ['POST', '/scheduling/schedules', []],
 ];
 
 $courseManagementRoutes = [
@@ -20,7 +22,6 @@ $courseManagementRoutes = [
     ['PUT', '/courses/{course}', ['name' => 'Curso', 'description' => '', 'objectives' => '']],
     ['DELETE', '/courses/{course}', []],
     ['PATCH', '/courses/{course}/status', ['status' => 'published']],
-    ['PUT', '/courses/{course}/teachers', ['teachers' => []]],
 ];
 
 $courseContentRoutes = [

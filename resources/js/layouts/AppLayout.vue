@@ -37,6 +37,22 @@ const navigationGroups = computed(() => {
             matches: ['/courses'],
         },
         {
+            href: '/scheduling',
+            label: 'Programación académica',
+            description: 'Gestiona horarios, docentes y aulas',
+            icon: 'courses',
+            permission: 'scheduling.manage',
+            matches: ['/scheduling'],
+        },
+        {
+            href: '/my/schedule',
+            label: 'Mi horario',
+            description: 'Consulta tus clases asignadas',
+            icon: 'courses',
+            permission: 'scheduling.view-own',
+            matches: ['/my/schedule'],
+        },
+        {
             href: '/students',
             label: 'Estudiantes',
             description: 'Consulta la comunidad estudiantil',
@@ -103,7 +119,14 @@ const navigationGroups = computed(() => {
             label: 'Académico',
             links: links.filter(
                 (link) =>
-                    link.permission && ['courses.view', 'students.view', 'study'].includes(link.permission),
+                    link.permission &&
+                    [
+                        'courses.view',
+                        'scheduling.manage',
+                        'scheduling.view-own',
+                        'students.view',
+                        'study',
+                    ].includes(link.permission),
             ),
         },
         {

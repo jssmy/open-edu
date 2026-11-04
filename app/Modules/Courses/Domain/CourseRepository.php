@@ -20,9 +20,6 @@ interface CourseRepository
 
     public function deleteCourse(int $courseId, bool $confirmImpact): void;
 
-    /** @param list<int> $teacherIds */
-    public function assignTeachers(int $courseId, array $teacherIds): void;
-
     /** @param array{course_id: int, title: string, position: int} $attributes */
     public function createUnit(array $attributes): int;
 

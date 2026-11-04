@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Badge from '@/design-system/Badge.vue';
@@ -9,12 +9,10 @@ import Select from '@/design-system/Select.vue';
 import { requestAlertDialog } from '@/composables/useAlertDialog';
 import { useCourses } from '@/composables/useCourses';
 import {
-    assignCourseTeachers,
     changeCourseStatus,
     removeCourse,
     type CourseStatus,
 } from '@/services/courses';
-import TeacherPicker from '@/components/courses/TeacherPicker.vue';
 import CourseContentEditor from '@/components/courses/CourseContentEditor.vue';
 import RichTextContent from '@/components/editor/RichTextContent.vue';
 import type { RichTextDocument } from '@/types/richText';
@@ -48,7 +46,6 @@ const props = defineProps<{
     course: Course;
     canManageCourses: boolean;
     canManageContent: boolean;
-    availableTeachers: { id: number; name: string }[];
 }>();
 const { statusLabel, statusVariant } = useCourses();
 const lessonCount = computed(() =>
@@ -58,7 +55,6 @@ const lessonCount = computed(() =>
     ),
 );
 const statusForm = useForm<{ status: CourseStatus }>({ status: props.course.status });
-const selectedTeachers = ref(props.course.teachers.map((teacher) => teacher.id));
 const statusOptions = [
     { value: 'draft', label: 'Borrador' },
     { value: 'published', label: 'Publicado' },
@@ -67,10 +63,6 @@ const statusOptions = [
 
 function saveStatus() {
     changeCourseStatus(props.course.id, statusForm.status);
-}
-
-function saveTeachers() {
-    assignCourseTeachers(props.course.id, selectedTeachers.value);
 }
 
 async function deleteCourse() {
@@ -211,18 +203,25 @@ async function deleteCourse() {
                 </section>
 
                 <section
-                    v-if="canManageCourses"
                     class="flex flex-col gap-3 rounded-card border border-border bg-panel p-5 shadow-card"
+                    aria-labelledby="course-teachers-heading"
                 >
-                    <h2 class="font-semibold">Docentes asignados</h2>
-                    <TeacherPicker
-                        v-model="selectedTeachers"
-                        :teachers="availableTeachers"
-                        :assigned-ids="course.teachers.map((teacher) => teacher.id)"
-                    />
-                    <div class="flex justify-end">
-                        <IconButton icon="save" label="Guardar docentes" show-label variant="primary" @click="saveTeachers" />
-                    </div>
+                    <h2 id="course-teachers-heading" class="font-semibold">Docentes asignados</h2>
+                    <p v-if="course.teachers.length === 0" class="text-sm text-text-muted">
+                        Sin docentes programados.
+                    </p>
+                    <ul v-else class="space-y-1.5 text-sm">
+                        <li
+                            v-for="teacher in course.teachers"
+                            :key="teacher.id"
+                            class="rounded-control border border-border bg-surface px-3 py-2"
+                        >
+                            {{ teacher.name }}
+                        </li>
+                    </ul>
+                    <p class="text-xs text-text-muted">
+                        La asignación de docentes y horarios se gestiona desde Programación académica.
+                    </p>
                 </section>
 
                 <section

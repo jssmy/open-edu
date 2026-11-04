@@ -7,6 +7,7 @@ use App\Providers\EnrollmentsServiceProvider;
 use App\Providers\IdentityServiceProvider;
 use App\Providers\ProgressServiceProvider;
 use App\Providers\ReportsServiceProvider;
+use App\Providers\SchedulingServiceProvider;
 use App\Providers\StudentsServiceProvider;
 
 return [
@@ -18,4 +19,5 @@ return [
     AssessmentsServiceProvider::class,
     ProgressServiceProvider::class,
     ReportsServiceProvider::class,
+    SchedulingServiceProvider::class,
 ];

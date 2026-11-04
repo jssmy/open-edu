@@ -13,6 +13,9 @@ use App\Modules\Identity\Infrastructure\Http\RoleController;
 use App\Modules\Identity\Infrastructure\Http\UserController;
 use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Reports\Infrastructure\Http\ReportController;
+use App\Modules\Scheduling\Infrastructure\Http\ClassroomController;
+use App\Modules\Scheduling\Infrastructure\Http\PeriodController;
+use App\Modules\Scheduling\Infrastructure\Http\SchedulingController;
 use App\Modules\Students\Infrastructure\Http\StudentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -65,7 +68,6 @@ Route::middleware('auth')->group(function () {
         Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
         Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
         Route::patch('/courses/{course}/status', [CourseController::class, 'status'])->name('courses.status');
-        Route::put('/courses/{course}/teachers', [CourseController::class, 'teachers'])->name('courses.teachers');
     });
 
     Route::middleware('can:content.manage')->group(function () {
@@ -124,6 +126,28 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/enrollments', [ReportController::class, 'enrollments'])->name('reports.enrollments');
         Route::get('/reports/progress', [ReportController::class, 'progress'])->name('reports.progress');
         Route::get('/reports/results', [ReportController::class, 'results'])->name('reports.results');
+    });
+
+    Route::middleware('can:scheduling.manage')->group(function () {
+        Route::get('/scheduling', [SchedulingController::class, 'index'])->name('scheduling.index');
+        Route::get('/scheduling/pending', [SchedulingController::class, 'pending'])->name('scheduling.pending');
+        Route::post('/scheduling/schedules', [SchedulingController::class, 'store'])->name('scheduling.store');
+        Route::put('/scheduling/schedules/{schedule}', [SchedulingController::class, 'update'])->name('scheduling.update');
+        Route::delete('/scheduling/schedules/{schedule}', [SchedulingController::class, 'destroy'])->name('scheduling.destroy');
+
+        Route::get('/scheduling/classrooms', [ClassroomController::class, 'index'])->name('scheduling.classrooms.index');
+        Route::post('/scheduling/classrooms', [ClassroomController::class, 'store'])->name('scheduling.classrooms.store');
+        Route::put('/scheduling/classrooms/{classroom}', [ClassroomController::class, 'update'])->name('scheduling.classrooms.update');
+        Route::delete('/scheduling/classrooms/{classroom}', [ClassroomController::class, 'destroy'])->name('scheduling.classrooms.destroy');
+
+        Route::get('/scheduling/periods', [PeriodController::class, 'index'])->name('scheduling.periods.index');
+        Route::post('/scheduling/periods', [PeriodController::class, 'store'])->name('scheduling.periods.store');
+        Route::put('/scheduling/periods/{period}', [PeriodController::class, 'update'])->name('scheduling.periods.update');
+        Route::delete('/scheduling/periods/{period}', [PeriodController::class, 'destroy'])->name('scheduling.periods.destroy');
+    });
+
+    Route::middleware('can:scheduling.view-own')->group(function () {
+        Route::get('/my/schedule', [SchedulingController::class, 'mySchedule'])->name('scheduling.my');
     });
 
     Route::get('/courses/{course}/assessments/create', [AssessmentController::class, 'create'])

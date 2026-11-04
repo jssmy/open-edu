@@ -1,10 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: 1.2.0 → 1.4.0 (MINOR: guías normativas nuevas; el pie de página aún indicaba
-  1.2.0 aunque el reporte previo declaraba 1.3.0)
-- Modified principles: XI (Interfaz y Experiencia de Usuario: reordenamiento por arrastrar y
-  soltar con la librería única vuedraggable; confirmación de acciones destructivas con el
-  componente AlertDialog del sistema de diseño; formularios con campos visibles y amplios)
+- Version change: 1.4.0 → 1.5.0 (MINOR: guía normativa nueva para calendarios y horarios)
+- Modified principles: XI (Interfaz y Experiencia de Usuario: la programación académica y
+  cualquier vista de horarios MUST usar la librería única FullCalendar)
 - Added sections: none
 - Removed sections: none
 - Deferred TODOs: none
@@ -128,6 +126,15 @@ usarse `alert`, `confirm` ni `prompt` nativos del navegador. Los formularios MUS
 etiqueta visible, campos de ancho suficiente para su contenido, errores junto al campo y
 objetivos táctiles de al menos 44px.
 
+Toda vista o edición de horarios (programación académica, horarios de docentes, cursos y aulas)
+MUST construirse con una librería de calendario única, FullCalendar (`@fullcalendar/vue3`), con
+vistas semanal y diaria, selección y arrastre de bloques para crear o mover horarios, y
+localización en español. MUST NOT implementarse calendarios o grillas de horario a mano ni
+añadirse una segunda librería de calendario. La librería solo presenta e interactúa: las reglas
+de conflicto de docente y aula y la validación de periodos MUST seguir garantizándose en el
+backend. La librería MUST envolverse en un componente propio del sistema de diseño, de modo que
+las pantallas no dependan de su API directamente.
+
 ### XII. Desarrollo Asistido por IA
 Las herramientas de IA MUST respetar esta constitución.
 - Antes: revisar especificación y plan, comprender la estructura, identificar componentes y
@@ -180,4 +187,4 @@ por nuevos principios/secciones o ampliación material; PATCH por aclaraciones y
 Cumplimiento: todo PR y revisión MUST verificar la conformidad con los principios; las
 desviaciones MUST justificarse explícitamente y aprobarse.
 
-**Version**: 1.4.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03
+**Version**: 1.5.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03

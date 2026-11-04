@@ -72,11 +72,6 @@ final class EloquentCourseRepository implements CourseRepository
         Course::query()->findOrFail($courseId)->delete();
     }
 
-    public function assignTeachers(int $courseId, array $teacherIds): void
-    {
-        Course::query()->findOrFail($courseId)->teachers()->sync($teacherIds);
-    }
-
     public function createUnit(array $attributes): int
     {
         return Unit::query()->create($attributes)->id;
