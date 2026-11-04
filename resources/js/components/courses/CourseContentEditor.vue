@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { router, Link, useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import Draggable from 'vuedraggable';
-import Button from '@/design-system/Button.vue';
+import IconButton from '@/design-system/IconButton.vue';
 import FormField from '@/design-system/FormField.vue';
 import Input from '@/design-system/Input.vue';
 import { requestAlertDialog } from '@/composables/useAlertDialog';
@@ -148,14 +148,15 @@ function documentText(content: Lesson['content']): string {
                         maxlength="255"
                         :error="unitForm.errors.title"
                     />
-                    <Button
+                    <IconButton
                         type="submit"
-                        class="min-h-11 shrink-0 sm:px-6"
-                        :loading="unitForm.processing"
-                        :disabled="unitForm.title.trim() === ''"
-                    >
-                        Agregar unidad
-                    </Button>
+                        icon="plus"
+                        label="Agregar"
+                        show-label
+                        variant="primary"
+                        class="shrink-0 self-end"
+                        :disabled="unitForm.processing || unitForm.title.trim() === ''"
+                    />
                 </div>
             </FormField>
             <p class="mt-2 text-xs text-text-muted">
@@ -209,9 +210,15 @@ function documentText(content: Lesson['content']): string {
                             <h3 class="truncate font-semibold">{{ unit.title }}</h3>
                             <p class="text-xs text-text-muted">{{ unit.lessons.length }} lecciones</p>
                         </div>
-                        <Button v-if="canManageContent" variant="danger" @click="deleteUnit(unit.id)">
-                            Eliminar
-                        </Button>
+                        <IconButton
+                            v-if="canManageContent"
+                            icon="delete"
+                            :label="`Eliminar unidad ${unit.title}`"
+                            text="Eliminar unidad"
+                            show-label
+                            variant="danger"
+                            @click="deleteUnit(unit.id)"
+                        />
                     </div>
 
                     <Draggable
@@ -260,20 +267,24 @@ function documentText(content: Lesson['content']): string {
                                     </p>
                                 </div>
                                 <div v-if="canManageContent" class="flex flex-wrap gap-2">
-                                    <Link
+                                    <IconButton
+                                        icon="edit"
+                                        :label="`Editar lección ${lesson.title}`"
                                         :href="`/lessons/${lesson.id}/edit`"
-                                        class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-3 text-sm font-medium text-text transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                                    >
-                                        Editar
-                                    </Link>
-                                    <Button
+                                        variant="primary"
+                                    />
+                                    <IconButton
                                         v-if="!lesson.is_archived"
-                                        variant="secondary"
+                                        icon="archive"
+                                        :label="`Archivar lección ${lesson.title}`"
                                         @click="archive(lesson.id)"
-                                    >
-                                        Archivar
-                                    </Button>
-                                    <Button variant="danger" @click="remove(lesson.id)">Eliminar</Button>
+                                    />
+                                    <IconButton
+                                        icon="delete"
+                                        :label="`Eliminar lección ${lesson.title}`"
+                                        variant="danger"
+                                        @click="remove(lesson.id)"
+                                    />
                                 </div>
                             </li>
                         </template>
@@ -283,12 +294,13 @@ function documentText(content: Lesson['content']): string {
                     </p>
 
                     <div v-if="canManageContent" class="bg-panel px-4 pb-4 pt-2">
-                        <Link
+                        <IconButton
+                            icon="plus"
+                            label="Agregar lección"
+                            show-label
                             :href="`/units/${unit.id}/lessons/create`"
-                            class="inline-flex min-h-11 items-center rounded-control border border-dashed border-primary/40 px-4 text-sm font-medium text-primary transition hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        >
-                            + Agregar lección
-                        </Link>
+                            variant="primary"
+                        />
                     </div>
                 </li>
             </template>

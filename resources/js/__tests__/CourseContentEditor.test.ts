@@ -92,7 +92,7 @@ describe('CourseContentEditor', () => {
             },
             global: { stubs: { Draggable: DraggableStub } },
         });
-        const deleteButtons = wrapper.findAll('button').filter((button) => button.text() === 'Eliminar');
+        const deleteButtons = wrapper.findAll('button').filter((button) => (button.attributes('aria-label') ?? '').startsWith('Eliminar'));
         expect(deleteButtons).toHaveLength(2);
         await deleteButtons[1]?.trigger('click');
 

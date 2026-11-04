@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Badge from '@/design-system/Badge.vue';
-import Button from '@/design-system/Button.vue';
+import IconButton from '@/design-system/IconButton.vue';
 import FormField from '@/design-system/FormField.vue';
 import Select from '@/design-system/Select.vue';
 import { requestAlertDialog } from '@/composables/useAlertDialog';
@@ -14,6 +14,7 @@ import {
     removeCourse,
     type CourseStatus,
 } from '@/services/courses';
+import TeacherPicker from '@/components/courses/TeacherPicker.vue';
 import CourseContentEditor from '@/components/courses/CourseContentEditor.vue';
 import RichTextContent from '@/components/editor/RichTextContent.vue';
 import type { RichTextDocument } from '@/types/richText';
@@ -119,27 +120,26 @@ async function deleteCourse() {
                     </dl>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <Link
+                    <IconButton
                         v-if="canManageCourses"
+                        icon="edit"
+                        label="Editar curso" show-label
                         :href="`/courses/${course.id}/edit`"
-                        class="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    >
-                        Editar curso
-                    </Link>
-                    <Link
+                        variant="primary"
+                    />
+                    <IconButton
                         v-if="canManageCourses"
+                        icon="users"
+                        label="Inscripciones" show-label
                         :href="`/courses/${course.id}/students`"
-                        class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-4 text-sm font-medium text-text transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                        Inscripciones
-                    </Link>
-                    <Link
+                    />
+                    <IconButton
                         v-if="canManageContent"
+                        icon="plus"
+                        label="Nueva evaluación" show-label
                         :href="`/courses/${course.id}/assessments/create`"
-                        class="inline-flex min-h-11 items-center rounded-control border border-border bg-panel px-4 text-sm font-medium text-text transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                        Nueva evaluación
-                    </Link>
+                        variant="success"
+                    />
                 </div>
             </div>
         </header>
@@ -205,7 +205,9 @@ async function deleteCourse() {
                     <FormField id="course-status" label="Estado">
                         <Select id="course-status" v-model="statusForm.status" :options="statusOptions" />
                     </FormField>
-                    <Button variant="secondary" @click="saveStatus">Actualizar estado</Button>
+                    <div class="flex justify-end">
+                        <IconButton icon="save" label="Actualizar estado" show-label variant="primary" @click="saveStatus" />
+                    </div>
                 </section>
 
                 <section
@@ -213,23 +215,14 @@ async function deleteCourse() {
                     class="flex flex-col gap-3 rounded-card border border-border bg-panel p-5 shadow-card"
                 >
                     <h2 class="font-semibold">Docentes asignados</h2>
-                    <label
-                        v-for="teacher in availableTeachers"
-                        :key="teacher.id"
-                        class="flex min-h-11 items-center gap-3 rounded-control border border-border px-3 text-sm hover:bg-surface"
-                    >
-                        <input
-                            v-model="selectedTeachers"
-                            type="checkbox"
-                            :value="teacher.id"
-                            class="size-4"
-                        />
-                        {{ teacher.name }}
-                    </label>
-                    <p v-if="availableTeachers.length === 0" class="text-sm text-text-muted">
-                        No hay docentes disponibles.
-                    </p>
-                    <Button variant="secondary" @click="saveTeachers">Guardar docentes</Button>
+                    <TeacherPicker
+                        v-model="selectedTeachers"
+                        :teachers="availableTeachers"
+                        :assigned-ids="course.teachers.map((teacher) => teacher.id)"
+                    />
+                    <div class="flex justify-end">
+                        <IconButton icon="save" label="Guardar docentes" show-label variant="primary" @click="saveTeachers" />
+                    </div>
                 </section>
 
                 <section
@@ -251,13 +244,13 @@ async function deleteCourse() {
                                 {{ assessment.is_published ? 'Publicada' : 'Borrador' }}
                             </Badge>
                         </div>
-                        <Link
+                        <IconButton
                             v-if="canManageContent"
+                            icon="edit"
+                            :label="`Editar evaluación ${assessment.title}`"
                             :href="`/assessments/${assessment.id}/edit`"
-                            class="text-sm font-medium text-primary hover:underline"
-                        >
-                            Editar
-                        </Link>
+                            variant="primary"
+                        />
                     </div>
                 </section>
 
@@ -269,7 +262,7 @@ async function deleteCourse() {
                     <p class="mb-3 mt-1 text-sm text-text-muted">
                         El historial y las inscripciones existentes se conservan.
                     </p>
-                    <Button variant="danger" @click="deleteCourse">Eliminar curso</Button>
+                    <IconButton icon="delete" label="Eliminar curso" show-label variant="danger" @click="deleteCourse" />
                 </section>
             </aside>
         </div>
