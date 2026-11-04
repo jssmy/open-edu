@@ -14,7 +14,10 @@ componentes Vue. Los campos de redacción libre usan Tiptap con documentos JSONB
 incrustadas autorizadas por curso y video de presentación validado de YouTube o Vimeo. Los editores
 se presentan en páginas independientes con aviso de cambios sin guardar; las actualizaciones usan
 control optimista de versiones para evitar sobrescrituras concurrentes. Los videos de lección son
-enlaces externos HTTPS y los reportes se exportan como CSV. La operación define RTO y RPO máximos
+enlaces externos HTTPS y los reportes se exportan como CSV. Los listados administrativos (usuarios,
+estudiantes, cursos) se paginan y filtran en el servidor con filtros en la URL; cursos se presentan como
+tarjetas con portada opcional (o una generada por el sistema) y las cargas de archivos usan un control
+uniforme (FR-037–FR-039). La operación define RTO y RPO máximos
 de 24 horas, con respaldo de base de datos y medios privados. Detalle de decisiones en
 [research.md](./research.md).
 
@@ -67,7 +70,7 @@ los objetivos operativos medibles son recuperación (RTO/RPO).
 | VIII. Seguridad | Policies/Gates, Form Requests, CSRF, rate limiting y validación backend del esquema JSON y de medios | PASS |
 | IX. Errores y logs | Excepciones de dominio mapeadas a respuestas; auditoría de eventos | PASS |
 | X. Dependencias | Cada dependencia justificada en research.md | PASS |
-| XI. UX | Estados de carga/vacío/error; editores en páginas independientes con confirmación al salir de cambios sin guardar | PASS |
+| XI. UX | Estados de carga/vacío/error; editores en páginas independientes con confirmación al salir de cambios sin guardar; listados con `Table` (cursos como tarjetas con vista previa), paginación en servidor, filtros en URL (`useListFilters`) y acciones con `IconButton` (FR-037); carga de archivos con `FileInput` (FR-039) | PASS |
 | XII. IA | Plan y spec revisados antes de implementar | PASS |
 
 **Post-diseño (re-evaluación)**: PASS. El editor, la validación estructural de documentos, el
@@ -114,7 +117,7 @@ database/
 └── seeders/
 
 resources/js/
-├── design-system/         # tokens + componentes base (Button, Input, Table, Modal, Alert…)
+├── design-system/         # tokens + componentes base (Button, IconButton, FileInput, Input, Table, Pagination, Modal, Alert…)
 ├── components/            # componentes compuestos reutilizables
 ├── composables/
 ├── services/              # llamadas al backend
@@ -131,6 +134,19 @@ resources/js/__tests__/    # Vitest
 **Structure Decision**: Monolito Laravel con módulos hexagonales en `app/Modules` y frontend Vue en
 `resources/js`, servido con Inertia. Los puertos (interfaces) existen solo para repositorios y
 almacenamiento de archivos (fronteras reales); el resto se implementa directamente como casos de uso.
+
+### Diseño de listados y portada (FR-037–FR-039)
+- **Listados**: `UserListQuery` y `StudentListQuery` (Infraestructura) y la consulta de `CourseController@index`
+  paginan 10 por página y aplican `q`, `status` y `role`; responden `{data, meta}` + `filters`. En el cliente,
+  `useListFilters` mantiene los filtros en la URL (GET, Inertia `preserveState`, espera de 300 ms),
+  `Table`/`Pagination`/`IconButton` renderizan usuarios y estudiantes, y `Courses/Index.vue` usa tarjetas.
+  Alcance exclusivo: usuarios, estudiantes y cursos.
+- **Portada**: columnas `courses.cover_path`/`cover_mime`; caso de uso `SetCourseCover` (puerto `FileStorage`,
+  elimina el archivo anterior), `CourseCoverController` (`GET /courses/{id}/cover`, mismo acceso que el contenido)
+  y `DefaultCourseCover` (SVG por defecto, sin servicios externos). El formulario viaja como multipart; los
+  documentos Tiptap se serializan como JSON (`rich_text_encoded`). La portada de un curso eliminado lógicamente se
+  conserva y no se sirve.
+- **Carga de archivos**: `FileInput` del sistema de diseño en portada, archivo de lección e imagen del editor.
 
 ### Diseño de contenido enriquecido
 

@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Alert from '@/design-system/Alert.vue';
 import Button from '@/design-system/Button.vue';
 import FormField from '@/design-system/FormField.vue';
+import FileInput from '@/design-system/FileInput.vue';
 import Input from '@/design-system/Input.vue';
 import Select from '@/design-system/Select.vue';
 import RichTextEditor from '@/components/editor/RichTextEditor.vue';
@@ -57,6 +58,12 @@ const plainContent = computed<string>({
     get: () => (typeof form.content === 'string' ? form.content : ''),
     set: (content) => {
         form.content = content;
+    },
+});
+const selectedFile = computed({
+    get: () => form.file as globalThis.File | null,
+    set: (file: globalThis.File | null) => {
+        form.file = file;
     },
 });
 const fileError = computed(() => form.errors.file);
@@ -124,11 +131,6 @@ function saveLesson(): void {
         });
         form.post(`/units/${props.unit.id}/lessons`, options);
     }
-}
-
-function selectFile(event: globalThis.Event): void {
-    const target = event.target;
-    form.file = target instanceof globalThis.HTMLInputElement ? (target.files?.[0] ?? null) : null;
 }
 </script>
 
@@ -202,23 +204,18 @@ function selectFile(event: globalThis.Event): void {
                     />
                 </FormField>
                 <FormField v-else id="lesson-file" :label="fileLabel" :error="fileError">
-                    <p
-                        v-if="lesson && typeof lesson.content === 'string'"
-                        class="mb-2 text-sm text-text-muted"
-                    >
-                        Archivo actual: {{ lesson.content.split('/').at(-1) }}
-                    </p>
-                    <input
+                    <FileInput
                         id="lesson-file"
-                        type="file"
-                        class="block w-full min-w-0 text-sm"
+                        v-model="selectedFile"
                         :accept="fileAccept"
                         :required="isFileRequired"
-                        @change="selectFile"
+                        :current-file-name="
+                            lesson && typeof lesson.content === 'string'
+                                ? lesson.content.split('/').at(-1)
+                                : undefined
+                        "
+                        hint="Seleccionar un archivo nuevo reemplaza el actual."
                     />
-                    <p class="mt-1 text-sm text-text-muted">
-                        Seleccionar un archivo nuevo reemplaza el actual.
-                    </p>
                 </FormField>
                 <p v-if="lockVersionError" class="text-sm text-danger" role="alert">
                     {{ lockVersionError }}

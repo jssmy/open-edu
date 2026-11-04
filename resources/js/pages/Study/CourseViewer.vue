@@ -80,6 +80,24 @@ function externalUrl(content: Lesson['content']): string | null {
     return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
 }
 
+function externalVideoEmbedUrl(content: Lesson['content']): string | null {
+    const href = externalUrl(content);
+    if (href === null) {
+        return null;
+    }
+
+    const url = new globalThis.URL(href);
+    const host = url.hostname.replace(/^www\./, '');
+    const youtubeId =
+        host === 'youtu.be' ? url.pathname.slice(1) : host === 'youtube.com' ? url.searchParams.get('v') : null;
+    if (youtubeId !== null && /^[A-Za-z0-9_-]{11}$/.test(youtubeId)) {
+        return `https://www.youtube-nocookie.com/embed/${youtubeId}`;
+    }
+
+    const vimeoId = host === 'vimeo.com' ? /^\/(\d{6,12})\/?$/.exec(url.pathname)?.[1] : undefined;
+    return vimeoId === undefined ? null : `https://player.vimeo.com/video/${vimeoId}`;
+}
+
 function isRichTextDocument(content: Lesson['content']): content is RichTextDocument {
     return content !== null && typeof content === 'object' && content.type === 'doc';
 }
@@ -177,6 +195,14 @@ function isStoredContent(content: Lesson['content']): boolean {
                         :alt="lesson.title"
                         class="max-h-[32rem] w-full rounded-card object-contain"
                     />
+                    <img
+                        v-else-if="lesson.content_type === 'image' && externalUrl(lesson.content)"
+                        :src="externalUrl(lesson.content) ?? undefined"
+                        :alt="lesson.title"
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        class="max-h-[32rem] w-full rounded-card object-contain"
+                    />
                     <a
                         v-else-if="lesson.content_type === 'document' && isStoredContent(lesson.content)"
                         :href="storedContentUrl(lesson)"
@@ -203,6 +229,16 @@ function isStoredContent(content: Lesson['content']): boolean {
                     >
                         Abrir recurso externo
                     </a>
+                    <iframe
+                        v-else-if="lesson.content_type === 'video' && externalVideoEmbedUrl(lesson.content)"
+                        :src="externalVideoEmbedUrl(lesson.content) ?? undefined"
+                        :title="`Video: ${lesson.title}`"
+                        referrerpolicy="no-referrer"
+                        allow="encrypted-media; picture-in-picture; fullscreen"
+                        allowfullscreen
+                        loading="lazy"
+                        class="aspect-video w-full rounded-card border border-border"
+                    />
                     <a
                         v-else-if="lesson.content_type === 'video' && externalUrl(lesson.content)"
                         :href="externalUrl(lesson.content) ?? undefined"

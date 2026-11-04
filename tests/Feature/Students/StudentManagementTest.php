@@ -104,3 +104,20 @@ it('allows teachers to read only students enrolled in their assigned courses', f
     $this->actingAs($teacher)->put("/students/{$studentId}", [])->assertForbidden();
     $this->actingAs($teacher)->get('/students')->assertOk();
 });
+
+it('paginates and filters the student list', function () {
+    foreach (range(1, 12) as $i) {
+        $this->actingAs($this->manager)->post('/students', [
+            'name' => "Alumno {$i}", 'email' => "a{$i}@example.test", 'temporary_password' => 'temporal-123',
+            'identifier' => "ID-{$i}",
+        ]);
+    }
+
+    $this->actingAs($this->manager)->get('/students')->assertInertia(fn ($page) => $page
+        ->has('students.data', 10)
+        ->where('students.meta.total', 12));
+
+    $this->actingAs($this->manager)->get('/students?q=ID-12&status=active')->assertInertia(fn ($page) => $page
+        ->has('students.data', 1)
+        ->where('students.data.0.name', 'Alumno 12'));
+});

@@ -10,6 +10,7 @@ import Alert from '@/design-system/Alert.vue';
 import Badge from '@/design-system/Badge.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
 import FormField from '@/design-system/FormField.vue';
+import FileInput from '@/design-system/FileInput.vue';
 import Pagination from '@/design-system/Pagination.vue';
 import Table from '@/design-system/Table.vue';
 
@@ -133,6 +134,7 @@ describe('design system', () => {
         const w = mount(Pagination, { props: { page: 1, lastPage: 3 } });
         const [prev, next] = w.findAll('button');
         expect(prev.attributes('disabled')).toBeDefined();
+        expect(next.attributes('aria-label')).toBe('Siguiente');
         await next.trigger('click');
         expect(w.emitted('change')?.[0]).toEqual([2]);
     });
@@ -141,5 +143,19 @@ describe('design system', () => {
         const columns = [{ key: 'name', label: 'Nombre' }];
         expect(mount(Table, { props: { columns, rows: [{ name: 'Ana' }] } }).text()).toContain('Ana');
         expect(mount(Table, { props: { columns, rows: [], loading: true } }).text()).toContain('Cargando');
+    });
+
+    it('FileInput muestra el archivo elegido, permite quitarlo y conserva el input accesible', async () => {
+        const w = mount(FileInput, { props: { id: 'f', buttonLabel: 'Elegir imagen' } });
+        expect(w.text()).toContain('Elegir imagen');
+        expect(w.text()).toContain('Ningún archivo seleccionado');
+        expect(w.find('input#f[type="file"]').exists()).toBe(true);
+
+        await w.setProps({ modelValue: new File(['x'], 'portada.png', { type: 'image/png' }) });
+        expect(w.get('[data-testid="file-name"]').text()).toContain('portada.png');
+        expect(w.text()).toContain('Cambiar archivo');
+
+        await w.get('button[aria-label="Quitar archivo seleccionado"]').trigger('click');
+        expect(w.emitted('update:modelValue')?.at(-1)).toEqual([null]);
     });
 });

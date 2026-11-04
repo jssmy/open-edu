@@ -10,6 +10,7 @@ use App\Modules\Students\Domain\Student as StudentRecord;
 use App\Modules\Students\Domain\StudentRepository;
 use App\Modules\Students\Infrastructure\Http\Requests\SaveStudentRequest;
 use App\Modules\Students\Infrastructure\Models\Student;
+use App\Modules\Students\Infrastructure\StudentListQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,13 +21,14 @@ class StudentController extends Controller
 {
     public function __construct(private readonly StudentRepository $students) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, StudentListQuery $list): Response
     {
         Gate::authorize('viewAny', Student::class);
         $teacherId = $request->user()->hasRole('docente') ? $request->user()->id : null;
 
         return Inertia::render('Students/Index', [
-            'students' => array_map(fn (StudentRecord $student): array => $this->present($student), $this->students->all($teacherId)),
+            'students' => $list->paginate($request->only(['q', 'status']), $teacherId, $request->integer('page', 1)),
+            'filters' => ['q' => $request->string('q')->toString(), 'status' => $request->string('status')->toString()],
             'canManageStudents' => $request->user()->can('students.manage'),
         ]);
     }

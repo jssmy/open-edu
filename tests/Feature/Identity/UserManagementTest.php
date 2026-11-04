@@ -55,3 +55,19 @@ it('responde 403 a roles sin permiso', function (Role $role) {
 it('responde 404 para un usuario inexistente', function () {
     $this->actingAs($this->admin)->get('/users/99999')->assertNotFound();
 });
+
+it('pagina y filtra el listado de usuarios', function () {
+    foreach (range(1, 12) as $i) {
+        userWithRole(Role::Docente, ['name' => "Docente {$i}", 'email' => "d{$i}@test.com"]);
+    }
+
+    $this->actingAs($this->admin)->get('/users')->assertInertia(fn ($page) => $page
+        ->has('users.data', 10)
+        ->where('users.meta.total', User::count())
+        ->where('users.meta.last_page', (int) ceil(User::count() / 10)));
+
+    $this->actingAs($this->admin)->get('/users?q=d12@&role=docente&status=active')->assertInertia(fn ($page) => $page
+        ->has('users.data', 1)
+        ->where('users.data.0.email', 'd12@test.com')
+        ->where('filters.q', 'd12@'));
+});

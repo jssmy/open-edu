@@ -26,6 +26,8 @@ class Course extends Model
         'intro_video_provider',
         'intro_video_id',
         'status',
+        'cover_path',
+        'cover_mime',
     ];
 
     protected $attributes = ['status' => 'draft'];
@@ -50,6 +52,11 @@ class Course extends Model
             $this->intro_video_provider,
             $this->intro_video_id,
         )?->canonicalUrl();
+    }
+
+    public function coverUrl(): string
+    {
+        return route('courses.cover', $this, false).'?v='.($this->updated_at?->timestamp ?? 0);
     }
 
     public function introVideoEmbedUrl(): ?string

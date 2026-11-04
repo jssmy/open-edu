@@ -99,8 +99,8 @@ it('lets teachers query enrolled students only for assigned courses', function (
             ->has('students', 1)
             ->where('availableStudents', []));
     $this->actingAs($teacher)->get('/students')
-        ->assertInertia(fn (Assert $page) => $page->where('students.0.id', $studentId)
-            ->has('students', 1));
+        ->assertInertia(fn (Assert $page) => $page->where('students.data.0.id', $studentId)
+            ->has('students.data', 1));
     $enrollmentId = DB::table('enrollments')->where('student_id', $studentId)->value('id');
     $this->actingAs($teacher)->patch("/enrollments/{$enrollmentId}/status", [
         'status' => 'suspended',

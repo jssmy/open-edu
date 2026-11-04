@@ -10,6 +10,10 @@ interface CourseRepository
     /** @param array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
     public function updateCourse(int $courseId, int $expectedVersion, array $attributes): void;
 
+    public function coverPath(int $courseId): ?string;
+
+    public function setCoverPath(int $courseId, ?string $path, ?string $mimeType): void;
+
     public function setCourseStatus(int $courseId, CourseStatus $status): void;
 
     public function isPublished(int $courseId): bool;

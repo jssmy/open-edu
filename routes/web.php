@@ -4,6 +4,7 @@ use App\Modules\Assessments\Infrastructure\Http\AssessmentController;
 use App\Modules\Courses\Infrastructure\Http\ContentController;
 use App\Modules\Courses\Infrastructure\Http\ContentImageController;
 use App\Modules\Courses\Infrastructure\Http\CourseController;
+use App\Modules\Courses\Infrastructure\Http\CourseCoverController;
 use App\Modules\Enrollments\Infrastructure\Http\CourseEnrollmentController;
 use App\Modules\Enrollments\Infrastructure\Http\EnrollmentController;
 use App\Modules\Identity\Infrastructure\Http\AuthController;
@@ -85,6 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/lessons/{lesson}/archive', [ContentController::class, 'archiveLesson'])->name('lessons.archive');
     });
 
+    Route::get('/courses/{course}/cover', [CourseCoverController::class, 'show'])->name('courses.cover');
     Route::get('/courses/{course}/content-images/{image}', [ContentImageController::class, 'show'])
         ->name('course-images.show');
 

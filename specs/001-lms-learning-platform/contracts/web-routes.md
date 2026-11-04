@@ -32,6 +32,17 @@ todos los cursos y estudiantes; Docente = cursos asignados; Estudiante = solo lo
 - Los flujos para crear o editar cursos, lecciones y evaluaciones con editor enriquecido se presentan en páginas Inertia independientes, nunca en modales o diálogos. Una navegación con cambios sin guardar pide confirmación para quedarse o descartarlos.
 - Las actualizaciones de curso, lección y evaluación envían el `lock_version` recibido al cargar el formulario. El backend actualiza de forma atómica solo si esa versión sigue vigente e incrementa el contador al guardar. Las modificaciones de preguntas y alternativas incrementan la versión de su evaluación.
 
+### Contrato de listados paginados y filtrados (FR-037)
+- `GET /users`, `GET /students` y `GET /courses` responden con `<recurso>: { data: [...], meta: { page, last_page, total, from, to } }` y `filters` con los valores aplicados. Paginan en el servidor con 10 registros por página; nunca devuelven el conjunto completo.
+- Cada curso de `GET /courses` incluye datos de vista previa: `excerpt` (texto plano de la descripción, máx. 180 caracteres), `cover_url` (portada del curso; siempre presente), `units_count`, `status` y `teachers`. La interfaz los presenta como tarjetas.
+- Parámetros de consulta: `q` (texto), `status` (`active|inactive` en usuarios y estudiantes; `draft|published|deactivated` en cursos), `role` (solo usuarios) y `page`. Los valores desconocidos se ignoran. Los comodines `%` y `_` de `q` se escapan.
+- El alcance por rol se aplica antes de filtrar (un Docente solo ve sus estudiantes y cursos asignados).
+
+### Contrato de portada del curso (FR-038)
+- `POST /courses` y `PUT /courses/{id}` se envían como `multipart/form-data` y aceptan `cover_image` (JPEG, PNG o WebP, máx. 5120 KB, validado por Laravel que genera el nombre y no confía en MIME/extensión del cliente) y `remove_cover` (booleano). Como multipart no conserva los tipos del documento Tiptap, el cliente envía `description` y `objectives` serializados como JSON junto con `rich_text_encoded=1`.
+- La portada se guarda en almacenamiento privado (`courses/{id}/cover/`); al reemplazar o quitar se elimina el archivo anterior. Subir portada no incrementa `lock_version` por sí sola.
+- `GET /courses/{id}/cover` entrega la portada (misma regla de acceso que el contenido: Admin/Gestor/Docente asignado o Estudiante con acceso al curso; fuera de alcance responde 404) con `X-Content-Type-Options: nosniff`. Si el curso no tiene portada responde un SVG generado por el sistema (`image/svg+xml`, con CSP restrictiva).
+
 ### Contratos de contenido enriquecido y medios
 - `POST /courses/{id}/content-images` recibe `multipart/form-data` con una imagen JPEG, PNG o WebP de máximo 5120 KB. Solo Admin, Gestor o Docente asignado puede subir a ese curso. Laravel valida el archivo y genera su identificador/nombre; no confía en nombre, extensión o MIME del cliente. Responde JSON con `id` y `src` de lectura interna para insertar en el documento Tiptap.
 - `GET /courses/{id}/content-images/{image}` entrega una imagen desde almacenamiento privado y verifica que el usuario pueda acceder al contenido del curso: Admin/Gestor, Docente asignado o Estudiante con inscripción activa en curso publicado. Un recurso fuera del alcance responde 404. La respuesta especifica el MIME validado y `X-Content-Type-Options: nosniff`.

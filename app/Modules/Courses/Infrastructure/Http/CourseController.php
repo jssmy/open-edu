@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Courses\Application\AssignTeachers;
 use App\Modules\Courses\Application\CreateCourse;
 use App\Modules\Courses\Application\DeleteCourse;
+use App\Modules\Courses\Application\SetCourseCover;
 use App\Modules\Courses\Application\SetCourseStatus;
 use App\Modules\Courses\Application\UpdateCourse;
 use App\Modules\Courses\Domain\CourseStatus;
@@ -14,10 +15,12 @@ use App\Modules\Courses\Domain\IntroductoryVideo;
 use App\Modules\Courses\Infrastructure\Http\Requests\AssignCourseTeachersRequest;
 use App\Modules\Courses\Infrastructure\Http\Requests\SaveCourseRequest;
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,29 +31,51 @@ class CourseController extends Controller
     {
         Gate::authorize('viewAny', Course::class);
 
-        $courses = Course::query()
+        $term = trim($request->string('q')->toString());
+        $status = CourseStatus::tryFrom($request->string('status')->toString());
+
+        $paginator = Course::query()
             ->with('teachers:id,name')
+            ->withCount('units')
             ->when(
                 $request->user()->hasRole('docente'),
                 fn ($query) => $query->whereHas('teachers', fn ($teachers) => $teachers->whereKey($request->user()->id)),
             )
+            ->when($term !== '', function ($query) use ($term): void {
+                $like = '%'.addcslashes($term, '%_\\').'%';
+                $query->where(fn ($inner) => $inner->where('name', 'like', $like)
+                    ->orWhereHas('teachers', fn ($teachers) => $teachers->where('name', 'like', $like)));
+            })
+            ->when($status !== null, fn ($query) => $query->where('status', $status->value))
             ->orderBy('name')
-            ->get()
-            ->map(fn (Course $course): array => [
+            ->orderBy('id')
+            ->paginate(10, ['*'], 'page', max(1, $request->integer('page', 1)));
+
+        $courses = [
+            'data' => $paginator->getCollection()->map(fn (Course $course): array => [
                 'id' => $course->id,
                 'name' => $course->name,
-                'description' => $course->description,
-                'objectives' => $course->objectives,
-                'intro_video_url' => $course->introVideoUrl(),
+                'excerpt' => Str::limit(trim(RichTextDocumentValidator::plainText($course->description)), 180),
+                'cover_url' => $course->coverUrl(),
+                'units_count' => $course->units_count,
                 'status' => $course->status,
                 'teachers' => $course->teachers->map(fn ($teacher): array => [
                     'id' => $teacher->id,
                     'name' => $teacher->name,
                 ])->all(),
-            ])->all();
+            ])->all(),
+            'meta' => [
+                'page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'from' => (int) $paginator->firstItem(),
+                'to' => (int) $paginator->lastItem(),
+            ],
+        ];
 
         return Inertia::render('Courses/Index', [
             'courses' => $courses,
+            'filters' => ['q' => $term, 'status' => $status?->value ?? ''],
             'canManageCourses' => $request->user()->can('courses.manage'),
         ]);
     }
@@ -75,6 +100,8 @@ class CourseController extends Controller
                 'description' => $course->description,
                 'objectives' => $course->objectives,
                 'intro_video_url' => $course->introVideoUrl(),
+                'cover_url' => $course->coverUrl(),
+                'has_custom_cover' => $course->cover_path !== null,
                 'lock_version' => $course->lock_version,
             ],
         ]);
@@ -135,9 +162,11 @@ class CourseController extends Controller
         ]);
     }
 
-    public function store(SaveCourseRequest $request, CreateCourse $create): RedirectResponse
+    public function store(SaveCourseRequest $request, CreateCourse $create, SetCourseCover $setCover): RedirectResponse
     {
-        $courseId = $create($this->normalizeCourseAttributes($request->validated()));
+        $courseId = $create($this->normalizeCourseAttributes($request->safe()->except(['cover_image', 'remove_cover', 'rich_text_encoded'])));
+        $cover = $request->file('cover_image');
+        $setCover($courseId, $cover?->getPathname(), $cover?->getMimeType());
 
         return to_route('courses.show', $courseId)->with('success', 'Curso creado.');
     }
@@ -146,12 +175,15 @@ class CourseController extends Controller
         SaveCourseRequest $request,
         Course $course,
         UpdateCourse $update,
+        SetCourseCover $setCover,
     ): RedirectResponse|JsonResponse {
-        $attributes = $request->validated();
+        $attributes = $request->safe()->except(['cover_image', 'remove_cover', 'rich_text_encoded']);
         $expectedVersion = (int) $attributes['lock_version'];
         unset($attributes['lock_version']);
 
         $update($course->id, $expectedVersion, $this->normalizeCourseAttributes($attributes));
+        $cover = $request->file('cover_image');
+        $setCover($course->id, $cover?->getPathname(), $cover?->getMimeType(), $request->boolean('remove_cover'));
 
         return to_route('courses.show', $course)->with('success', 'Curso actualizado.');
     }

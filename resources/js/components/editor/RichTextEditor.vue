@@ -4,6 +4,7 @@ import { EditorContent, useEditor } from '@tiptap/vue-3';
 import type { JSONContent } from '@tiptap/core';
 import Button from '@/design-system/Button.vue';
 import FormField from '@/design-system/FormField.vue';
+import FileInput from '@/design-system/FileInput.vue';
 import Input from '@/design-system/Input.vue';
 import { emptyRichTextDocument, type RichTextDocument } from '@/types/richText';
 import { richTextExtensions } from '@/components/editor/extensions';
@@ -386,15 +387,12 @@ function resetImageForm() {
         <section v-if="showImageTools" class="flex flex-col gap-3 rounded-control bg-surface p-3">
             <h3 class="font-medium">Insertar imagen</h3>
             <FormField :id="imageFileId" label="Subir imagen (JPEG, PNG o WebP, máximo 5 MB)">
-                <input
+                <FileInput
                     :id="imageFileId"
-                    type="file"
+                    v-model="selectedFile"
                     accept="image/jpeg,image/png,image/webp"
-                    class="min-h-11 w-full rounded-control border border-border bg-panel p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                    @change="
-                        selectedFile = ($event.target as HTMLInputElement).files?.[0] ?? null;
-                        editorError = '';
-                    "
+                    button-label="Elegir imagen"
+                    @update:model-value="editorError = ''"
                 />
             </FormField>
             <FormField :id="imageUrlId" label="O URL HTTPS de una imagen externa">

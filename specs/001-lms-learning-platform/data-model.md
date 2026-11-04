@@ -11,7 +11,7 @@ Modelo conceptual derivado de [spec.md](./spec.md). Los tipos exactos se fijan e
 - **Student**: id, user_id (único), documento/identificador opcional, teléfono opcional, is_active. Desactivar conserva el historial.
 
 ## Courses
-- **Course**: id, name, description (documento JSONB Tiptap), objectives (documento JSONB Tiptap), intro_video_provider (`youtube` | `vimeo`, nullable), intro_video_id (ID validado del proveedor, nullable), status (`draft` | `published` | `deactivated`), `lock_version` (entero que aumenta en cada actualización), deleted_at (eliminación lógica que conserva el historial), timestamps.
+- **Course**: id, name, description (documento JSONB Tiptap), objectives (documento JSONB Tiptap), intro_video_provider (`youtube` | `vimeo`, nullable), intro_video_id (ID validado del proveedor, nullable), cover_path y cover_mime (portada opcional en almacenamiento privado, nullable; sin ella se usa una portada generada), status (`draft` | `published` | `deactivated`), `lock_version` (entero que aumenta en cada actualización), deleted_at (eliminación lógica que conserva el historial), timestamps.
 - **CourseTeacher**: course_id, user_id (docente asignado). Único por par.
 - **CourseMediaImage**: id aleatorio, course_id, storage_path privado, mime_type, size_bytes, uploaded_by, timestamps. Los nodos de imagen de los documentos guardan la URL de lectura interna, `alt` y el indicador de imagen decorativa mediante `alt=""`; los archivos solo se leen tras autorizar el acceso al curso.
 - **Unit**: id, course_id, title, position.

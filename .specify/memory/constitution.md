@@ -110,6 +110,17 @@ NOT introducirse otra librería ni una implementación propia de arrastre. El ar
 usar un asa con etiqueta accesible, funcionar con puntero y táctil, y MUST persistir el nuevo
 orden en el servidor validando autorización y pertenencia de los elementos.
 
+Todo listado tabular de registros (usuarios, estudiantes, cursos y futuros) MUST usar el
+componente `Table` del sistema de diseño, MUST paginarse en el servidor (nunca cargar todos los
+registros) con el componente `Pagination`, y MUST ofrecer filtros de búsqueda (texto más los
+filtros propios de la entidad, como estado o rol) cuyo estado viva en la URL (`?q=&status=&page=`)
+mediante `useListFilters`. Las acciones por fila MUST presentarse como botones con icono
+(`IconButton`) con etiqueta accesible (`aria-label`) y tooltip, sin enlaces ni botones de solo
+texto. Los catálogos
+orientados a explorar contenido (cursos) MUST presentarse como tarjetas con vista previa
+(miniatura o marcador, extracto, estado y metadatos clave) en una cuadrícula adaptable, con la
+misma paginación en servidor y filtros; el resto de las reglas de este párrafo aplican igual. Todo campo de carga de archivos MUST usar el componente `FileInput` (botón con icono, nombre y tamaño del archivo elegido, arrastrar y soltar y opción de quitar); MUST NOT mostrarse el `input type="file"` nativo sin estilo. Los estados vacíos MUST distinguir entre "sin datos" y "sin resultados para los filtros".
+
 Toda acción destructiva o irreversible (eliminar, descartar cambios sin guardar) MUST pedir
 confirmación previa mediante el componente `AlertDialog` del sistema de diseño
 (`requestAlertDialog`), con la variante adecuada (info, warning, success, danger). MUST NOT

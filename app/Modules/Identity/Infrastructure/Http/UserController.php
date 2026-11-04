@@ -12,6 +12,7 @@ use App\Modules\Identity\Domain\UserRecord;
 use App\Modules\Identity\Domain\UserRepository;
 use App\Modules\Identity\Infrastructure\Http\Requests\StoreUserRequest;
 use App\Modules\Identity\Infrastructure\Http\Requests\UpdateUserRequest;
+use App\Modules\Identity\Infrastructure\UserListQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,10 +22,13 @@ class UserController extends Controller
 {
     public function __construct(private readonly UserRepository $users) {}
 
-    public function index(): Response
+    public function index(Request $request, UserListQuery $list): Response
     {
+        $filters = $request->only(['q', 'role', 'status']);
+
         return Inertia::render('Users/Index', [
-            'users' => array_map(fn ($u) => $this->present($u), $this->users->all()),
+            'users' => $list->paginate($filters, $request->integer('page', 1)),
+            'filters' => ['q' => $filters['q'] ?? '', 'role' => $filters['role'] ?? '', 'status' => $filters['status'] ?? ''],
             'roles' => $this->roleOptions(),
         ]);
     }

@@ -16,6 +16,8 @@ npm run dev
 php artisan serve
 ```
 
+En entornos ya desplegados, ejecutar `php artisan migrate` para aplicar `add_cover_to_courses_table` (columnas `cover_path` y `cover_mime`, FR-038); los cursos existentes usan la portada generada hasta que se les suba una imagen.
+
 Las cuentas de demostración se crean con contraseñas aleatorias y requieren cambio de contraseña; un Administrador puede asignarles una contraseña antes de probar el acceso.
 
 ## Pruebas automáticas
@@ -39,6 +41,9 @@ npm run e2e             # Playwright
 11. **Página de edición y cambios sin guardar (FR-035)**: abrir creación y edición de curso, lección y evaluación; verificar que cada editor aparece en una página independiente y no en un modal. Modificar el contenido e intentar navegar a otra página interna; elegir quedarse y confirmar que sigue en la página, luego repetir y confirmar descarte. Repetir con recarga o salida del navegador y verificar que aparece la confirmación nativa cuando el navegador la soporta.
 12. **Ediciones simultáneas (FR-036)**: abrir el mismo curso, lección y evaluación en dos sesiones. Guardar un cambio en la sesión A; luego intentar guardar desde la versión abierta en la sesión B. En cada caso, confirmar que se rechaza la versión desactualizada con un aviso para recargar y que no sobrescribe el cambio de A.
 13. **Recuperación operativa (SC-014, SC-016)**: en un entorno de staging con la rutina de respaldo habilitada, confirmar que cada respaldo de PostgreSQL y medios privados tiene como máximo 24 horas. Restaurar el respaldo más reciente en un entorno aislado, registrar el tiempo desde la detección de la interrupción hasta que el servicio y los datos estén disponibles (máximo 24 horas) y comprobar que la pérdida de datos no supera los cambios posteriores al último respaldo.
+14. **Listados estandarizados (FR-037)**: con más de 10 registros, abrir Usuarios, Estudiantes y Cursos. Verificar que se muestran 10 registros por página (filas en Usuarios y Estudiantes; tarjetas con miniatura, extracto, estado, docentes y unidades en Cursos) con rango "1–10 de N" y navegación anterior/siguiente; que la búsqueda y los filtros (estado; rol en usuarios) actualizan la URL y se conservan al recargar o paginar; que "Limpiar filtros" restablece el listado; que un filtro sin coincidencias muestra "Sin resultados" y no el estado vacío general; y que las acciones por fila son botones con icono con tooltip y nombre accesible (operables con teclado). Como Docente, confirmar que solo aparecen sus estudiantes y cursos.
+
+15. **Portada del curso (FR-038)**: crear un curso sin imagen y comprobar que el listado muestra la portada generada por el sistema; editarlo, subir una imagen JPEG/PNG/WebP (vista previa en el formulario) y verificar que la tarjeta la muestra; reemplazarla y quitarla (vuelve a la generada). Verificar que un PDF o una imagen mayor a 5 MB se rechazan con error claro y que un usuario sin acceso al curso no obtiene la portada. Verificar también (FR-039) que el control de archivo muestra botón con icono, nombre y tamaño del archivo, permite arrastrar y soltar y quitar la selección, y se opera con teclado; repetir en el archivo de una lección y en "Insertar imagen" del editor. Con un curso eliminado lógicamente, comprobar que su portada deja de servirse.
 
 ## Resultado esperado
 Todos los escenarios cumplen los criterios de aceptación de [spec.md](./spec.md) y las pruebas automáticas pasan.

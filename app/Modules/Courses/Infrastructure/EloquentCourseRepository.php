@@ -35,6 +35,16 @@ final class EloquentCourseRepository implements CourseRepository
         }
     }
 
+    public function coverPath(int $courseId): ?string
+    {
+        return Course::query()->whereKey($courseId)->value('cover_path');
+    }
+
+    public function setCoverPath(int $courseId, ?string $path, ?string $mimeType): void
+    {
+        Course::query()->whereKey($courseId)->update(['cover_path' => $path, 'cover_mime' => $mimeType]);
+    }
+
     public function setCourseStatus(int $courseId, CourseStatus $status): void
     {
         Course::query()->findOrFail($courseId)->update([

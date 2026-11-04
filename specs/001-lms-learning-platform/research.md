@@ -113,7 +113,12 @@ configuración concreta de respaldo depende del entorno de despliegue, que no es
   toda la edición (conexiones y bloqueos largos, UX frágil).
 - **Fuentes**: [Laravel 13 database transactions](https://laravel.com/docs/13.x/database#database-transactions).
 
-## 19. Respaldo y recuperación
+## 19. Listados, portada y control de carga de archivos
+- **Decision**: paginación en servidor de 10 registros fijos, filtros (`q`, `status`, `role`) en la URL aplicados por consultas dedicadas por módulo; solo usuarios, estudiantes y cursos. Cursos como tarjetas con portada opcional subida por el usuario (JPEG/PNG/WebP ≤5 MB, almacenamiento privado) y, si falta, un SVG generado por el sistema. Un único componente `FileInput` para toda carga de archivos. La portada de cursos eliminados lógicamente se conserva.
+- **Rationale**: evita cargar todos los registros y mantiene búsquedas compartibles/recargables; la portada propia evita peticiones a terceros (se descartó la miniatura de YouTube por exponer la IP del usuario y no existir en Vimeo); el SVG por defecto no requiere activos ni servicios; conservar el archivo permite restaurar el curso sin pérdida.
+- **Alternatives**: paginar/filtrar en el cliente (carga todo, no escala); selector de tamaño de página (complejidad sin necesidad actual); miniatura de YouTube/Vimeo (dependencia externa); imagen estática por defecto (menos distinguible entre cursos); borrar la portada al eliminar el curso (impide restaurar íntegramente).
+
+## 20. Respaldo y recuperación
 - **Decision**: mantener respaldos recuperables de PostgreSQL y del almacenamiento privado de
   medios, con cobertura de al menos 24 horas. Preferir base backup más archivado continuo de WAL y
   recuperación a punto en el tiempo (PITR), o una capacidad gestionada equivalente. Documentar y

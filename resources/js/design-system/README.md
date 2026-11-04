@@ -3,21 +3,23 @@
 Los tokens viven en [`tokens.ts`](./tokens.ts) y alimentan Tailwind (`tailwind.config.ts`). Ninguna vista
 puede usar colores o valores de estilo fijos: ESLint lo impide fuera de este directorio.
 
-| Componente                    | Variantes / estados                                                   | Accesibilidad                                        |
-| ----------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------- |
-| `Button`                      | `primary`, `secondary`, `danger`; `loading`, `disabled`               | `aria-busy` al cargar; foco visible                  |
-| `Input`, `Textarea`, `Select` | normal, `error`, `disabled`                                           | `aria-invalid` y `aria-describedby` hacia el mensaje |
-| `Checkbox`                    | marcado, `disabled`                                                   | `label` asociado                                     |
-| `FormField`                   | con/sin error                                                         | `label for`; error con `role="alert"`                |
-| `Alert`                       | `info`, `success`, `warning`, `danger`; título opcional                | Icono y color por variante; `role="alert"` (danger) o `status` |
-| `AlertDialog`                 | Confirmación `info`, `success`, `warning`, `danger`                    | `alertdialog`, descripción asociada y acciones accesibles |
-| `Spinner`                     | —                                                                     | `role="status"` y `aria-label`                       |
-| `EmptyState`                  | con/sin descripción y acción (slot)                                   | Texto visible                                        |
-| `Modal`                       | abierto/cerrado; roles `dialog` y `alertdialog`; slot de acciones      | `aria-modal`, foco atrapado, cierra con Esc          |
-| `Toast`                       | `success`, `danger`                                                   | `role="status"`                                      |
-| `Table`                       | cargando, vacío (slot `empty`), celdas personalizables (`cell-<key>`) | `th scope="col"`                                     |
-| `Pagination`                  | primera/última página deshabilitadas                                  | `nav` con `aria-label`                               |
-| `Badge`                       | `neutral`, `success`, `warning`, `danger`                             | No depende solo del color: lleva texto               |
-| `Card`                        | —                                                                     | `section`                                            |
+| Componente                    | Variantes / estados                                                   | Accesibilidad                                                  |
+| ----------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `Button`                      | `primary`, `secondary`, `danger`; `loading`, `disabled`               | `aria-busy` al cargar; foco visible                            |
+| `Input`, `Textarea`, `Select` | normal, `error`, `disabled`                                           | `aria-invalid` y `aria-describedby` hacia el mensaje           |
+| `Checkbox`                    | marcado, `disabled`                                                   | `label` asociado                                               |
+| `FormField`                   | con/sin error                                                         | `label for`; error con `role="alert"`                          |
+| `Alert`                       | `info`, `success`, `warning`, `danger`; título opcional               | Icono y color por variante; `role="alert"` (danger) o `status` |
+| `AlertDialog`                 | Confirmación `info`, `success`, `warning`, `danger`                   | `alertdialog`, descripción asociada y acciones accesibles      |
+| `Spinner`                     | —                                                                     | `role="status"` y `aria-label`                                 |
+| `EmptyState`                  | con/sin descripción y acción (slot)                                   | Texto visible                                                  |
+| `Modal`                       | abierto/cerrado; roles `dialog` y `alertdialog`; slot de acciones     | `aria-modal`, foco atrapado, cierra con Esc                    |
+| `Toast`                       | `success`, `danger`                                                   | `role="status"`                                                |
+| `Table`                       | cargando, vacío (slot `empty`), celdas personalizables (`cell-<key>`) | `th scope="col"`                                               |
+| `Pagination`                  | primera/última página deshabilitadas, rango "1–10 de N"               | `nav` con `aria-label`                                         |
+| `FileInput`                   | botón con icono + nombre/tamaño del archivo, arrastrar y soltar, quitar | `input[type=file]` oculto visualmente, asociado a su `label`, foco visible |
+| `IconButton`                  | botón/enlace con icono (acciones de fila, búsqueda), `href` opcional  | `aria-label` + `title` obligatorios                            |
+| `Badge`                       | `neutral`, `success`, `warning`, `danger`                             | No depende solo del color: lleva texto                         |
+| `Card`                        | —                                                                     | `section`                                                      |
 
 Toda pantalla debe contemplar los estados de carga, vacío y error usando estos componentes.

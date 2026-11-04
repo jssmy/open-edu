@@ -13,6 +13,13 @@ class SaveCourseRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
+        if ($this->boolean('rich_text_encoded')) {
+            // multipart no conserva tipos (números/booleanos/null) del documento Tiptap: llega como JSON.
+            $this->merge(collect(['description', 'objectives'])
+                ->mapWithKeys(fn (string $field): array => [$field => $this->decodeDocument($this->input($field))])
+                ->all());
+        }
+
         $legacyTextFields = [];
 
         foreach (['description', 'objectives'] as $field) {
@@ -26,6 +33,17 @@ class SaveCourseRequest extends FormRequest
         }
 
         $this->merge($legacyTextFields);
+    }
+
+    private function decodeDocument(mixed $value): mixed
+    {
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 
     public function authorize(): bool
@@ -46,6 +64,9 @@ class SaveCourseRequest extends FormRequest
             'description' => ['nullable', 'array', new RichTextDocumentRule($courseId)],
             'objectives' => ['nullable', 'array', new RichTextDocumentRule($courseId)],
             'intro_video_url' => ['nullable', 'string', 'url', 'max:2048'],
+            'cover_image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:5120'],
+            'remove_cover' => ['sometimes', 'boolean'],
+            'rich_text_encoded' => ['sometimes', 'boolean'],
         ];
     }
 
