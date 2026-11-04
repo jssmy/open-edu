@@ -12,9 +12,10 @@ final class UpdateRolePermissions
     public function __construct(private readonly RolePermissionRepository $roles, private readonly Auditor $auditor) {}
 
     /** @param list<string> $permissions */
-    public function __invoke(Role $role, array $permissions, int $actorId): void
+    public function __invoke(Role|string $role, array $permissions, int $actorId): void
     {
-        if ($role === Role::Administrador) {
+        $name = $role instanceof Role ? $role->value : $role;
+        if ($name === Role::Administrador->value) {
             throw new DomainException('Los permisos del Administrador no se pueden modificar.');
         }
 
@@ -23,7 +24,7 @@ final class UpdateRolePermissions
             throw new DomainException('Permisos desconocidos: '.implode(', ', $unknown), 'permissions');
         }
 
-        $this->roles->sync($role, array_values(array_unique($permissions)));
-        $this->auditor->log('role.permissions_updated', $actorId, "role:{$role->value}", ['permissions' => $permissions]);
+        $this->roles->sync($name, array_values(array_unique($permissions)));
+        $this->auditor->log('role.permissions_updated', $actorId, "role:{$name}", ['permissions' => $permissions]);
     }
 }

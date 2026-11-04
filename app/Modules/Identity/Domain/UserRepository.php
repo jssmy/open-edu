@@ -11,13 +11,13 @@ interface UserRepository
     /** @return list<UserRecord> */
     public function all(): array;
 
-    public function create(string $name, string $email, string $passwordHash, Role $role, bool $mustChangePassword): UserRecord;
+    public function create(string $name, string $email, string $passwordHash, Role|string $role, bool $mustChangePassword): UserRecord;
 
     public function update(int $id, string $name, string $email): void;
 
     public function setActive(int $id, bool $active): void;
 
-    public function changeRole(int $id, Role $role): void;
+    public function changeRole(int $id, Role|string $role): void;
 
-    public function countActiveByRole(Role $role): int;
+    public function countActiveByRole(Role|string $role): int;
 }

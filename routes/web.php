@@ -46,6 +46,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('can:roles.manage')->group(function () {
         Route::get('/roles', [RoleController::class, 'index']);
+        Route::get('/roles/create', [RoleController::class, 'create']);
+        Route::post('/roles', [RoleController::class, 'store']);
+        Route::put('/roles/{id}/status', [RoleController::class, 'status']);
         Route::put('/roles/{id}/permissions', [RoleController::class, 'update']);
     });
 

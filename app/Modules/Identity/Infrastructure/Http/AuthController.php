@@ -33,7 +33,7 @@ class AuthController extends Controller
             abort(429, 'Demasiados intentos. Inténtalo de nuevo en un minuto.');
         }
 
-        if (! Auth::attempt([...$credentials, 'is_active' => true], $request->boolean('remember'))) {
+        if (! Auth::attempt([...$credentials, 'is_active' => true, fn ($query) => $query->whereDoesntHave('roles', fn ($roles) => $roles->where('is_active', false))], $request->boolean('remember'))) {
             RateLimiter::hit($key, 60);
             $this->auditor->log('auth.failed', null, null, ['email' => $credentials['email']]);
 

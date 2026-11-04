@@ -11,5 +11,6 @@ final readonly class UserRecord
         public bool $isActive,
         public bool $mustChangePassword,
         public ?Role $role,
+        public ?string $roleName = null,
     ) {}
 }

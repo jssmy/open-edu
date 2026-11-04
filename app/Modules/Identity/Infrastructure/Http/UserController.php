@@ -8,6 +8,8 @@ use App\Modules\Identity\Application\CreateUser;
 use App\Modules\Identity\Application\SetUserStatus;
 use App\Modules\Identity\Application\UpdateUser;
 use App\Modules\Identity\Domain\Role;
+use App\Modules\Identity\Domain\RolePermissionRepository;
+use App\Modules\Identity\Domain\RoleRecord;
 use App\Modules\Identity\Domain\UserRecord;
 use App\Modules\Identity\Domain\UserRepository;
 use App\Modules\Identity\Infrastructure\Http\Requests\StoreUserRequest;
@@ -20,7 +22,7 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
-    public function __construct(private readonly UserRepository $users) {}
+    public function __construct(private readonly UserRepository $users, private readonly RolePermissionRepository $roles) {}
 
     public function index(Request $request, UserListQuery $list): Response
     {
@@ -38,7 +40,7 @@ class UserController extends Controller
         $createUser(
             $request->string('name'),
             $request->string('email'),
-            Role::from($request->string('role')),
+            $request->string('role')->toString(),
             $request->string('password'),
             $request->user()->id,
         );
@@ -58,8 +60,8 @@ class UserController extends Controller
         $this->users->find($id) ?? abort(404);
         $updateUser($id, $request->string('name'), $request->string('email'), $request->user()->id);
 
-        $role = Role::from($request->string('role'));
-        if ($this->users->find($id)->role !== $role) {
+        $role = $request->string('role')->toString();
+        if ($this->users->find($id)->roleName !== $role) {
             $changeRole($id, $role, $request->user()->id);
         }
 
@@ -79,12 +81,15 @@ class UserController extends Controller
     private function present(UserRecord $u): array
     {
         return ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'is_active' => $u->isActive,
-            'role' => $u->role?->value, 'role_label' => $u->role?->label()];
+            'role' => $u->roleName, 'role_label' => $u->roleName ? (Role::tryFrom($u->roleName)?->label() ?? $u->roleName) : null];
     }
 
     /** @return list<array{value: string, label: string}> */
     private function roleOptions(): array
     {
-        return array_map(fn (Role $r) => ['value' => $r->value, 'label' => $r->label()], Role::cases());
+        return array_map(
+            fn (RoleRecord $r) => ['value' => $r->name, 'label' => $r->label],
+            array_values(array_filter($this->roles->all(), fn (RoleRecord $r) => $r->isActive)),
+        );
     }
 }

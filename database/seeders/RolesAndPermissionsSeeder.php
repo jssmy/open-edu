@@ -38,7 +38,9 @@ class RolesAndPermissionsSeeder extends Seeder
             foreach ($permissions as $permission) {
                 Permission::findOrCreate($permission, 'web');
             }
-            Role::findOrCreate($role, 'web')->syncPermissions($permissions);
+            $model = Role::findOrCreate($role, 'web');
+            $model->forceFill(['is_system' => true, 'is_active' => true])->save();
+            $model->syncPermissions($permissions);
         }
 
         $email = env('ADMIN_EMAIL', 'admin@openedu.test');

@@ -7,6 +7,7 @@ use App\Modules\Identity\Application\SetUserStatus;
 use App\Modules\Identity\Application\UpdateRolePermissions;
 use App\Modules\Identity\Domain\Role;
 use App\Modules\Identity\Domain\RolePermissionRepository;
+use App\Modules\Identity\Domain\RoleRecord;
 use App\Modules\Identity\Domain\UserRecord;
 use App\Modules\Identity\Domain\UserRepository;
 use App\Shared\Audit\Auditor;
@@ -38,11 +39,11 @@ final class InMemoryUsers implements UserRepository
         return array_values($this->items);
     }
 
-    public function create(string $name, string $email, string $passwordHash, Role $role, bool $mustChangePassword): UserRecord
+    public function create(string $name, string $email, string $passwordHash, Role|string $role, bool $mustChangePassword): UserRecord
     {
         $id = count($this->items) + 1;
 
-        return $this->items[$id] = new UserRecord($id, $name, $email, true, $mustChangePassword, $role);
+        return $this->items[$id] = new UserRecord($id, $name, $email, true, $mustChangePassword, $role instanceof Role ? $role : null, $role instanceof Role ? $role->value : $role);
     }
 
     public function update(int $id, string $name, string $email): void {}
@@ -50,18 +51,18 @@ final class InMemoryUsers implements UserRepository
     public function setActive(int $id, bool $active): void
     {
         $u = $this->items[$id];
-        $this->items[$id] = new UserRecord($id, $u->name, $u->email, $active, $u->mustChangePassword, $u->role);
+        $this->items[$id] = new UserRecord($id, $u->name, $u->email, $active, $u->mustChangePassword, $u->role, $u->roleName);
     }
 
-    public function changeRole(int $id, Role $role): void
+    public function changeRole(int $id, Role|string $role): void
     {
         $u = $this->items[$id];
-        $this->items[$id] = new UserRecord($id, $u->name, $u->email, $u->isActive, $u->mustChangePassword, $role);
+        $this->items[$id] = new UserRecord($id, $u->name, $u->email, $u->isActive, $u->mustChangePassword, $role instanceof Role ? $role : null, $role instanceof Role ? $role->value : $role);
     }
 
-    public function countActiveByRole(Role $role): int
+    public function countActiveByRole(Role|string $role): int
     {
-        return count(array_filter($this->items, fn ($u) => $u->role === $role && $u->isActive));
+        return count(array_filter($this->items, fn ($u) => ($u->role === $role || $u->roleName === ($role instanceof Role ? $role->value : $role)) && $u->isActive));
     }
 }
 
@@ -125,12 +126,34 @@ it('rechaza permisos desconocidos y la edición del Administrador', function () 
             return ['courses.view'];
         }
 
-        public function permissionsOf(Role $role): array
+        public function permissionsOf(Role|string $role): array
         {
             return [];
         }
 
-        public function sync(Role $role, array $permissions): void {}
+        public function sync(Role|string $role, array $permissions): void {}
+
+        public function find(int $id): ?RoleRecord
+        {
+            return null;
+        }
+
+        public function all(?string $term = null, ?string $status = null): array
+        {
+            return [];
+        }
+
+        public function nameExists(string $name): bool
+        {
+            return false;
+        }
+
+        public function create(string $name, ?string $description, array $permissions): RoleRecord
+        {
+            throw new RuntimeException;
+        }
+
+        public function setActive(int $id, bool $active): void {}
     };
     $update = new UpdateRolePermissions($repo, $this->audit);
 

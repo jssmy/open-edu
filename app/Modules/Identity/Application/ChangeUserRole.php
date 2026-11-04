@@ -11,11 +11,13 @@ final class ChangeUserRole
 {
     public function __construct(private readonly UserRepository $users, private readonly Auditor $auditor) {}
 
-    public function __invoke(int $id, Role $role, int $actorId): void
+    public function __invoke(int $id, Role|string $role, int $actorId): void
     {
         $user = $this->users->find($id) ?? throw new DomainException('El usuario no existe.');
 
-        if ($user->role === Role::Administrador && $role !== Role::Administrador
+        $name = $role instanceof Role ? $role->value : $role;
+
+        if ($user->role === Role::Administrador && $name !== Role::Administrador->value
             && $this->users->countActiveByRole(Role::Administrador) <= 1) {
             throw new DomainException('Debe existir al menos un administrador activo.', 'role');
         }
@@ -23,7 +25,7 @@ final class ChangeUserRole
         $this->users->changeRole($id, $role);
         $this->auditor->log('user.role_changed', $actorId, "user:{$id}", [
             'from' => $user->role?->value,
-            'to' => $role->value,
+            'to' => $name,
         ]);
     }
 }

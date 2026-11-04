@@ -2,7 +2,6 @@
 
 namespace App\Modules\Identity\Infrastructure\Http\Requests;
 
-use App\Modules\Identity\Domain\Role;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +17,7 @@ class UpdateUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'role' => ['required', Rule::enum(Role::class)],
+            'role' => ['required', Rule::exists('roles', 'name')->where('is_active', true)->where('guard_name', 'web')],
         ];
     }
 }

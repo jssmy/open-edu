@@ -17,7 +17,7 @@ final class CreateUser
     ) {}
 
     /** El usuario recibe una contraseña temporal y debe cambiarla en su primer acceso. */
-    public function __invoke(string $name, string $email, Role $role, string $temporaryPassword, ?int $actorId = null): UserRecord
+    public function __invoke(string $name, string $email, Role|string $role, string $temporaryPassword, ?int $actorId = null): UserRecord
     {
         $email = strtolower(trim($email));
         if ($this->users->findByEmail($email) !== null) {
@@ -25,7 +25,7 @@ final class CreateUser
         }
 
         $user = $this->users->create($name, $email, $this->hasher->hash($temporaryPassword), $role, true);
-        $this->auditor->log('user.created', $actorId, "user:{$user->id}", ['role' => $role->value]);
+        $this->auditor->log('user.created', $actorId, "user:{$user->id}", ['role' => $role instanceof Role ? $role->value : $role]);
 
         return $user;
     }

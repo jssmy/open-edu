@@ -28,7 +28,7 @@ final class EloquentUserRepository implements UserRepository
         return User::with('roles')->orderBy('name')->get()->map(fn (User $u) => $this->toRecord($u))->all();
     }
 
-    public function create(string $name, string $email, string $passwordHash, Role $role, bool $mustChangePassword): UserRecord
+    public function create(string $name, string $email, string $passwordHash, Role|string $role, bool $mustChangePassword): UserRecord
     {
         $user = User::create([
             'name' => $name,
@@ -37,7 +37,7 @@ final class EloquentUserRepository implements UserRepository
             'must_change_password' => $mustChangePassword,
             'is_active' => true,
         ]);
-        $user->assignRole($role->value);
+        $user->assignRole($this->nameOf($role));
 
         return $this->toRecord($user);
     }
@@ -52,14 +52,14 @@ final class EloquentUserRepository implements UserRepository
         User::whereKey($id)->update(['is_active' => $active]);
     }
 
-    public function changeRole(int $id, Role $role): void
+    public function changeRole(int $id, Role|string $role): void
     {
-        User::findOrFail($id)->syncRoles([$role->value]);
+        User::findOrFail($id)->syncRoles([$this->nameOf($role)]);
     }
 
-    public function countActiveByRole(Role $role): int
+    public function countActiveByRole(Role|string $role): int
     {
-        return User::role($role->value)->where('is_active', true)->count();
+        return User::role($this->nameOf($role))->where('is_active', true)->count();
     }
 
     private function toRecord(User $user): UserRecord
@@ -73,6 +73,12 @@ final class EloquentUserRepository implements UserRepository
             $user->is_active,
             $user->must_change_password,
             $roleName ? Role::tryFrom($roleName) : null,
+            $roleName,
         );
+    }
+
+    private function nameOf(Role|string $role): string
+    {
+        return $role instanceof Role ? $role->value : $role;
     }
 }

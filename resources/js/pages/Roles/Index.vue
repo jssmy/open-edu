@@ -1,62 +1,242 @@
 <script setup lang="ts">
-import { reactive } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { computed, reactive, ref } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Alert from '@/design-system/Alert.vue';
 import Badge from '@/design-system/Badge.vue';
 import Button from '@/design-system/Button.vue';
 import Card from '@/design-system/Card.vue';
 import Checkbox from '@/design-system/Checkbox.vue';
+import EmptyState from '@/design-system/EmptyState.vue';
+import IconButton from '@/design-system/IconButton.vue';
+import Input from '@/design-system/Input.vue';
+import Modal from '@/design-system/Modal.vue';
+import Select from '@/design-system/Select.vue';
+import Table from '@/design-system/Table.vue';
+import { requestAlertDialog } from '@/composables/useAlertDialog';
+import { useListFilters } from '@/services/listFilters';
+import { submit } from '@/services/http';
 
-interface RoleRow {
+interface RoleRow extends Record<string, unknown> {
     id: number;
     name: string;
     label: string;
+    description: string | null;
+    is_active: boolean;
+    is_system: boolean;
     locked: boolean;
+    user_count: number;
     permissions: string[];
 }
 
-const props = defineProps<{ roles: RoleRow[]; permissions: string[] }>();
-const selected = reactive<Record<number, string[]>>(
-    Object.fromEntries(props.roles.map((r) => [r.id, [...r.permissions]])),
-);
+const props = defineProps<{
+    roles: RoleRow[];
+    filters: { q: string; status: string };
+    permissions: string[];
+}>();
 
-function toggle(roleId: number, permission: string, on: boolean) {
-    const list = selected[roleId];
-    selected[roleId] = on ? [...list, permission] : list.filter((p) => p !== permission);
+const { filters, reset, goToPage } = useListFilters('/roles', {
+    q: props.filters.q ?? '',
+    status: props.filters.status ?? '',
+});
+
+const hasFilters = computed(() => filters.q !== '' || filters.status !== '');
+
+const statusOptions = [
+    { value: '', label: 'Todos los estados' },
+    { value: 'active', label: 'Solo activos' },
+    { value: 'inactive', label: 'Solo inactivos' },
+];
+
+const columns = [
+    { key: 'label', label: 'Rol' },
+    { key: 'description', label: 'Descripción' },
+    { key: 'user_count', label: 'Usuarios' },
+    { key: 'status', label: 'Estado' },
+    { key: 'actions', label: 'Acciones' },
+];
+
+// Modal para configurar permisos
+const editingRole = ref<RoleRow | null>(null);
+const selectedPermissions = ref<string[]>([]);
+
+function openPermissionsModal(role: RoleRow) {
+    editingRole.value = role;
+    selectedPermissions.value = [...role.permissions];
 }
 
-function save(role: RoleRow) {
-    router.put(`/roles/${role.id}/permissions`, { permissions: selected[role.id] }, { preserveScroll: true });
+function togglePermission(p: string, checked: boolean) {
+    if (checked) {
+        if (!selectedPermissions.value.includes(p)) {
+            selectedPermissions.value.push(p);
+        }
+    } else {
+        selectedPermissions.value = selectedPermissions.value.filter((item) => item !== p);
+    }
+}
+
+function savePermissions() {
+    if (!editingRole.value) return;
+    router.put(
+        `/roles/${editingRole.value.id}/permissions`,
+        { permissions: selectedPermissions.value },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                editingRole.value = null;
+            },
+        },
+    );
+}
+
+// Inactivar / Reactivar rol
+async function toggleRoleStatus(role: RoleRow) {
+    if (role.is_active) {
+        let confirm = false;
+        if (role.user_count > 0) {
+            const confirmed = await requestAlertDialog({
+                variant: 'warning',
+                title: '¿Inactivar rol?',
+                message: `Este rol tiene ${role.user_count} usuario(s) asignado(s). Al inactivarlo, no podrán iniciar sesión hasta que se vuelva a activar. ¿Deseas continuar?`,
+                confirmLabel: 'Inactivar rol',
+                cancelLabel: 'Cancelar',
+            });
+            if (!confirmed) return;
+            confirm = true;
+        } else {
+            const confirmed = await requestAlertDialog({
+                variant: 'warning',
+                title: '¿Inactivar rol?',
+                message: `¿Estás seguro de inactivar el rol "${role.label}"? No se podrá asignar a nuevos usuarios.`,
+                confirmLabel: 'Inactivar',
+                cancelLabel: 'Cancelar',
+            });
+            if (!confirmed) return;
+        }
+
+        submit('put', `/roles/${role.id}/status`, { active: false, confirm });
+    } else {
+        submit('put', `/roles/${role.id}/status`, { active: true });
+    }
 }
 </script>
 
 <template>
     <Head title="Roles y permisos" />
     <AppLayout>
-        <h1 class="mb-4 text-xl font-semibold">Roles y permisos</h1>
-        <Alert v-if="$page.props.errors?.general" variant="danger" class="mb-4">{{
-            $page.props.errors.general
-        }}</Alert>
-        <div class="grid gap-4 md:grid-cols-2">
-            <Card v-for="role in roles" :key="role.id">
-                <div class="mb-3 flex items-center gap-2">
-                    <h2 class="font-medium">{{ role.label }}</h2>
-                    <Badge v-if="role.locked">Bloqueado</Badge>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-semibold">Roles y permisos</h1>
+                <p class="text-sm text-text-muted">
+                    Gestiona los roles del sistema, su disponibilidad y los permisos asignados.
+                </p>
+            </div>
+            <Link href="/roles/create">
+                <Button variant="primary">Nuevo rol</Button>
+            </Link>
+        </div>
+
+        <Alert v-if="$page.props.errors?.general" variant="danger" class="mb-4">
+            {{ $page.props.errors.general }}
+        </Alert>
+
+        <!-- Filtros de búsqueda -->
+        <form class="mb-4 flex flex-wrap items-end gap-3" role="search" @submit.prevent="goToPage(1)">
+            <div class="w-64">
+                <label for="filter-q" class="mb-1 block text-xs text-text-muted">Buscar rol</label>
+                <Input id="filter-q" v-model="filters.q" placeholder="Nombre..." />
+            </div>
+            <div class="w-48">
+                <label for="filter-status" class="mb-1 block text-xs text-text-muted">Estado</label>
+                <Select id="filter-status" v-model="filters.status" :options="statusOptions" />
+            </div>
+            <IconButton icon="search" label="Buscar" type="submit" variant="primary" />
+            <IconButton v-if="hasFilters" icon="clear" label="Limpiar filtros" @click="reset" />
+        </form>
+
+        <Table :columns="columns" :rows="roles">
+            <template #cell-label="{ row }">
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-text">{{ row.label }}</span>
+                    <Badge v-if="row.locked" variant="neutral">Sistema</Badge>
                 </div>
-                <div class="flex flex-col gap-2">
-                    <Checkbox
-                        v-for="p in permissions"
-                        :id="`${role.id}-${p}`"
-                        :key="p"
-                        :label="p"
-                        :disabled="role.locked"
-                        :model-value="selected[role.id].includes(p)"
-                        @update:model-value="toggle(role.id, p, $event)"
+            </template>
+
+            <template #cell-description="{ row }">
+                <span class="text-sm text-text-muted">
+                    {{ row.description || '—' }}
+                </span>
+            </template>
+
+            <template #cell-user_count="{ row }">
+                <span class="text-sm font-medium">
+                    {{ row.user_count }}
+                </span>
+            </template>
+
+            <template #cell-status="{ row }">
+                <Badge :variant="row.is_active ? 'success' : 'danger'">
+                    {{ row.is_active ? 'Activo' : 'Inactivo' }}
+                </Badge>
+            </template>
+
+            <template #cell-actions="{ row }">
+                <div class="flex items-center gap-2">
+                    <IconButton
+                        icon="edit"
+                        :label="row.locked ? 'Ver permisos (bloqueado)' : 'Configurar permisos'"
+                        variant="primary"
+                        @click="openPermissionsModal(row as unknown as RoleRow)"
+                    />
+                    <IconButton
+                        v-if="!row.locked"
+                        :icon="row.is_active ? 'deactivate' : 'activate'"
+                        :label="row.is_active ? 'Inactivar rol' : 'Activar rol'"
+                        :variant="row.is_active ? 'danger' : 'success'"
+                        @click="toggleRoleStatus(row as unknown as RoleRow)"
                     />
                 </div>
-                <Button v-if="!role.locked" class="mt-4" @click="save(role)">Guardar permisos</Button>
-            </Card>
-        </div>
+            </template>
+
+            <template #empty>
+                <EmptyState
+                    :title="hasFilters ? 'Sin resultados para la búsqueda' : 'No hay roles registrados'"
+                    :description="hasFilters ? 'Intenta ajustando los términos de búsqueda o estado.' : ''"
+                />
+            </template>
+        </Table>
+
+        <!-- Modal para editar permisos -->
+        <Modal
+            v-if="editingRole"
+            :open="!!editingRole"
+            :title="`Permisos de: ${editingRole.label}`"
+            @close="editingRole = null"
+        >
+            <div class="flex flex-col gap-4">
+                <p v-if="editingRole.locked" class="rounded bg-background-muted p-2 text-xs text-text-muted">
+                    Los permisos del Administrador están protegidos y no pueden modificarse.
+                </p>
+                <div class="grid max-h-96 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                    <Checkbox
+                        v-for="p in permissions"
+                        :id="`modal-perm-${p}`"
+                        :key="p"
+                        :label="p"
+                        :disabled="editingRole.locked"
+                        :model-value="selectedPermissions.includes(p)"
+                        @update:model-value="togglePermission(p, $event)"
+                    />
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <Button variant="secondary" @click="editingRole = null">Cerrar</Button>
+                    <Button v-if="!editingRole.locked" variant="primary" @click="savePermissions">
+                        Guardar cambios
+                    </Button>
+                </div>
+            </template>
+        </Modal>
     </AppLayout>
 </template>
