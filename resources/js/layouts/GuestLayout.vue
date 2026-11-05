@@ -12,9 +12,6 @@ const page = usePage<SharedProps>();
     <main class="flex min-h-screen items-center justify-center px-gutter">
         <div class="w-full max-w-sm">
             <h1 class="mb-4 text-center text-2xl font-semibold text-primary">{{ title }}</h1>
-            <Alert v-if="page.props.flash?.success" variant="success" class="mb-4">{{
-                page.props.flash.success
-            }}</Alert>
             <Card><slot /></Card>
         </div>
     </main>

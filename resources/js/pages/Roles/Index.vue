@@ -13,9 +13,10 @@ import Input from '@/design-system/Input.vue';
 import Modal from '@/design-system/Modal.vue';
 import Select from '@/design-system/Select.vue';
 import Table from '@/design-system/Table.vue';
-import { requestAlertDialog } from '@/composables/useAlertDialog';
+import { notifyError, notifySuccess, requestAlertDialog } from '@/composables/useAlertDialog';
 import { useListFilters } from '@/services/listFilters';
 import { submit } from '@/services/http';
+import type { PermissionItem } from '@/types';
 
 interface RoleRow extends Record<string, unknown> {
     id: number;
@@ -32,7 +33,7 @@ interface RoleRow extends Record<string, unknown> {
 const props = defineProps<{
     roles: RoleRow[];
     filters: { q: string; status: string };
-    permissions: string[];
+    permissions: PermissionItem[];
 }>();
 
 const { filters, reset, goToPage } = useListFilters('/roles', {
@@ -56,34 +57,55 @@ const columns = [
     { key: 'actions', label: 'Acciones' },
 ];
 
+// Agrupación de permisos por módulo para el modal
+const groupedPermissions = computed(() => {
+    const groups: Record<string, PermissionItem[]> = {};
+    for (const p of props.permissions) {
+        const mod = p.module || 'General';
+        if (!groups[mod]) {
+            groups[mod] = [];
+        }
+        groups[mod].push(p);
+    }
+    return groups;
+});
+
 // Modal para configurar permisos
 const editingRole = ref<RoleRow | null>(null);
 const selectedPermissions = ref<string[]>([]);
+const isSavingPermissions = ref(false);
 
 function openPermissionsModal(role: RoleRow) {
     editingRole.value = role;
     selectedPermissions.value = [...role.permissions];
 }
 
-function togglePermission(p: string, checked: boolean) {
+function togglePermission(permName: string, checked: boolean) {
     if (checked) {
-        if (!selectedPermissions.value.includes(p)) {
-            selectedPermissions.value.push(p);
+        if (!selectedPermissions.value.includes(permName)) {
+            selectedPermissions.value.push(permName);
         }
     } else {
-        selectedPermissions.value = selectedPermissions.value.filter((item) => item !== p);
+        selectedPermissions.value = selectedPermissions.value.filter((item) => item !== permName);
     }
 }
 
 function savePermissions() {
     if (!editingRole.value) return;
+    isSavingPermissions.value = true;
     router.put(
         `/roles/${editingRole.value.id}/permissions`,
         { permissions: selectedPermissions.value },
         {
             preserveScroll: true,
             onSuccess: () => {
+                isSavingPermissions.value = false;
                 editingRole.value = null;
+                void notifySuccess('Los permisos del rol han sido guardados correctamente.');
+            },
+            onError: (errors) => {
+                isSavingPermissions.value = false;
+                void notifyError(errors.general ?? errors.permissions ?? 'No se pudieron actualizar los permisos del rol.');
             },
         },
     );
@@ -128,7 +150,7 @@ async function toggleRoleStatus(role: RoleRow) {
             <div>
                 <h1 class="text-xl font-semibold">Roles y permisos</h1>
                 <p class="text-sm text-text-muted">
-                    Gestiona los roles del sistema, su disponibilidad y los permisos asignados.
+                    Gestiona los roles del sistema, su disponibilidad y los permisos asignados con nombres descriptivos.
                 </p>
             </div>
             <Link href="/roles/create">
@@ -211,29 +233,73 @@ async function toggleRoleStatus(role: RoleRow) {
             v-if="editingRole"
             :open="!!editingRole"
             :title="`Permisos de: ${editingRole.label}`"
+            size="2xl"
             @close="editingRole = null"
         >
             <div class="flex flex-col gap-4">
-                <p v-if="editingRole.locked" class="rounded bg-background-muted p-2 text-xs text-text-muted">
-                    Los permisos del Administrador están protegidos y no pueden modificarse.
-                </p>
-                <div class="grid max-h-96 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                    <Checkbox
-                        v-for="p in permissions"
-                        :id="`modal-perm-${p}`"
-                        :key="p"
-                        :label="p"
-                        :disabled="editingRole.locked"
-                        :model-value="selectedPermissions.includes(p)"
-                        @update:model-value="togglePermission(p, $event)"
-                    />
+                <div class="flex items-center justify-between">
+                    <p v-if="editingRole.locked" class="rounded bg-background-muted p-2 text-xs text-text-muted">
+                        Los permisos del Administrador están protegidos y no pueden modificarse.
+                    </p>
+                    <span class="text-xs text-text-muted">
+                        {{ selectedPermissions.length }} permisos asignados
+                    </span>
+                </div>
+
+                <div class="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
+                    <div
+                        v-for="(items, moduleName) in groupedPermissions"
+                        :key="moduleName"
+                        class="rounded-lg border border-border bg-card p-3 shadow-xs"
+                    >
+                        <div class="mb-2 flex items-center gap-2">
+                            <Badge variant="neutral">{{ moduleName }}</Badge>
+                            <span class="text-xs text-text-muted">
+                                {{ items.length }} {{ items.length === 1 ? 'permiso' : 'permisos' }}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <div
+                                v-for="p in items"
+                                :key="p.name"
+                                class="flex flex-col gap-0.5 rounded-md p-1.5 transition-colors hover:bg-background-muted/40"
+                            >
+                                <Checkbox
+                                    :id="`modal-perm-${p.name}`"
+                                    :label="p.label"
+                                    :disabled="editingRole.locked"
+                                    :model-value="selectedPermissions.includes(p.name)"
+                                    @update:model-value="togglePermission(p.name, $event)"
+                                />
+                                <p
+                                    v-if="p.description"
+                                    class="pl-6 text-xs text-text-muted"
+                                >
+                                    {{ p.description }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <template #footer>
+            <template #actions>
                 <div class="flex justify-end gap-2">
-                    <Button variant="secondary" @click="editingRole = null">Cerrar</Button>
-                    <Button v-if="!editingRole.locked" variant="primary" @click="savePermissions">
-                        Guardar cambios
+                    <Button
+                        variant="secondary"
+                        :disabled="isSavingPermissions"
+                        @click="editingRole = null"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        v-if="!editingRole.locked"
+                        variant="primary"
+                        :loading="isSavingPermissions"
+                        loading-text="Guardando..."
+                        @click="savePermissions"
+                    >
+                        Guardar y cerrar
                     </Button>
                 </div>
             </template>

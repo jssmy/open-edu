@@ -115,7 +115,11 @@ onBeforeUnmount(() => {
                 <h2 :id="titleId" class="mb-4 text-lg font-semibold">{{ title }}</h2>
             </slot>
             <slot />
-            <div class="mt-6"><slot name="actions" /></div>
+            <div class="mt-6">
+                <slot name="footer">
+                    <slot name="actions" />
+                </slot>
+            </div>
         </div>
     </div>
 </template>

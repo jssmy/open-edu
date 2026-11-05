@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Identity\Application\CreateRole;
 use App\Modules\Identity\Application\SetRoleStatus;
 use App\Modules\Identity\Application\UpdateRolePermissions;
+use App\Modules\Identity\Domain\PermissionRecord;
 use App\Modules\Identity\Domain\Role;
 use App\Modules\Identity\Domain\RolePermissionRepository;
 use App\Modules\Identity\Domain\RoleRecord;
@@ -36,13 +37,15 @@ class RoleController extends Controller
                 'permissions' => $this->roles->permissionsOf($r->name),
             ], $this->roles->all($filters['q'], $filters['status'])),
             'filters' => $filters,
-            'permissions' => $this->roles->allPermissions(),
+            'permissions' => array_map(fn (PermissionRecord $p) => $p->toArray(), $this->roles->allPermissionRecords()),
         ]);
     }
 
     public function create(): Response
     {
-        return Inertia::render('Roles/Create', ['permissions' => $this->roles->allPermissions()]);
+        return Inertia::render('Roles/Create', [
+            'permissions' => array_map(fn (PermissionRecord $p) => $p->toArray(), $this->roles->allPermissionRecords()),
+        ]);
     }
 
     public function store(StoreRoleRequest $request, CreateRole $create): RedirectResponse

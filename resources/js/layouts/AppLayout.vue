@@ -426,9 +426,6 @@ function logout(): void {
                 id="contenido-principal"
                 class="mx-auto w-full max-w-[90rem] flex-1 px-4 py-7 sm:px-8 sm:py-9"
             >
-                <Alert v-if="page.props.flash?.success" variant="success" class="mb-6">{{
-                    page.props.flash.success
-                }}</Alert>
                 <slot />
             </main>
             <footer class="border-t border-border px-4 py-4 text-center text-xs text-text-muted sm:px-8">

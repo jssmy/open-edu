@@ -74,4 +74,3 @@ class ClassroomController extends Controller
         return back()->with('success', 'Aula eliminada.');
     }
 }
-

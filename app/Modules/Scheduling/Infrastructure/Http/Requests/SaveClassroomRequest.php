@@ -23,4 +23,3 @@ class SaveClassroomRequest extends FormRequest
         ];
     }
 }
-

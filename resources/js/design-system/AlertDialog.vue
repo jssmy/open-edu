@@ -10,7 +10,7 @@ withDefaults(
         title: string;
         message: string;
         confirmLabel?: string;
-        cancelLabel?: string;
+        cancelLabel?: string | null;
     }>(),
     {
         variant: 'info',
@@ -100,13 +100,25 @@ const messageId = useId();
             {{ message }}
         </p>
         <template #actions>
-            <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+            <div
+                v-if="cancelLabel"
+                class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+            >
                 <Button variant="secondary" class="min-h-11 w-full" @click="emit('cancel')">
                     {{ cancelLabel }}
                 </Button>
                 <Button
                     :variant="variant === 'danger' ? 'danger' : 'primary'"
                     class="min-h-11 w-full"
+                    @click="emit('confirm')"
+                >
+                    {{ confirmLabel }}
+                </Button>
+            </div>
+            <div v-else class="flex w-full justify-center">
+                <Button
+                    :variant="variant === 'danger' ? 'danger' : 'primary'"
+                    class="min-h-11 w-full sm:w-auto sm:min-w-36"
                     @click="emit('confirm')"
                 >
                     {{ confirmLabel }}

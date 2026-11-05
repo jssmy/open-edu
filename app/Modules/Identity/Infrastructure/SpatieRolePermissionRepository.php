@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Infrastructure;
 
+use App\Modules\Identity\Domain\PermissionDictionary;
 use App\Modules\Identity\Domain\Role;
 use App\Modules\Identity\Domain\RolePermissionRepository;
 use App\Modules\Identity\Domain\RoleRecord;
@@ -13,6 +14,14 @@ final class SpatieRolePermissionRepository implements RolePermissionRepository
     public function allPermissions(): array
     {
         return Permission::orderBy('name')->pluck('name')->all();
+    }
+
+    public function allPermissionRecords(): array
+    {
+        return Permission::orderBy('name')
+            ->pluck('name')
+            ->map(fn (string $name) => PermissionDictionary::get($name))
+            ->all();
     }
 
     public function permissionsOf(Role|string $role): array

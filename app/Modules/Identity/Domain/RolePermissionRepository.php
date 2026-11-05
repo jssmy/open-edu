@@ -7,6 +7,9 @@ interface RolePermissionRepository
     /** @return list<string> */
     public function allPermissions(): array;
 
+    /** @return list<PermissionRecord> */
+    public function allPermissionRecords(): array;
+
     /** @return list<string> */
     public function permissionsOf(Role|string $role): array;
 

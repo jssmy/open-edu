@@ -16,3 +16,11 @@ export interface Paginated<T> {
     last_page: number;
     total: number;
 }
+
+export interface PermissionItem {
+    name: string;
+    label: string;
+    module: string;
+    description?: string | null;
+}
+

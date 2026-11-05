@@ -34,4 +34,3 @@ class ManageClassrooms
         $this->schedules->deleteClassroom($classroomId);
     }
 }
-

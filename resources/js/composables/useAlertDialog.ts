@@ -7,7 +7,7 @@ export interface AlertDialogOptions {
     title: string;
     message: string;
     confirmLabel?: string;
-    cancelLabel?: string;
+    cancelLabel?: string | null;
 }
 
 interface QueuedAlertDialog extends AlertDialogOptions {
@@ -20,7 +20,7 @@ export const alertDialogState = reactive<{
     title: string;
     message: string;
     confirmLabel: string;
-    cancelLabel: string;
+    cancelLabel: string | null;
 }>({
     open: false,
     variant: 'info',
@@ -49,8 +49,8 @@ function showNextAlertDialog(): void {
         variant: request.variant,
         title: request.title,
         message: request.message,
-        confirmLabel: request.confirmLabel ?? 'Continuar',
-        cancelLabel: request.cancelLabel ?? 'Cancelar',
+        confirmLabel: request.confirmLabel ?? (request.cancelLabel === null ? 'Entendido' : 'Continuar'),
+        cancelLabel: request.cancelLabel !== undefined ? request.cancelLabel : 'Cancelar',
     });
 }
 
@@ -71,4 +71,56 @@ export function respondToAlertDialog(confirmed: boolean): void {
     alertDialogState.open = false;
     request.resolve(confirmed);
     void nextTick(showNextAlertDialog);
+}
+
+/**
+ * Notificación modal de éxito con solo botón de confirmación ("Entendido").
+ */
+export function notifySuccess(message: string, title = 'Operación exitosa'): Promise<boolean> {
+    return requestAlertDialog({
+        variant: 'success',
+        title,
+        message,
+        confirmLabel: 'Entendido',
+        cancelLabel: null,
+    });
+}
+
+/**
+ * Notificación modal de error con solo botón de confirmación ("Entendido").
+ */
+export function notifyError(message: string, title = 'No se pudo completar la operación'): Promise<boolean> {
+    return requestAlertDialog({
+        variant: 'danger',
+        title,
+        message,
+        confirmLabel: 'Entendido',
+        cancelLabel: null,
+    });
+}
+
+/**
+ * Notificación modal de advertencia con solo botón de confirmación ("Entendido").
+ */
+export function notifyWarning(message: string, title = 'Atención'): Promise<boolean> {
+    return requestAlertDialog({
+        variant: 'warning',
+        title,
+        message,
+        confirmLabel: 'Entendido',
+        cancelLabel: null,
+    });
+}
+
+/**
+ * Notificación modal informativa con solo botón de confirmación ("Entendido").
+ */
+export function notifyInfo(message: string, title = 'Información'): Promise<boolean> {
+    return requestAlertDialog({
+        variant: 'info',
+        title,
+        message,
+        confirmLabel: 'Entendido',
+        cancelLabel: null,
+    });
 }

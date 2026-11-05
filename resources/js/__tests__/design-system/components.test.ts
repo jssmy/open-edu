@@ -19,6 +19,17 @@ describe('design system', () => {
         const w = mount(Button, { props: { loading: true }, slots: { default: 'Guardar' } });
         expect(w.attributes('disabled')).toBeDefined();
         expect(w.attributes('aria-busy')).toBe('true');
+        expect(w.find('svg.animate-spin').exists()).toBe(true);
+    });
+
+    it('Button muestra loadingText contextual durante la carga', () => {
+        const w = mount(Button, {
+            props: { loading: true, loadingText: 'Guardando...' },
+            slots: { default: 'Guardar y cerrar' },
+        });
+        expect(w.text()).toContain('Guardando...');
+        expect(w.text()).not.toContain('Guardar y cerrar');
+        expect(w.find('svg.animate-spin').exists()).toBe(true);
     });
 
     it('Input expone el error de forma accesible', () => {

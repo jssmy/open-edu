@@ -21,4 +21,3 @@ class ClassroomFactory extends Factory
         ];
     }
 }
-

@@ -25,6 +25,11 @@ beforeEach(function () {
             return ['users.manage', 'courses.view'];
         }
 
+        public function allPermissionRecords(): array
+        {
+            return [];
+        }
+
         public function permissionsOf(Role|string $role): array
         {
             return [];
