@@ -57,7 +57,7 @@ class StudentController extends Controller
 
         return Inertia::render('Students/Show', [
             'student' => $this->present($record),
-            'courses' => $this->students->coursesFor($studentId, $teacherId),
+            'courses' => $this->students->coursesWithProgressAndAssessments($studentId, $teacherId),
             'canManageStudents' => $request->user()->can('students.manage'),
             'canManageEnrollments' => $request->user()->can('enrollments.manage'),
         ]);

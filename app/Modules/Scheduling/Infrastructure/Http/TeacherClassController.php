@@ -4,8 +4,10 @@ namespace App\Modules\Scheduling\Infrastructure\Http;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
+use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,27 +29,39 @@ final class TeacherClassController extends Controller
                 'teachers',
                 'sessions.classroom',
             ])
-            ->latest('starts_on')
+            ->orderByRaw('CASE WHEN starts_on IS NULL THEN 2 WHEN starts_on >= CURRENT_DATE THEN 0 ELSE 1 END')
+            ->orderBy('starts_on', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         return Inertia::render('Teacher/Classes', [
-            'classes' => $offerings->map(fn (CourseOffering $offering): array => [
-                'id' => $offering->id,
-                'group_code' => $offering->group_code,
-                'modality' => $offering->modality,
-                'starts_on' => $offering->starts_on?->toDateString(),
-                'ends_on' => $offering->ends_on?->toDateString(),
-                'course' => [
-                    'id' => $offering->course->id,
-                    'title' => $offering->course->name,
-                    'description' => $offering->course->description,
-                    'cover_image_url' => $offering->course->cover_image_path
-                        ? route('courses.cover', $offering->course)
-                        : null,
-                    'units_count' => $offering->course->units->count(),
-                    'lessons_count' => $offering->course->units->sum(fn ($u) => $u->lessons->count()),
-                ],
-            ])->all(),
+            'classes' => $offerings->map(function (CourseOffering $offering): array {
+                $excerpt = Str::limit(trim(RichTextDocumentValidator::plainText($offering->course->description)), 180);
+
+                return [
+                    'id' => $offering->id,
+                    'group_code' => $offering->group_code,
+                    'modality' => $offering->modality,
+                    'starts_on' => $offering->starts_on?->toDateString(),
+                    'ends_on' => $offering->ends_on?->toDateString(),
+                    'course' => [
+                        'id' => $offering->course->id,
+                        'name' => $offering->course->name,
+                        'title' => $offering->course->name,
+                        'description' => $offering->course->description,
+                        'excerpt' => $excerpt !== '' ? $excerpt : 'Sin descripción.',
+                        'cover_url' => $offering->course->coverUrl(),
+                        'cover_image_url' => $offering->course->coverUrl(),
+                        'units_count' => $offering->course->units->count(),
+                        'lessons_count' => $offering->course->units->sum(fn ($u) => $u->lessons->count()),
+                        'status' => $offering->course->status,
+                        'teachers' => $offering->course->teachers->map(fn ($teacher): array => [
+                            'id' => $teacher->id,
+                            'name' => $teacher->name,
+                        ])->values()->all(),
+                    ],
+                ];
+            })->all(),
         ]);
     }
 

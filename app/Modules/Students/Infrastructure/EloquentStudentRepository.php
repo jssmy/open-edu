@@ -7,6 +7,7 @@ use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Students\Domain\Student as StudentRecord;
 use App\Modules\Students\Domain\StudentRepository;
 use App\Modules\Students\Infrastructure\Models\Student;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentStudentRepository implements StudentRepository
@@ -125,6 +126,89 @@ final class EloquentStudentRepository implements StudentRepository
                 'enrolled_at' => $enrollment->enrolled_at->toISOString(),
             ])
             ->all();
+    }
+
+    public function coursesWithProgressAndAssessments(int $studentId, ?int $teacherUserId = null): array
+    {
+        $enrollments = Enrollment::query()
+            ->with([
+                'course.assessments' => fn ($q) => $q->where('is_published', true)->orderBy('id'),
+                'course.assessments.attempts' => fn ($q) => $q->where('student_id', $studentId)->orderByDesc('attempt_number'),
+                'courseOffering:id,group_code',
+            ])
+            ->where('student_id', $studentId)
+            ->when(
+                $teacherUserId !== null,
+                fn ($query) => $query->whereHas(
+                    'course.teachers',
+                    fn ($teachers) => $teachers->whereKey($teacherUserId),
+                ),
+            )
+            ->orderBy('enrolled_at')
+            ->get();
+
+        if ($enrollments->isEmpty()) {
+            return [];
+        }
+
+        $courseIds = $enrollments->pluck('course_id')->filter()->unique()->all();
+
+        $progressCounts = DB::table('units')
+            ->join('lessons', 'lessons.unit_id', '=', 'units.id')
+            ->leftJoin('lesson_progress', function (JoinClause $join) use ($studentId): void {
+                $join->on('lesson_progress.lesson_id', '=', 'lessons.id')
+                    ->where('lesson_progress.student_id', $studentId);
+            })
+            ->whereIn('units.course_id', $courseIds)
+            ->where('lessons.is_archived', false)
+            ->groupBy('units.course_id')
+            ->select('units.course_id')
+            ->selectRaw('COUNT(lessons.id) AS total_lessons')
+            ->selectRaw('COUNT(lesson_progress.lesson_id) AS completed_lessons')
+            ->get()
+            ->keyBy('course_id');
+
+        return $enrollments->map(function (Enrollment $enrollment) use ($progressCounts): array {
+            $courseId = $enrollment->course_id;
+            $counts = $progressCounts->get($courseId);
+            $totalLessons = (int) ($counts->total_lessons ?? 0);
+            $completedLessons = (int) ($counts->completed_lessons ?? 0);
+            $percentage = $totalLessons > 0 ? (int) round(($completedLessons * 100) / $totalLessons) : 0;
+
+            $assessments = $enrollment->course->assessments->map(function ($assessment): array {
+                $latestAttempt = $assessment->attempts->first();
+
+                return [
+                    'id' => $assessment->id,
+                    'title' => $assessment->title,
+                    'total_score' => (int) $assessment->total_score,
+                    'passing_score' => (int) $assessment->passing_score,
+                    'latest_attempt' => $latestAttempt !== null ? [
+                        'id' => $latestAttempt->id,
+                        'attempt_number' => (int) $latestAttempt->attempt_number,
+                        'score' => (int) $latestAttempt->score,
+                        'passed' => (bool) $latestAttempt->passed,
+                        'status' => $latestAttempt->status,
+                        'submitted_at' => $latestAttempt->submitted_at?->toIso8601String(),
+                    ] : null,
+                ];
+            })->values()->all();
+
+            return [
+                'id' => $enrollment->course->id,
+                'enrollment_id' => $enrollment->id,
+                'name' => $enrollment->course->name,
+                'status' => $enrollment->status->value,
+                'group_code' => $enrollment->courseOffering?->group_code,
+                'enrolled_at' => $enrollment->enrolled_at->toISOString(),
+                'progress' => [
+                    'completed_lessons' => $completedLessons,
+                    'total_lessons' => $totalLessons,
+                    'percentage' => $percentage,
+                ],
+                'assessments' => $assessments,
+            ];
+        })->all();
     }
 
     public function canTeacherView(int $studentId, int $teacherUserId): bool

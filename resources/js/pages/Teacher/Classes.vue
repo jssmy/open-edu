@@ -3,10 +3,9 @@ import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Badge from '@/design-system/Badge.vue';
 import Button from '@/design-system/Button.vue';
-import Card from '@/design-system/Card.vue';
 import EmptyState from '@/design-system/EmptyState.vue';
-import RichTextContent from '@/components/editor/RichTextContent.vue';
-import type { RichTextDocument } from '@/types/richText';
+import CourseCard, { type CourseCardItem } from '@/components/courses/CourseCard.vue';
+import type { CourseStatus } from '@/services/courses';
 
 interface TeacherClass {
     id: number;
@@ -16,11 +15,16 @@ interface TeacherClass {
     ends_on: string | null;
     course: {
         id: number;
-        title: string;
-        description: RichTextDocument | string | null;
-        cover_image_url: string | null;
-        units_count: number;
-        lessons_count: number;
+        title?: string;
+        name?: string;
+        excerpt?: string | null;
+        description?: unknown;
+        cover_url?: string | null;
+        cover_image_url?: string | null;
+        units_count?: number;
+        lessons_count?: number;
+        status?: CourseStatus;
+        teachers?: { id: number; name: string }[];
     };
 }
 
@@ -28,8 +32,23 @@ defineProps<{
     classes: TeacherClass[];
 }>();
 
-function isRichText(content: unknown): content is RichTextDocument {
-    return content !== null && typeof content === 'object' && (content as { type?: string }).type === 'doc';
+function modalityVariant(modality: string): 'neutral' | 'success' | 'warning' | 'danger' {
+    const normalized = modality.toLowerCase();
+    if (normalized.includes('virtual') || normalized.includes('remoto')) return 'success';
+    if (normalized.includes('hibrid') || normalized.includes('híbrid')) return 'warning';
+    return 'neutral';
+}
+
+function toCourseCardItem(item: TeacherClass): CourseCardItem {
+    return {
+        id: item.course.id,
+        name: item.course.name ?? item.course.title ?? 'Curso sin título',
+        excerpt: item.course.excerpt ?? (typeof item.course.description === 'string' ? item.course.description : null),
+        cover_url: item.course.cover_url ?? item.course.cover_image_url ?? '',
+        units_count: item.course.units_count,
+        status: item.course.status,
+        teachers: item.course.teachers,
+    };
 }
 </script>
 
@@ -39,75 +58,54 @@ function isRichText(content: unknown): content is RichTextDocument {
         <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold tracking-tight text-text sm:text-3xl">Mis Clases Asignadas</h1>
-                <p class="text-sm text-text-muted mt-1">
+                <p class="mt-1 text-sm text-text-muted">
                     Gestiona y proyecta las diapositivas de los cursos que tienes a tu cargo.
                 </p>
             </div>
         </div>
 
-        <EmptyState
-            v-if="classes.length === 0"
-            title="No tienes clases programadas"
-            description="Actualmente no cuentas con clases ni horarios asignados para dictar."
-        />
-
-        <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card
-                v-for="item in classes"
-                :key="item.id"
-                class="flex flex-col justify-between overflow-hidden border border-border shadow-sm hover:shadow transition-shadow"
-            >
-                <div class="flex flex-col gap-3">
-                    <!-- Portada o placeholder -->
-                    <div class="relative h-44 w-full overflow-hidden rounded-t-card bg-surface-muted">
-                        <img
-                            v-if="item.course.cover_image_url"
-                            :src="item.course.cover_image_url"
-                            :alt="item.course.title"
-                            class="h-full w-full object-cover"
-                        />
-                        <div v-else class="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
-                            <span class="text-4xl">📚</span>
-                        </div>
-                        <div class="absolute top-3 left-3 flex gap-2">
-                            <Badge variant="neutral">{{ item.group_code }}</Badge>
-                            <Badge variant="success">{{ item.modality }}</Badge>
-                        </div>
-                    </div>
-
-                    <!-- Datos del curso -->
-                    <div class="p-2 flex flex-col gap-2">
-                        <h2 class="text-lg font-bold text-text line-clamp-1">{{ item.course.title }}</h2>
-                        <div class="text-xs text-text-muted line-clamp-2">
-                            <RichTextContent
-                                v-if="isRichText(item.course.description)"
-                                :content="item.course.description"
-                                :label="item.course.title"
-                            />
-                            <p v-else-if="typeof item.course.description === 'string'">
-                                {{ item.course.description }}
-                            </p>
-                            <p v-else>Sin descripción registrada.</p>
-                        </div>
-
-                        <div class="flex items-center gap-4 text-xs font-medium text-text-muted mt-2 border-t border-border pt-2">
-                            <span>📖 {{ item.course.units_count }} módulos</span>
-                            <span>🎯 {{ item.course.lessons_count }} diapositivas</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botón de acción / Ingreso al visor -->
-                <div class="p-2 pt-0 mt-3 border-t border-border/50">
-                    <Link
-                        :href="`/my/classes/${item.id}/viewer`"
-                        class="mt-2 flex w-full items-center justify-center rounded-control bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                        🖥️ Entrar a Clase (Ver Diapositivas)
-                    </Link>
-                </div>
-            </Card>
+        <div v-if="classes.length === 0" class="rounded-card border border-border bg-panel">
+            <EmptyState
+                title="No tienes clases programadas"
+                description="Actualmente no cuentas con clases ni horarios asignados para dictar."
+            />
         </div>
+
+        <ul v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <li v-for="item in classes" :key="item.id" class="flex flex-col">
+                <CourseCard :course="toCourseCardItem(item)">
+                    <template #badges>
+                        <Badge variant="neutral">
+                            Grupo {{ item.group_code }}
+                        </Badge>
+                        <Badge :variant="modalityVariant(item.modality)">
+                            {{ item.modality }}
+                        </Badge>
+                    </template>
+
+                    <template #meta>
+                        <div class="flex items-center gap-3 text-xs text-text-muted">
+                            <span v-if="item.course.lessons_count !== undefined">
+                                🎯 {{ item.course.lessons_count }} {{ item.course.lessons_count === 1 ? 'diapositiva' : 'diapositivas' }}
+                            </span>
+                            <span v-if="item.starts_on">
+                                📅 Inicio: {{ item.starts_on }}
+                            </span>
+                        </div>
+                    </template>
+
+                    <template #footer>
+                        <span class="text-xs text-text-muted">
+                            <strong class="text-text">{{ item.group_code }}</strong> · {{ item.modality }}
+                        </span>
+                        <Link :href="`/my/classes/${item.id}/viewer`">
+                            <Button size="sm" variant="primary">
+                                Entrar a Clase
+                            </Button>
+                        </Link>
+                    </template>
+                </CourseCard>
+            </li>
+        </ul>
     </AppLayout>
 </template>
-

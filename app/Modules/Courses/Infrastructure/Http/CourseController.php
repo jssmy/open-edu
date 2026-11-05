@@ -148,7 +148,7 @@ class CourseController extends Controller
                     'is_published' => $assessment->is_published,
                 ])->all(),
             ],
-            'canManageCourses' => $request->user()->can('courses.manage') || ($request->user()->hasRole('docente') && $course->teachers()->whereKey($request->user()->id)->exists()),
+            'canManageCourses' => $request->user()->can('courses.manage'),
             'canManageContent' => $request->user()->can('content.manage') && (! $request->user()->hasRole('docente') || $course->teachers()->whereKey($request->user()->id)->exists()),
         ]);
     }

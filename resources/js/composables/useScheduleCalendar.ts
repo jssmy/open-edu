@@ -8,6 +8,7 @@ export interface CalendarScheduleBlock {
     blockIndex: number;
     title?: string;
     groupCode?: string;
+    courseId?: number;
     courseName: string;
     teacherId?: number;
     teacherName: string;
@@ -22,23 +23,29 @@ export interface CalendarScheduleBlock {
     readOnly?: boolean;
 }
 
-export interface TeacherColorLegendItem {
+export interface CourseColorLegendItem {
     key: string;
-    teacherName: string;
+    courseName: string;
     backgroundColor: string;
     borderColor: string;
 }
 
-const TEACHER_COLOR_PALETTE: ReadonlyArray<{ backgroundColor: string; borderColor: string }> = [
-    { backgroundColor: '#1d4ed8', borderColor: '#1e40af' },
-    { backgroundColor: '#047857', borderColor: '#065f46' },
-    { backgroundColor: '#b45309', borderColor: '#92400e' },
-    { backgroundColor: '#7c3aed', borderColor: '#6d28d9' },
-    { backgroundColor: '#be123c', borderColor: '#9f1239' },
-    { backgroundColor: '#0e7490', borderColor: '#155e75' },
-    { backgroundColor: '#4338ca', borderColor: '#3730a3' },
-    { backgroundColor: '#a21caf', borderColor: '#86198f' },
+export type TeacherColorLegendItem = CourseColorLegendItem;
+
+const COURSE_COLOR_PALETTE: ReadonlyArray<{ backgroundColor: string; borderColor: string }> = [
+    { backgroundColor: '#1d4ed8', borderColor: '#1e40af' }, // Blue
+    { backgroundColor: '#047857', borderColor: '#065f46' }, // Emerald
+    { backgroundColor: '#b45309', borderColor: '#92400e' }, // Amber
+    { backgroundColor: '#7c3aed', borderColor: '#6d28d9' }, // Violet
+    { backgroundColor: '#be123c', borderColor: '#9f1239' }, // Rose
+    { backgroundColor: '#0e7490', borderColor: '#155e75' }, // Cyan
+    { backgroundColor: '#4338ca', borderColor: '#3730a3' }, // Indigo
+    { backgroundColor: '#a21caf', borderColor: '#86198f' }, // Fuchsia
+    { backgroundColor: '#c2410c', borderColor: '#9a3412' }, // Orange
+    { backgroundColor: '#15803d', borderColor: '#166534' }, // Green
 ];
+
+const TEACHER_COLOR_PALETTE = COURSE_COLOR_PALETTE;
 
 export interface CalendarSelection {
     dayOfWeek: number;
@@ -84,15 +91,15 @@ export function formatIsoDate(date: Date): string {
 export function useScheduleCalendar(blocks: () => CalendarScheduleBlock[], editable = true) {
     const currentView = ref<'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'>('timeGridWeek');
 
-    const teacherColorMap = computed(() => {
-        const map = new Map<string, TeacherColorLegendItem>();
+    const courseColorMap = computed(() => {
+        const map = new Map<string, CourseColorLegendItem>();
         for (const block of blocks()) {
-            const key = block.teacherId ? `id:${block.teacherId}` : `name:${block.teacherName}`;
+            const key = block.courseId ? `id:${block.courseId}` : `name:${block.courseName || 'Curso'}`;
             if (!map.has(key)) {
-                const paletteColor = TEACHER_COLOR_PALETTE[map.size % TEACHER_COLOR_PALETTE.length];
+                const paletteColor = COURSE_COLOR_PALETTE[map.size % COURSE_COLOR_PALETTE.length];
                 map.set(key, {
                     key,
-                    teacherName: block.teacherName || 'Sin docente',
+                    courseName: block.courseName || 'Curso general',
                     backgroundColor: paletteColor.backgroundColor,
                     borderColor: paletteColor.borderColor,
                 });
@@ -101,7 +108,9 @@ export function useScheduleCalendar(blocks: () => CalendarScheduleBlock[], edita
         return map;
     });
 
-    const teacherLegend = computed<TeacherColorLegendItem[]>(() => Array.from(teacherColorMap.value.values()));
+    const teacherColorMap = computed(() => courseColorMap.value);
+    const courseLegend = computed<CourseColorLegendItem[]>(() => Array.from(courseColorMap.value.values()));
+    const teacherLegend = computed<TeacherColorLegendItem[]>(() => Array.from(courseColorMap.value.values()));
 
     const calendarEvents = computed(() =>
         blocks().map((block) => {
@@ -118,8 +127,8 @@ export function useScheduleCalendar(blocks: () => CalendarScheduleBlock[], edita
             const courseLabel = `${block.courseName}${groupLabel}`;
             const teacherDisplay = block.teacherName || 'Sin docente';
             const teacherLabel = `Docente: ${teacherDisplay}`;
-            const teacherKey = block.teacherId ? `id:${block.teacherId}` : `name:${block.teacherName}`;
-            const color = teacherColorMap.value.get(teacherKey) ?? TEACHER_COLOR_PALETTE[0];
+            const courseKey = block.courseId ? `id:${block.courseId}` : `name:${block.courseName || 'Curso'}`;
+            const color = courseColorMap.value.get(courseKey) ?? COURSE_COLOR_PALETTE[0];
             return {
                 id: `${block.scheduleId}-${block.blockIndex}`,
                 title: `${courseLabel}\n${teacherLabel}\n${locationLabel}`,
@@ -159,6 +168,7 @@ export function useScheduleCalendar(blocks: () => CalendarScheduleBlock[], edita
         referenceMonday: REFERENCE_MONDAY,
         initialDate,
         calendarEvents,
+        courseLegend,
         teacherLegend,
     };
 }

@@ -307,6 +307,7 @@ class SchedulingController extends Controller
                     'blockIndex' => $index,
                     'title' => $session->title,
                     'groupCode' => $offering->group_code,
+                    'courseId' => $offering->course_id,
                     'courseName' => $offering->course?->name ?? '',
                     'teacherId' => $session->teacher_id,
                     'teacherName' => $session->teacher?->name ?? '',
