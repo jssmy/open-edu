@@ -77,12 +77,12 @@ const navigationGroups = computed(() => {
             matches: ['/enrollments'],
         },
         {
-            href: '/my/courses',
-            label: 'Mis cursos',
-            description: 'Continúa tu aprendizaje',
+            href: '/my/classes',
+            label: 'Mis clases',
+            description: 'Accede a tus clases y horarios',
             icon: 'study',
             permission: 'study',
-            matches: ['/my/courses'],
+            matches: ['/my/classes', '/my/courses'],
         },
         {
             href: '/my/progress',

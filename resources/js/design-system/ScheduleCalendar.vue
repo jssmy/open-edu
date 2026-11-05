@@ -14,7 +14,7 @@ import esLocale from '@fullcalendar/vue3/locales/es';
 import '@fullcalendar/vue3/skeleton.css';
 import '@fullcalendar/vue3/themes/classic/theme.css';
 import '@fullcalendar/vue3/themes/classic/palette.css';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
     formatTimeFromDate,
     isoDayFromDate,
@@ -42,10 +42,38 @@ const emit = defineEmits<{
     eventClick: [scheduleId: number, eventProps?: Record<string, unknown>];
 }>();
 
+const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null);
+const currentPeriodTitle = ref('');
+
 const { currentView, initialDate, calendarEvents } = useScheduleCalendar(
     () => props.blocks,
     props.editable,
 );
+
+function handleDatesSet(arg: { view: { title: string } }): void {
+    currentPeriodTitle.value = arg.view.title;
+}
+
+function handlePrev(): void {
+    const api = calendarRef.value?.getApi();
+    if (api) {
+        api.prev();
+    }
+}
+
+function handleNext(): void {
+    const api = calendarRef.value?.getApi();
+    if (api) {
+        api.next();
+    }
+}
+
+function handleToday(): void {
+    const api = calendarRef.value?.getApi();
+    if (api) {
+        api.today();
+    }
+}
 
 function handleSelect(arg: DateSelectInfo): void {
     emit('select', {
@@ -93,6 +121,7 @@ const calendarOptions = computed<CalendarOptions>(() => ({
     selectable: props.editable,
     editable: props.editable,
     events: calendarEvents.value,
+    datesSet: handleDatesSet,
     select: handleSelect,
     eventClick: handleEventClick,
     eventDrop: handleMoveOrResize,
@@ -110,48 +139,94 @@ function setView(view: 'timeGridWeek' | 'timeGridDay' | 'dayGridMonth'): void {
         class="schedule-calendar-wrapper rounded-card border border-border bg-panel p-4 shadow-card"
         data-testid="schedule-calendar"
     >
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-semibold text-text">{{ title }}</p>
-            <div class="flex items-center gap-2" role="group" aria-label="Vista del calendario">
-                <button
-                    type="button"
-                    class="min-h-11 rounded-control border px-3 py-1.5 text-xs font-medium transition"
-                    :class="
-                        currentView === 'timeGridWeek'
-                            ? 'border-primary bg-primary text-white'
-                            : 'border-border bg-surface text-text hover:bg-panel'
-                    "
-                    @click="setView('timeGridWeek')"
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div class="flex flex-wrap items-center gap-3">
+                <p class="text-sm font-semibold text-text">{{ title }}</p>
+                <span
+                    v-if="currentPeriodTitle"
+                    class="rounded-badge bg-surface px-2.5 py-1 text-xs font-medium text-text capitalize"
+                    data-testid="calendar-period-title"
                 >
-                    Semanal
-                </button>
-                <button
-                    type="button"
-                    class="min-h-11 rounded-control border px-3 py-1.5 text-xs font-medium transition"
-                    :class="
-                        currentView === 'timeGridDay'
-                            ? 'border-primary bg-primary text-white'
-                            : 'border-border bg-surface text-text hover:bg-panel'
-                    "
-                    @click="setView('timeGridDay')"
-                >
-                    Diaria
-                </button>
-                <button
-                    type="button"
-                    class="min-h-11 rounded-control border px-3 py-1.5 text-xs font-medium transition"
-                    :class="
-                        currentView === 'dayGridMonth'
-                            ? 'border-primary bg-primary text-white'
-                            : 'border-border bg-surface text-text hover:bg-panel'
-                    "
-                    @click="setView('dayGridMonth')"
-                >
-                    Mensual
-                </button>
+                    {{ currentPeriodTitle }}
+                </span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Controles de navegación temporal (Anterior, Hoy, Siguiente) -->
+                <div class="flex items-center gap-1" role="group" aria-label="Navegación de fecha">
+                    <button
+                        type="button"
+                        class="inline-flex min-h-9 items-center justify-center rounded-control border border-border bg-panel px-2.5 text-xs font-medium text-text hover:bg-surface transition"
+                        data-testid="calendar-prev-button"
+                        aria-label="Período anterior"
+                        @click="handlePrev"
+                    >
+                        Anterior
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex min-h-9 items-center justify-center rounded-control border border-border bg-panel px-2.5 text-xs font-medium text-text hover:bg-surface transition"
+                        data-testid="calendar-today-button"
+                        aria-label="Ir a hoy"
+                        @click="handleToday"
+                    >
+                        Hoy
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex min-h-9 items-center justify-center rounded-control border border-border bg-panel px-2.5 text-xs font-medium text-text hover:bg-surface transition"
+                        data-testid="calendar-next-button"
+                        aria-label="Período siguiente"
+                        @click="handleNext"
+                    >
+                        Siguiente
+                    </button>
+                </div>
+
+                <div class="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+                <!-- Selector de vista (Semanal, Diaria, Mensual) -->
+                <div class="flex items-center gap-1" role="group" aria-label="Vista del calendario">
+                    <button
+                        type="button"
+                        class="min-h-9 rounded-control border px-3 py-1.5 text-xs font-medium transition"
+                        :class="
+                            currentView === 'timeGridWeek'
+                                ? 'border-primary bg-primary text-white'
+                                : 'border-border bg-surface text-text hover:bg-panel'
+                        "
+                        @click="setView('timeGridWeek')"
+                    >
+                        Semanal
+                    </button>
+                    <button
+                        type="button"
+                        class="min-h-9 rounded-control border px-3 py-1.5 text-xs font-medium transition"
+                        :class="
+                            currentView === 'timeGridDay'
+                                ? 'border-primary bg-primary text-white'
+                                : 'border-border bg-surface text-text hover:bg-panel'
+                        "
+                        @click="setView('timeGridDay')"
+                    >
+                        Diaria
+                    </button>
+                    <button
+                        type="button"
+                        class="min-h-9 rounded-control border px-3 py-1.5 text-xs font-medium transition"
+                        :class="
+                            currentView === 'dayGridMonth'
+                                ? 'border-primary bg-primary text-white'
+                                : 'border-border bg-surface text-text hover:bg-panel'
+                        "
+                        @click="setView('dayGridMonth')"
+                    >
+                        Mensual
+                    </button>
+                </div>
             </div>
         </div>
-        <FullCalendar :key="currentView" :options="calendarOptions">
+        <FullCalendar ref="calendarRef" :key="currentView" :options="calendarOptions">
             <template #eventContent="arg">
                 <div
                     class="fc-schedule-item flex h-full w-full cursor-pointer flex-col gap-0.5 overflow-hidden px-1 py-0.5 text-[11px] leading-tight"

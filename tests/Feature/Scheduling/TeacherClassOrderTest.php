@@ -65,4 +65,3 @@ test('teacher classes are sorted by closest start date ascending', function (): 
             ->where('classes.2.group_code', 'PAST')
         );
 });
-

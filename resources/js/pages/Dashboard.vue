@@ -109,8 +109,8 @@ const allShortcuts: ShortcutItem[] = [
         actionLabel: 'Explorar cursos',
     },
     {
-        href: '/my/courses',
-        label: 'Mis cursos',
+        href: '/my/classes',
+        label: 'Mis clases',
         description: 'Retoma tus clases activas, revisa el material multimedia y continúa aprendiendo.',
         permission: 'study',
         badge: 'Aula virtual',

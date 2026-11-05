@@ -24,13 +24,29 @@ final readonly class CourseProgress
         return (int) round($this->completedLessons * 100 / $this->totalLessons);
     }
 
-    /** @return array{completed_lessons: int, total_lessons: int, percentage: int} */
+    public function status(): string
+    {
+        $percentage = $this->percentage();
+
+        if ($percentage >= 100) {
+            return 'completed';
+        }
+
+        if ($percentage > 0) {
+            return 'in_progress';
+        }
+
+        return 'not_started';
+    }
+
+    /** @return array{completed_lessons: int, total_lessons: int, percentage: int, status: string} */
     public function toArray(): array
     {
         return [
             'completed_lessons' => $this->completedLessons,
             'total_lessons' => $this->totalLessons,
             'percentage' => $this->percentage(),
+            'status' => $this->status(),
         ];
     }
 }

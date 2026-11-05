@@ -26,8 +26,35 @@ class SchedulingController extends Controller
     {
         Gate::authorize('scheduling.manage');
 
+        $courses = Course::query()
+            ->with('offerings:id,course_id,group_code')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Course $course): array => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'next_group_code' => CourseOffering::nextGroupCodeForCourse(
+                    $course->id,
+                    null,
+                    $course->offerings->pluck('group_code')->all(),
+                ),
+            ])
+            ->all();
+
+        $teachers = User::role('docente')->where('is_active', true)->orderBy('name')->get(['id', 'name'])->all();
+
         $courseId = $request->integer('course') ?: null;
-        $teacherId = $request->integer('teacher') ?: null;
+        if ($request->has('teacher')) {
+            $teacherId = $request->input('teacher') === '' || $request->input('teacher') === null
+                ? null
+                : $request->integer('teacher');
+            $teacherParam = $teacherId ? (string) $teacherId : '';
+        } else {
+            // Default to the first available active teacher if present
+            $teacherId = ! empty($teachers) ? (int) $teachers[0]['id'] : null;
+            $teacherParam = $teacherId ? (string) $teacherId : '';
+        }
+
         $classroomId = $request->integer('classroom') ?: null;
         $statusFilter = trim($request->string('status')->toString());
         $term = trim($request->string('q')->toString());
@@ -79,25 +106,12 @@ class SchedulingController extends Controller
             'filters' => [
                 'q' => $term,
                 'course' => $courseId ? (string) $courseId : '',
-                'teacher' => $teacherId ? (string) $teacherId : '',
+                'teacher' => $teacherParam,
                 'classroom' => $classroomId ? (string) $classroomId : '',
                 'status' => $statusFilter,
             ],
-            'courses' => Course::query()
-                ->with('offerings:id,course_id,group_code')
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (Course $course): array => [
-                    'id' => $course->id,
-                    'name' => $course->name,
-                    'next_group_code' => CourseOffering::nextGroupCodeForCourse(
-                        $course->id,
-                        null,
-                        $course->offerings->pluck('group_code')->all(),
-                    ),
-                ])
-                ->all(),
-            'teachers' => User::role('docente')->where('is_active', true)->orderBy('name')->get(['id', 'name'])->all(),
+            'courses' => $courses,
+            'teachers' => $teachers,
             'classrooms' => Classroom::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'capacity'])->all(),
             'pendingCount' => $pendingCount,
         ]);

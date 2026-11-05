@@ -42,7 +42,7 @@ describe('Dashboard', () => {
         expect(wrapper.text()).toContain('docente');
         expect(wrapper.text()).toContain('6 herramientas activas');
         expect(wrapper.find('a[href="/courses"]').exists()).toBe(true);
-        expect(wrapper.find('a[href="/my/courses"]').exists()).toBe(true);
+        expect(wrapper.find('a[href="/my/classes"]').exists()).toBe(true);
         expect(wrapper.find('a[href="/my/progress"]').exists()).toBe(true);
         expect(wrapper.find('a[href="/my/results"]').exists()).toBe(true);
         expect(wrapper.find('a[href="/scheduling"]').exists()).toBe(true);
@@ -62,7 +62,7 @@ describe('Dashboard', () => {
         await learningButton!.trigger('click');
 
         expect(wrapper.find('#accesos-heading').exists()).toBe(true);
-        expect(wrapper.text()).toContain('Mis cursos');
+        expect(wrapper.text()).toContain('Mis clases');
         expect(wrapper.text()).toContain('Mi progreso');
         expect(wrapper.text()).toContain('Mis resultados');
         expect(wrapper.text()).not.toContain('Administración de usuarios');

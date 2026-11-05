@@ -62,7 +62,7 @@ final class AssessmentPolicy
 
     public function viewResults(User $user, Assessment $assessment): Response
     {
-        if ($user->can('assessments.manage')) {
+        if ($user->can('assessments.manage') || $user->can('students.view')) {
             if ($user->hasRole('docente') && ! $assessment->course->teachers()->whereKey($user->id)->exists()) {
                 return Response::denyAsNotFound();
             }
@@ -86,11 +86,29 @@ final class AssessmentPolicy
             ->where('is_active', true)
             ->first();
 
-        return $student !== null && Enrollment::query()
+        if ($student === null) {
+            return false;
+        }
+
+        $enrollment = Enrollment::query()
             ->where('student_id', $student->id)
             ->where('course_id', $assessment->course_id)
             ->where('status', EnrollmentStatus::Active->value)
-            ->exists();
+            ->with('courseOffering')
+            ->first();
+
+        if ($enrollment === null) {
+            return false;
+        }
+
+        // Si la oferta tiene fecha de fin y ya pasó, no se permite rendir evaluaciones
+        if ($enrollment->courseOffering?->ends_on !== null) {
+            if ($enrollment->courseOffering->ends_on->toDateString() < now()->toDateString()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function hasActiveOrHistoricalEnrollment(User $user, Assessment $assessment): bool

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Courses\Domain\ContentType;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Courses\Infrastructure\Models\Lesson;
+use App\Modules\Enrollments\Domain\EnrollmentStatus;
 use App\Modules\Progress\Application\CompleteLesson;
 use App\Modules\Progress\Application\GetCourseProgress;
 use App\Modules\Progress\Application\GetMyCourses;
@@ -23,9 +24,13 @@ final class StudyController extends Controller
     public function index(Request $request, GetMyCourses $getMyCourses): Response
     {
         $student = $this->activeStudent($request);
+        $status = $request->query('status', 'in_progress');
 
         return Inertia::render('Study/MyCourses', [
             'courses' => $getMyCourses($student->id),
+            'filters' => [
+                'status' => is_string($status) ? $status : 'in_progress',
+            ],
         ]);
     }
 
@@ -36,6 +41,25 @@ final class StudyController extends Controller
         $courseData = $getCourseProgress($course->id, $student->id);
 
         abort_if($courseData === null, 404);
+
+        $enrollment = $student->enrollments()
+            ->where('course_id', $course->id)
+            ->where('status', EnrollmentStatus::Active->value)
+            ->with('courseOffering')
+            ->first();
+
+        $isFinished = false;
+        $endsOn = null;
+
+        if ($enrollment?->courseOffering?->ends_on !== null) {
+            $endsOn = $enrollment->courseOffering->ends_on->toDateString();
+            if ($endsOn < now()->toDateString()) {
+                $isFinished = true;
+            }
+        }
+
+        $courseData['is_finished'] = $isFinished;
+        $courseData['ends_on'] = $endsOn;
         $courseData['assessments'] = $course->assessments()
             ->where('is_published', true)
             ->orderBy('title')
@@ -47,7 +71,10 @@ final class StudyController extends Controller
             ])->all();
         $courseData['intro_video_embed_url'] = $course->introVideoEmbedUrl();
 
-        return Inertia::render('Study/CourseViewer', ['course' => $courseData]);
+        return Inertia::render('Study/CourseViewer', [
+            'course' => $courseData,
+            'isReadOnly' => $isFinished,
+        ]);
     }
 
     public function complete(
@@ -60,6 +87,19 @@ final class StudyController extends Controller
         Gate::authorize('accessCourse', $course);
         abort_if($lesson->is_archived, 404);
         $student = $this->activeStudent($request);
+
+        $enrollment = $student->enrollments()
+            ->where('course_id', $course->id)
+            ->where('status', EnrollmentStatus::Active->value)
+            ->with('courseOffering')
+            ->first();
+
+        if ($enrollment?->courseOffering?->ends_on !== null) {
+            if ($enrollment->courseOffering->ends_on->toDateString() < now()->toDateString()) {
+                abort(403, 'El curso ha finalizado. Modo solo lectura.');
+            }
+        }
+
         $completeLesson($student->id, $lesson->id);
 
         return to_route('study.courses.show', $course)->with('success', 'Lección completada.');

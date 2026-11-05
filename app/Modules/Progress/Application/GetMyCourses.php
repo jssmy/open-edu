@@ -9,7 +9,19 @@ final class GetMyCourses
 {
     public function __construct(private readonly ProgressRepository $progress) {}
 
-    /** @return list<array{id: int, name: string, description: ?string, progress: array{completed_lessons: int, total_lessons: int, percentage: int}}> */
+    /**
+     * @return list<array{
+     *     id: int,
+     *     name: string,
+     *     excerpt: string,
+     *     cover_url: string,
+     *     units_count: int,
+     *     status: string,
+     *     teachers: list<array{id: int, name: string}>,
+     *     description: ?string,
+     *     progress: array{completed_lessons: int, total_lessons: int, percentage: int, status: string}
+     * }>
+     */
     public function __invoke(int $studentId): array
     {
         return array_map(function (array $course): array {
@@ -21,6 +33,11 @@ final class GetMyCourses
             return [
                 'id' => $course['id'],
                 'name' => $course['name'],
+                'excerpt' => $course['excerpt'] ?? '',
+                'cover_url' => $course['cover_url'] ?? '',
+                'units_count' => $course['units_count'] ?? 0,
+                'status' => $course['status'] ?? 'published',
+                'teachers' => $course['teachers'] ?? [],
                 'description' => $course['description'],
                 'progress' => $courseProgress->toArray(),
             ];

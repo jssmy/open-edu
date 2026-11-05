@@ -24,10 +24,24 @@ final class CourseAccessPolicy
             ->where('is_active', true)
             ->first();
 
-        return $student !== null
-            && $student->enrollments()
-                ->where('course_id', $course->id)
-                ->where('status', EnrollmentStatus::Active->value)
-                ->exists();
+        $enrollment = $student->enrollments()
+            ->where('course_id', $course->id)
+            ->where('status', EnrollmentStatus::Active->value)
+            ->with('courseOffering')
+            ->first();
+
+        if ($enrollment === null) {
+            return false;
+        }
+
+        // Si la oferta tiene una fecha de inicio futura, no se permite el acceso todavía
+        if ($enrollment->courseOffering?->starts_on !== null) {
+            $startsOn = $enrollment->courseOffering->starts_on->toDateString();
+            if ($startsOn > now()->toDateString()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

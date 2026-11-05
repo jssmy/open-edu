@@ -166,13 +166,15 @@ const form = useForm({
                             Este curso no cuenta con evaluaciones publicadas.
                         </div>
                         <div v-else class="grid gap-2 sm:grid-cols-2">
-                            <div
+                            <Link
                                 v-for="assessment in course.assessments"
                                 :key="assessment.id"
-                                class="flex items-center justify-between gap-3 rounded-card border border-border/70 bg-panel p-2.5 text-xs"
+                                :href="`/assessments/${assessment.id}/review?student_id=${student.id}`"
+                                class="flex items-center justify-between gap-3 rounded-card border border-border/70 bg-panel p-2.5 text-xs hover:border-primary/50 hover:bg-surface/50 transition cursor-pointer"
+                                data-testid="student-assessment-link"
                             >
                                 <div class="flex flex-col gap-0.5 min-w-0">
-                                    <span class="font-medium text-text truncate" :title="assessment.title">
+                                    <span class="font-medium text-text truncate hover:underline" :title="assessment.title">
                                         {{ assessment.title }}
                                     </span>
                                     <span class="text-[11px] text-text-muted">
@@ -187,14 +189,17 @@ const form = useForm({
                                             ({{ assessment.latest_attempt.passed ? 'Aprobado' : 'Desaprobado' }})
                                         </Badge>
                                         <span class="text-[10px] text-text-muted">
-                                            Intento {{ assessment.latest_attempt.attempt_number }}
+                                            Intento {{ assessment.latest_attempt.attempt_number }} · Ver detalle →
                                         </span>
                                     </template>
                                     <template v-else>
                                         <Badge variant="neutral">Sin rendir</Badge>
+                                        <span class="text-[10px] text-text-muted">
+                                            Ver examen →
+                                        </span>
                                     </template>
                                 </div>
-                            </div>
+                            </Link>
                         </div>
                     </div>
                 </li>

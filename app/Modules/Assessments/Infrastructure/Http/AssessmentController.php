@@ -179,4 +179,91 @@ class AssessmentController extends Controller
             'results' => $getResults->forStudent($student->id),
         ]);
     }
+
+    public function review(Request $request, Assessment $assessment): Response
+    {
+        Gate::authorize('viewResults', $assessment);
+
+        $assessment->load([
+            'questions.choices',
+            'course:id,name',
+        ]);
+
+        $isStudent = $request->user()->hasRole('estudiante');
+
+        if ($isStudent) {
+            $student = Student::query()->where('user_id', $request->user()->id)->firstOrFail();
+        } else {
+            $studentId = $request->integer('student_id') ?: null;
+            $student = $studentId ? Student::query()->find($studentId) : null;
+        }
+
+        $latestAttempt = null;
+        $studentAnswers = [];
+
+        if ($student !== null) {
+            $latestAttempt = $assessment->attempts()
+                ->where('student_id', $student->id)
+                ->with('answers')
+                ->latest('id')
+                ->first();
+
+            if ($latestAttempt) {
+                foreach ($latestAttempt->answers as $ans) {
+                    $studentAnswers[$ans->question_id] = $ans->choice_id;
+                }
+            }
+        }
+
+        $isCompleted = $latestAttempt?->status === 'completed';
+
+        $questionsData = $assessment->questions->map(function ($question) use ($studentAnswers, $isCompleted): array {
+            $selectedChoiceId = $studentAnswers[$question->id] ?? null;
+            $selectedChoice = $question->choices->firstWhere('id', $selectedChoiceId);
+            $isCorrect = $selectedChoice ? (bool) $selectedChoice->is_correct : false;
+
+            return [
+                'id' => $question->id,
+                'statement' => $question->statement,
+                'points' => $question->points,
+                'choices' => $question->choices->map(fn ($choice): array => [
+                    'id' => $choice->id,
+                    'text' => $choice->text,
+                    'is_correct' => $isCompleted ? (bool) $choice->is_correct : null,
+                ])->all(),
+                'student_answer' => $selectedChoiceId !== null ? [
+                    'choice_id' => $selectedChoiceId,
+                    'is_correct' => $isCompleted ? $isCorrect : null,
+                ] : null,
+            ];
+        })->all();
+
+        return Inertia::render('Assessments/Review', [
+            'assessment' => [
+                'id' => $assessment->id,
+                'title' => $assessment->title,
+                'instructions' => $assessment->instructions,
+                'total_score' => $assessment->total_score,
+                'passing_score' => $assessment->passing_score,
+                'course_name' => $assessment->course?->name,
+            ],
+            'student' => $student ? [
+                'id' => $student->id,
+                'name' => $student->user?->name ?? 'Estudiante',
+                'email' => $student->user?->email,
+            ] : null,
+            'attempt' => $latestAttempt ? [
+                'id' => $latestAttempt->id,
+                'attempt_number' => $latestAttempt->attempt_number,
+                'status' => $latestAttempt->status,
+                'score' => $latestAttempt->score,
+                'passed' => $latestAttempt->passed,
+                'started_at' => (string) $latestAttempt->started_at,
+                'submitted_at' => $latestAttempt->submitted_at ? (string) $latestAttempt->submitted_at : null,
+            ] : null,
+            'questions' => $questionsData,
+            'isStudent' => $isStudent,
+            'canContinue' => $isStudent && $latestAttempt?->status === 'in_progress',
+        ]);
+    }
 }

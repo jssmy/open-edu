@@ -7,10 +7,12 @@ use App\Modules\Courses\Infrastructure\Models\Lesson;
 use App\Modules\Courses\Infrastructure\Models\Unit;
 use App\Modules\Enrollments\Domain\EnrollmentStatus;
 use App\Modules\Progress\Domain\ProgressRepository;
+use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 final class EloquentProgressRepository implements ProgressRepository
@@ -22,8 +24,10 @@ final class EloquentProgressRepository implements ProgressRepository
             ->whereHas('enrollments', fn (Builder $query) => $query
                 ->where('student_id', $studentId)
                 ->where('status', EnrollmentStatus::Active->value))
+            ->with(['teachers' => fn ($query) => $query->select('users.id', 'users.name')])
+            ->withCount('units')
             ->orderBy('name')
-            ->get(['id', 'name', 'description']);
+            ->get();
 
         if ($courses->isEmpty()) {
             return [];
@@ -47,7 +51,15 @@ final class EloquentProgressRepository implements ProgressRepository
         return $courses->map(fn (Course $course): array => [
             'id' => $course->id,
             'name' => $course->name,
-            'description' => $course->description,
+            'excerpt' => Str::limit(trim(RichTextDocumentValidator::plainText($course->description)), 180),
+            'cover_url' => $course->coverUrl(),
+            'units_count' => (int) ($course->units_count ?? 0),
+            'status' => $course->status,
+            'teachers' => $course->teachers->map(fn ($teacher): array => [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+            ])->all(),
+            'description' => is_string($course->description) ? $course->description : null,
             'completed_lessons' => (int) ($counts->get($course->id)->completed_lessons ?? 0),
             'total_lessons' => (int) ($counts->get($course->id)->total_lessons ?? 0),
         ])->all();

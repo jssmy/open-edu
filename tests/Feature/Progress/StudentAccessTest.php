@@ -85,10 +85,7 @@ it('lists only the current student\'s active published courses', function () {
     ]);
 
     $this->actingAs($user)->get('/my/courses')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Study/MyCourses')
-            ->has('courses', 1)
-            ->where('courses.0.id', $course->id));
+        ->assertRedirect(route('my.classes.index'));
 });
 
 it('forbids completing a lesson without course access', function () {

@@ -37,7 +37,7 @@ describe('AppLayout', () => {
         const wrapper = mount(AppLayout, { slots: { default: '<h1>Contenido</h1>' } });
 
         expect(wrapper.find('a[href="/courses"]').attributes('aria-current')).toBe('page');
-        expect(wrapper.find('a[href="/my/courses"]').exists()).toBe(true);
+        expect(wrapper.find('a[href="/my/classes"]').exists()).toBe(true);
         expect(wrapper.find('a[href="/users"]').exists()).toBe(false);
     });
 

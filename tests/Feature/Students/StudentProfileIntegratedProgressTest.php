@@ -128,4 +128,3 @@ test('teacher cannot view student profile if student is not in any of their cour
         ->get("/students/{$student->id}")
         ->assertNotFound();
 });
-

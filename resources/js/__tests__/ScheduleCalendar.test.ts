@@ -5,13 +5,24 @@ import type { CalendarScheduleBlock } from '@/composables/useScheduleCalendar';
 
 let capturedOptions: Record<string, unknown> = {};
 
+const mockApi = {
+    prev: vi.fn(),
+    next: vi.fn(),
+    today: vi.fn(),
+};
+
 vi.mock('@fullcalendar/vue3', () => ({
     default: {
         name: 'FullCalendar',
         props: ['options'],
-        setup(props: { options: Record<string, unknown> }) {
+        setup(props: { options: Record<string, unknown> }, { expose }: { expose: (obj: unknown) => void }) {
             capturedOptions = props.options;
-            return {};
+            expose({
+                getApi: () => mockApi,
+            });
+            return {
+                getApi: () => mockApi,
+            };
         },
         template: `
             <div data-testid="fc-stub">
@@ -67,8 +78,34 @@ describe('ScheduleCalendar', () => {
 
         expect(wrapper.get('[data-testid="fc-summary"]').text()).toBe('2:timeGridWeek');
 
-        await wrapper.findAll('button')[1].trigger('click');
+        const buttons = wrapper.findAll('button');
+        // El botón Diaria tiene el texto "Diaria"
+        const diariaBtn = buttons.find((b) => b.text().includes('Diaria'));
+        expect(diariaBtn).toBeDefined();
+        await diariaBtn!.trigger('click');
         expect(wrapper.get('[data-testid="fc-summary"]').text()).toBe('2:timeGridDay');
+    });
+
+    it('permite navegar con anterior, siguiente y hoy y muestra el título del período', async () => {
+        const wrapper = mount(ScheduleCalendar, {
+            props: { blocks: sampleBlocks, editable: true },
+        });
+
+        // Trigger datesSet from captured options to simulate FullCalendar initial render
+        const datesSet = capturedOptions.datesSet as (arg: { view: { title: string } }) => void;
+        datesSet({ view: { title: 'noviembre de 2026' } });
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.get('[data-testid="calendar-period-title"]').text()).toBe('noviembre de 2026');
+
+        await wrapper.get('[data-testid="calendar-prev-button"]').trigger('click');
+        expect(mockApi.prev).toHaveBeenCalled();
+
+        await wrapper.get('[data-testid="calendar-next-button"]').trigger('click');
+        expect(mockApi.next).toHaveBeenCalled();
+
+        await wrapper.get('[data-testid="calendar-today-button"]').trigger('click');
+        expect(mockApi.today).toHaveBeenCalled();
     });
 
     it('asigna un color diferente por docente y muestra información del docente y aula en cada ítem del calendario', () => {

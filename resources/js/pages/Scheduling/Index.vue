@@ -90,14 +90,27 @@ const { filters, goToPage, reset } = useListFilters('/scheduling', {
     status: props.filters.status ?? '',
 });
 
-const hasFilters = computed(
+function handleTeacherChange(value: string | number | null | undefined): void {
+    const teacherId = value !== null && value !== undefined ? String(value) : '';
+    filters.teacher = teacherId;
+    goToPage(1);
+}
+
+const hasTableFilters = computed(
     () =>
         filters.q !== '' ||
         filters.course !== '' ||
-        filters.teacher !== '' ||
         filters.classroom !== '' ||
         filters.status !== '',
 );
+
+function resetTableFilters(): void {
+    filters.q = '';
+    filters.course = '';
+    filters.classroom = '';
+    filters.status = '';
+    goToPage(1);
+}
 
 const modalityLabels: Record<string, string> = {
     in_person: 'Presencial',
@@ -230,7 +243,7 @@ const isSaving = computed(() => form.processing);
 function openCreate(initialBlock?: CalendarSelection): void {
     editingId.value = null;
     form.clearErrors();
-    const defaultTeacher = props.teachers[0] ? String(props.teachers[0].id) : '';
+    const activeTeacher = filters.teacher !== '' ? filters.teacher : (props.teachers[0] ? String(props.teachers[0].id) : '');
     const defaultClassroom = props.classrooms[0] ? String(props.classrooms[0].id) : '';
     form.course_id = props.courses[0] ? String(props.courses[0].id) : '';
     form.group_code = nextGroupCodeForCourse(form.course_id);
@@ -239,7 +252,7 @@ function openCreate(initialBlock?: CalendarSelection): void {
     form.max_students = String(props.classrooms[0]?.capacity ?? 30);
     form.modality = 'in_person';
     form.status = 'published';
-    form.teacher_id = defaultTeacher;
+    form.teacher_id = activeTeacher;
     form.sessions = [
         initialBlock
             ? {
@@ -435,36 +448,26 @@ async function confirmDelete(row: OfferingRow): Promise<void> {
             </div>
         </div>
 
-        <form class="mb-6 flex flex-wrap items-end gap-3" role="search" @submit.prevent="goToPage(1)">
-            <div class="min-w-48 flex-1">
-                <label for="filter-q" class="mb-1 block text-xs text-text-muted">Buscar</label>
-                <Input id="filter-q" v-model="filters.q" placeholder="Curso, grupo o docente" />
+        <!-- Selector principal de Docente para la gestión horaria -->
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-panel border border-border bg-panel p-4 shadow-sm">
+            <div class="flex flex-col gap-1">
+                <span class="text-sm font-medium text-text">Gestión por docente</span>
+                <span class="text-xs text-text-muted">
+                    Selecciona un docente para ver y administrar su horario semanal y sus ofertas correspondientes.
+                </span>
             </div>
-            <div class="w-48">
-                <label for="filter-course" class="mb-1 block text-xs text-text-muted">Curso</label>
-                <Select id="filter-course" v-model="filters.course" :options="courseFilterOptions" />
-            </div>
-            <div class="w-48">
-                <label for="filter-teacher" class="mb-1 block text-xs text-text-muted">Docente</label>
-                <Select id="filter-teacher" v-model="filters.teacher" :options="teacherFilterOptions" />
-            </div>
-            <div class="w-48">
-                <label for="filter-classroom" class="mb-1 block text-xs text-text-muted">Aula</label>
-                <Select
-                    id="filter-classroom"
-                    v-model="filters.classroom"
-                    :options="classroomFilterOptions"
+            <div class="w-full sm:w-80">
+                <SearchableSelect
+                    id="schedule-teacher-select"
+                    :model-value="filters.teacher"
+                    :options="teacherFilterOptions"
+                    placeholder="Buscar o seleccionar docente..."
+                    @update:model-value="handleTeacherChange"
                 />
             </div>
-            <div class="w-44">
-                <label for="filter-status" class="mb-1 block text-xs text-text-muted">Estado</label>
-                <Select id="filter-status" v-model="filters.status" :options="statusFilterOptions" />
-            </div>
-            <IconButton icon="search" label="Filtrar horarios" type="submit" variant="primary" />
-            <IconButton v-if="hasFilters" icon="clear" label="Limpiar filtros" @click="reset" />
-        </form>
+        </div>
 
-        <div class="mb-6">
+        <div class="mb-8">
             <ScheduleCalendar
                 :blocks="calendarBlocks"
                 :editable="true"
@@ -472,6 +475,40 @@ async function confirmDelete(row: OfferingRow): Promise<void> {
                 @move="handleCalendarMove"
                 @event-click="handleCalendarEventClick"
             />
+        </div>
+
+        <!-- Filtros contextuales para la tabla inferior de ofertas -->
+        <div class="mb-4">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-base font-semibold text-text">Listado de ofertas y grupos programados</h2>
+                <span v-if="filters.teacher" class="text-xs text-brand">
+                    Mostrando resultados filtrados para el docente seleccionado
+                </span>
+            </div>
+            <form class="flex flex-wrap items-end gap-3 rounded-panel border border-border bg-panel p-3" role="search" @submit.prevent="goToPage(1)">
+                <div class="min-w-48 flex-1">
+                    <label for="filter-q" class="mb-1 block text-xs text-text-muted">Buscar</label>
+                    <Input id="filter-q" v-model="filters.q" placeholder="Curso, grupo o docente" />
+                </div>
+                <div class="w-48">
+                    <label for="filter-course" class="mb-1 block text-xs text-text-muted">Curso</label>
+                    <Select id="filter-course" v-model="filters.course" :options="courseFilterOptions" />
+                </div>
+                <div class="w-48">
+                    <label for="filter-classroom" class="mb-1 block text-xs text-text-muted">Aula</label>
+                    <Select
+                        id="filter-classroom"
+                        v-model="filters.classroom"
+                        :options="classroomFilterOptions"
+                    />
+                </div>
+                <div class="w-44">
+                    <label for="filter-status" class="mb-1 block text-xs text-text-muted">Estado</label>
+                    <Select id="filter-status" v-model="filters.status" :options="statusFilterOptions" />
+                </div>
+                <IconButton icon="search" label="Filtrar tabla" type="submit" variant="primary" />
+                <IconButton v-if="hasTableFilters" icon="clear" label="Limpiar filtros" @click="resetTableFilters" />
+            </form>
         </div>
 
         <Table :columns="columns" :rows="schedules.data as unknown as Record<string, unknown>[]">
@@ -542,9 +579,9 @@ async function confirmDelete(row: OfferingRow): Promise<void> {
             </template>
             <template #empty>
                 <EmptyState
-                    :title="hasFilters ? 'Sin resultados para los filtros' : 'Aún no hay programaciones académicas'"
+                    :title="hasTableFilters || Boolean(filters.teacher) ? 'Sin resultados para los filtros' : 'Aún no hay programaciones académicas'"
                     :description="
-                        hasFilters
+                        hasTableFilters || Boolean(filters.teacher)
                             ? 'Prueba ajustando el curso, docente, aula o estado filtrado.'
                             : 'Crea una programación académica indicando el grupo, fechas, cupos y sesiones.'
                     "

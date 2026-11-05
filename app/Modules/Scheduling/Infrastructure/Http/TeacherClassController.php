@@ -25,17 +25,37 @@ final class TeacherClassController extends Controller
                     ->orWhereHas('sessions', fn ($q) => $q->where('course_sessions.teacher_id', $teacherId));
             })
             ->with([
-                'course.units.lessons',
-                'teachers',
-                'sessions.classroom',
+                'course:id,name,description,cover_path,cover_mime,status',
+                'course.units:id,course_id',
+                'course.units.lessons:id,unit_id,is_archived',
+                'course.teachers:id,name',
+                'teachers:id,name',
             ])
-            ->orderByRaw('CASE WHEN starts_on IS NULL THEN 2 WHEN starts_on >= CURRENT_DATE THEN 0 ELSE 1 END')
-            ->orderBy('starts_on', 'asc')
-            ->orderBy('id', 'asc')
+            ->select(['id', 'course_id', 'group_code', 'starts_on', 'ends_on', 'modality', 'status'])
             ->get();
 
+        $todayDate = now()->toDateString();
+
+        $sortedOfferings = $offerings->sort(function (CourseOffering $a, CourseOffering $b) use ($todayDate) {
+            $statusA = $a->starts_on === null ? 2 : ($a->starts_on->toDateString() >= $todayDate ? 0 : 1);
+            $statusB = $b->starts_on === null ? 2 : ($b->starts_on->toDateString() >= $todayDate ? 0 : 1);
+
+            if ($statusA !== $statusB) {
+                return $statusA <=> $statusB;
+            }
+
+            $dateA = $a->starts_on?->toDateString() ?? '';
+            $dateB = $b->starts_on?->toDateString() ?? '';
+
+            if ($dateA !== $dateB) {
+                return $dateA <=> $dateB;
+            }
+
+            return $a->id <=> $b->id;
+        })->values();
+
         return Inertia::render('Teacher/Classes', [
-            'classes' => $offerings->map(function (CourseOffering $offering): array {
+            'classes' => $sortedOfferings->map(function (CourseOffering $offering): array {
                 $excerpt = Str::limit(trim(RichTextDocumentValidator::plainText($offering->course->description)), 180);
 
                 return [

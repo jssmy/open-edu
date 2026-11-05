@@ -33,6 +33,8 @@ interface Course {
     name: string;
     description: RichTextDocument | null;
     intro_video_embed_url: string | null;
+    is_finished?: boolean;
+    ends_on?: string | null;
     units: Unit[];
     progress: {
         completed_lessons: number;
@@ -52,13 +54,17 @@ const props = withDefaults(
     defineProps<{
         course: Course;
         isTeacherView?: boolean;
+        isReadOnly?: boolean;
         backUrl?: string;
     }>(),
     {
         isTeacherView: false,
-        backUrl: '/my/courses',
+        isReadOnly: false,
+        backUrl: '/my/classes',
     },
 );
+
+const isFinishedCourse = computed(() => props.isReadOnly || props.course.is_finished);
 
 const completingLessonId = ref<number | null>(null);
 const completionError = ref<string | null>(null);
@@ -206,7 +212,7 @@ function isStoredContent(content: Lesson['content']): boolean {
             <div class="flex flex-col gap-1">
                 <div class="flex items-center gap-2">
                     <Link :href="backUrl" class="text-sm font-medium text-primary hover:underline">
-                        ← Volver a {{ isTeacherView ? 'mis clases' : 'mis cursos' }}
+                        ← Volver a mis clases
                     </Link>
                     <Badge v-if="isTeacherView" variant="neutral">Modo Docente / Proyección</Badge>
                 </div>
@@ -223,6 +229,11 @@ function isStoredContent(content: Lesson['content']): boolean {
                 </div>
             </div>
         </div>
+
+        <!-- Banner de Modo Consulta para Cursos Finalizados -->
+        <Alert v-if="isFinishedCourse" variant="warning" class="mb-4">
+            ℹ️ Este curso finalizó {{ course.ends_on ? `el ${course.ends_on}` : '' }}. Se encuentra en <strong>modo de consulta</strong>: puedes revisar los materiales y contenidos, pero no es posible modificar tu avance ni rendir evaluaciones.
+        </Alert>
 
         <Alert v-if="completionError" variant="danger" class="mb-4">{{ completionError }}</Alert>
 
@@ -336,9 +347,10 @@ function isStoredContent(content: Lesson['content']): boolean {
                             ← Anterior
                         </Button>
 
-                        <div class="flex items-center gap-3">
+                        <!-- Acción de completar lección (centro/separada de la navegación para evitar clics accidentales) -->
+                        <div class="flex items-center justify-center">
                             <Button
-                                v-if="!isTeacherView && !activeLesson.is_completed"
+                                v-if="!isTeacherView && !isFinishedCourse && !activeLesson.is_completed"
                                 variant="secondary"
                                 :disabled="completingLessonId !== null"
                                 :loading="completingLessonId === activeLesson.id"
@@ -346,10 +358,16 @@ function isStoredContent(content: Lesson['content']): boolean {
                             >
                                 ✓ Marcar completada
                             </Button>
-                            <span v-else-if="!isTeacherView" class="text-xs font-semibold text-emerald-600">
-                                ✓ Completada
+                            <span v-else-if="!isTeacherView && activeLesson.is_completed" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400">
+                                ✓ Lección completada
                             </span>
+                            <span v-else-if="!isTeacherView && isFinishedCourse" class="text-xs text-text-muted italic">
+                                Modo lectura (Finalizado)
+                            </span>
+                        </div>
 
+                        <!-- Navegación a siguiente lección -->
+                        <div class="flex items-center">
                             <Button
                                 variant="primary"
                                 :disabled="!canGoNext"
@@ -409,6 +427,40 @@ function isStoredContent(content: Lesson['content']): boolean {
                                     ✓
                                 </span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Evaluaciones del curso -->
+                    <div v-if="course.assessments && course.assessments.length > 0" class="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                            Evaluaciones ({{ course.assessments.length }})
+                        </span>
+                        <div class="flex flex-col gap-2">
+                            <div
+                                v-for="assessment in course.assessments"
+                                :key="assessment.id"
+                                class="flex flex-col gap-2.5 rounded-control p-3 bg-surface-muted/60 border border-border/60 text-xs"
+                            >
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="font-medium text-text text-sm leading-snug">{{ assessment.title }}</span>
+                                    <span class="text-[11px] text-text-muted">{{ assessment.total_score }} puntos</span>
+                                </div>
+                                <div class="flex flex-col gap-1.5 w-full">
+                                    <Link
+                                        v-if="!isFinishedCourse"
+                                        :href="`/assessments/${assessment.id}/take`"
+                                        class="w-full inline-flex items-center justify-center rounded bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover transition text-center shadow-xs"
+                                    >
+                                        Rendir
+                                    </Link>
+                                    <Link
+                                        :href="`/assessments/${assessment.id}/results`"
+                                        class="w-full inline-flex items-center justify-center rounded border border-border bg-panel px-3 py-1.5 text-xs font-medium text-text hover:bg-surface transition text-center shadow-xs"
+                                    >
+                                        Ver notas
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

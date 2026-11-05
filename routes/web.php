@@ -11,12 +11,15 @@ use App\Modules\Identity\Infrastructure\Http\AuthController;
 use App\Modules\Identity\Infrastructure\Http\PasswordController;
 use App\Modules\Identity\Infrastructure\Http\RoleController;
 use App\Modules\Identity\Infrastructure\Http\UserController;
+use App\Modules\Progress\Application\GetMyCourses;
 use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Reports\Infrastructure\Http\ReportController;
+use App\Modules\Scheduling\Infrastructure\Http\ClassDispatcherController;
 use App\Modules\Scheduling\Infrastructure\Http\ClassroomController;
 use App\Modules\Scheduling\Infrastructure\Http\SchedulingController;
 use App\Modules\Scheduling\Infrastructure\Http\TeacherClassController;
 use App\Modules\Students\Infrastructure\Http\StudentController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -114,7 +117,13 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('can:study')->group(function () {
-        Route::get('/my/courses', [StudyController::class, 'index'])->name('study.courses.index');
+        Route::get('/my/courses', function (Request $request) {
+            if ($request->user()->hasRole('estudiante')) {
+                return redirect()->route('my.classes.index');
+            }
+
+            return app(StudyController::class)->index($request, app(GetMyCourses::class));
+        })->name('study.courses.index');
         Route::get('/my/courses/{course}', [StudyController::class, 'show'])->name('study.courses.show');
         Route::post('/lessons/{lesson}/complete', [StudyController::class, 'complete'])->name('study.lessons.complete');
         Route::get('/lessons/{lesson}/content', [StudyController::class, 'content'])->name('study.lessons.content');
@@ -152,9 +161,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/scheduling/classrooms/{classroom}', [ClassroomController::class, 'destroy'])->name('scheduling.classrooms.destroy');
     });
 
+    Route::get('/my/classes', ClassDispatcherController::class)->name('my.classes.index');
+
     Route::middleware('can:scheduling.view-own')->group(function () {
         Route::get('/my/schedule', [SchedulingController::class, 'mySchedule'])->name('scheduling.my');
-        Route::get('/my/classes', [TeacherClassController::class, 'index'])->name('teacher.classes.index');
         Route::get('/my/classes/{offering}/viewer', [TeacherClassController::class, 'viewer'])->name('teacher.classes.viewer');
     });
 
@@ -176,4 +186,6 @@ Route::middleware('auth')->group(function () {
         ->name('assessments.attempts.store');
     Route::get('/assessments/{assessment}/results', [AssessmentController::class, 'results'])
         ->name('assessments.results');
+    Route::get('/assessments/{assessment}/review', [AssessmentController::class, 'review'])
+        ->name('assessments.review');
 });
