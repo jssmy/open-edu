@@ -148,10 +148,24 @@ class AssessmentController extends Controller
     {
         Gate::authorize('viewResults', $assessment);
         $assessment->load('questions');
-        $studentId = $request->user()->hasRole('estudiante')
-            ? Student::query()->where('user_id', $request->user()->id)->firstOrFail()->id
+        $user = $request->user();
+        $isStudent = $user->hasRole('estudiante');
+        $student = $isStudent
+            ? Student::query()->where('user_id', $user->id)->firstOrFail()
             : null;
+        $studentId = $student?->id;
         $data = $getResults->forAssessment($assessment->id, $studentId);
+
+        $hasInProgressAttempt = false;
+        $canTake = false;
+
+        if ($student !== null) {
+            $hasInProgressAttempt = $assessment->attempts()
+                ->where('student_id', $student->id)
+                ->where('status', 'in_progress')
+                ->exists();
+            $canTake = Gate::forUser($user)->allows('take', $assessment);
+        }
 
         return Inertia::render('Assessments/Results', [
             'assessment' => [
@@ -164,6 +178,8 @@ class AssessmentController extends Controller
                     'statement' => $question->statement,
                 ])->all(),
             ],
+            'hasInProgressAttempt' => $hasInProgressAttempt,
+            'canTake' => $canTake,
             ...$data,
         ]);
     }
@@ -215,7 +231,7 @@ class AssessmentController extends Controller
             }
         }
 
-        $isCompleted = $latestAttempt?->status === 'completed';
+        $isCompleted = in_array($latestAttempt?->status, ['completed', 'submitted'], true);
 
         $questionsData = $assessment->questions->map(function ($question) use ($studentAnswers, $isCompleted): array {
             $selectedChoiceId = $studentAnswers[$question->id] ?? null;

@@ -12,9 +12,9 @@ import { submit } from '@/services/http';
 interface Student {
     id: number;
     name: string;
-    email: string;
+    username: string | null;
     identifier: string | null;
-    phone: string | null;
+    birth_date: string | null;
     is_active: boolean;
 }
 
@@ -60,9 +60,10 @@ const props = defineProps<{
 }>();
 const form = useForm({
     name: props.student.name,
-    email: props.student.email,
     identifier: props.student.identifier ?? '',
-    phone: props.student.phone ?? '',
+    username: props.student.username ?? '',
+    birth_date: props.student.birth_date ?? '',
+    temporary_password: '',
 });
 </script>
 
@@ -89,23 +90,43 @@ const form = useForm({
             </Button>
         </div>
 
-        <Card v-if="canManageStudents" class="mb-6 max-w-2xl">
-            <form class="grid gap-4 md:grid-cols-2" @submit.prevent="form.put(`/students/${student.id}`)">
-                <FormField id="name" label="Nombre" :error="form.errors.name">
+        <!-- Tarjeta de Información Personal -->
+        <Card class="mb-6 max-w-2xl">
+            <h2 class="mb-3 text-base font-semibold">Información del estudiante</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3 mb-4">
+                <div>
+                    <span class="block text-xs text-text-muted">Documento / Identificador</span>
+                    <span class="font-medium text-text">{{ student.identifier || '—' }}</span>
+                </div>
+                <div>
+                    <span class="block text-xs text-text-muted">Nombre de usuario</span>
+                    <span class="font-medium text-text">{{ student.username || '—' }}</span>
+                </div>
+                <div>
+                    <span class="block text-xs text-text-muted">Fecha de nacimiento</span>
+                    <span class="font-medium text-text">{{ student.birth_date || '—' }}</span>
+                </div>
+            </div>
+
+            <form v-if="canManageStudents" class="grid gap-4 md:grid-cols-2 border-t border-border pt-4" @submit.prevent="form.put(`/students/${student.id}`)">
+                <FormField id="name" label="Nombre completo" :error="form.errors.name">
                     <Input id="name" v-model="form.name" :error="form.errors.name" />
                 </FormField>
-                <FormField id="email" label="Correo" :error="form.errors.email">
-                    <Input id="email" v-model="form.email" type="email" :error="form.errors.email" />
-                </FormField>
-                <FormField id="identifier" label="Documento / identificador" :error="form.errors.identifier">
+                <FormField id="identifier" label="Documento / Identificador" :error="form.errors.identifier">
                     <Input id="identifier" v-model="form.identifier" :error="form.errors.identifier" />
                 </FormField>
-                <FormField id="phone" label="Teléfono" :error="form.errors.phone">
-                    <Input id="phone" v-model="form.phone" :error="form.errors.phone" />
+                <FormField id="username" label="Nombre de usuario" :error="form.errors.username">
+                    <Input id="username" v-model="form.username" :error="form.errors.username" />
                 </FormField>
-                <Button type="submit" :loading="form.processing" class="md:col-span-2"
-                    >Guardar cambios</Button
-                >
+                <FormField id="birth_date" label="Fecha de nacimiento" :error="form.errors.birth_date">
+                    <Input id="birth_date" v-model="form.birth_date" type="date" :error="form.errors.birth_date" />
+                </FormField>
+                <FormField id="temporary_password" label="Nueva contraseña (opcional)" :error="form.errors.temporary_password">
+                    <Input id="temporary_password" v-model="form.temporary_password" type="password" placeholder="Dejar en blanco para no cambiar" :error="form.errors.temporary_password" />
+                </FormField>
+                <div class="md:col-span-2 flex justify-end">
+                    <Button type="submit" :loading="form.processing">Guardar cambios</Button>
+                </div>
             </form>
         </Card>
 

@@ -58,7 +58,8 @@ class UserController extends Controller
     public function update(int $id, UpdateUserRequest $request, UpdateUser $updateUser, ChangeUserRole $changeRole): RedirectResponse
     {
         $this->users->find($id) ?? abort(404);
-        $updateUser($id, $request->string('name'), $request->string('email'), $request->user()->id);
+        $password = $request->filled('password') ? $request->string('password')->toString() : null;
+        $updateUser($id, $request->string('name'), $request->string('email'), $password, $request->user()->id);
 
         $role = $request->string('role')->toString();
         if ($this->users->find($id)->roleName !== $role) {

@@ -28,10 +28,6 @@ Route::redirect('/', '/login');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
     Route::post('/login', [AuthController::class, 'store']);
-    Route::get('/forgot-password', [PasswordController::class, 'forgot'])->name('password.request');
-    Route::post('/forgot-password', [PasswordController::class, 'sendLink'])->name('password.email');
-    Route::get('/reset-password/{token}', [PasswordController::class, 'reset'])->name('password.reset');
-    Route::post('/reset-password', [PasswordController::class, 'update'])->name('password.update');
 });
 
 Route::middleware('auth')->group(function () {

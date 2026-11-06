@@ -42,9 +42,16 @@ final class EloquentUserRepository implements UserRepository
         return $this->toRecord($user);
     }
 
-    public function update(int $id, string $name, string $email): void
+    public function update(int $id, string $name, string $email, ?string $passwordHash = null, bool $mustChangePassword = false): void
     {
-        User::whereKey($id)->update(['name' => $name, 'email' => $email]);
+        $payload = ['name' => $name, 'email' => $email];
+        if ($passwordHash !== null) {
+            $payload['password'] = $passwordHash;
+            $payload['must_change_password'] = $mustChangePassword;
+            $payload['remember_token'] = null;
+        }
+
+        User::whereKey($id)->update($payload);
     }
 
     public function setActive(int $id, bool $active): void

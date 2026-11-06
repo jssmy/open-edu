@@ -11,7 +11,9 @@ beforeEach(fn () => $this->manager = userWithRole(Role::GestorDeCursos));
 it('registers a student account and profile with a forced password change', function () {
     $this->actingAs($this->manager)->post('/students', [
         'name' => 'Ana Estudiante',
+        'username' => 'ana_estudiante',
         'email' => 'ana@example.test',
+        'birth_date' => '2010-01-15',
         'temporary_password' => 'temporal-123',
         'identifier' => 'ST-100',
         'phone' => '+56 9 1234 5678',
@@ -26,6 +28,7 @@ it('registers a student account and profile with a forced password change', func
     $this->assertDatabaseHas('students', [
         'user_id' => $student->id,
         'identifier' => 'ST-100',
+        'birth_date' => '2010-01-15',
         'phone' => '+56 9 1234 5678',
         'is_active' => true,
     ]);
@@ -34,14 +37,19 @@ it('registers a student account and profile with a forced password change', func
 it('updates a student profile and account', function () {
     $this->actingAs($this->manager)->post('/students', [
         'name' => 'Ana',
+        'username' => 'ana_orig',
         'email' => 'ana@example.test',
+        'birth_date' => '2010-01-15',
+        'identifier' => 'ST-INIT',
         'temporary_password' => 'temporal-123',
     ]);
-    $studentId = DB::table('students')->where('identifier', null)->value('id');
+    $studentId = DB::table('students')->where('identifier', 'ST-INIT')->value('id');
 
     $this->actingAs($this->manager)->put("/students/{$studentId}", [
         'name' => 'Ana Actualizada',
+        'username' => 'ana_act',
         'email' => 'ana.nueva@example.test',
+        'birth_date' => '2010-01-15',
         'identifier' => 'ST-101',
         'phone' => '+56 9 8765 4321',
     ])->assertRedirect();
@@ -58,7 +66,10 @@ it('updates a student profile and account', function () {
 it('deactivates the student profile and its login account without deleting history', function () {
     $this->actingAs($this->manager)->post('/students', [
         'name' => 'Ana',
+        'username' => 'ana_deact',
         'email' => 'ana@example.test',
+        'birth_date' => '2010-01-15',
+        'identifier' => 'ST-DEACT',
         'temporary_password' => 'temporal-123',
     ]);
     $student = User::query()->where('email', 'ana@example.test')->firstOrFail();
@@ -84,7 +95,10 @@ it('allows teachers to read only students enrolled in their assigned courses', f
     $teacher = userWithRole(Role::Docente);
     $this->actingAs($this->manager)->post('/students', [
         'name' => 'Ana',
+        'username' => 'ana_teacher_test',
         'email' => 'ana@example.test',
+        'birth_date' => '2010-01-15',
+        'identifier' => 'ST-TEACH',
         'temporary_password' => 'temporal-123',
     ]);
     $student = User::query()->where('email', 'ana@example.test')->firstOrFail();
@@ -108,7 +122,11 @@ it('allows teachers to read only students enrolled in their assigned courses', f
 it('paginates and filters the student list', function () {
     foreach (range(1, 12) as $i) {
         $this->actingAs($this->manager)->post('/students', [
-            'name' => "Alumno {$i}", 'email' => "a{$i}@example.test", 'temporary_password' => 'temporal-123',
+            'name' => "Alumno {$i}",
+            'username' => "alumno_{$i}",
+            'email' => "a{$i}@example.test",
+            'birth_date' => '2010-01-15',
+            'temporary_password' => 'temporal-123',
             'identifier' => "ID-{$i}",
         ]);
     }

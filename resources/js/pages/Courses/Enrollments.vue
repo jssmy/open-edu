@@ -13,9 +13,10 @@ interface StudentEnrollment {
     id: number;
     enrollment_id?: number;
     name: string;
-    email: string;
+    email: string | null;
     identifier: string | null;
-    phone: string | null;
+    birth_date?: string | null;
+    phone?: string | null;
     status: 'active' | 'suspended' | 'cancelled';
     group_code?: string | null;
     enrolled_at: string;

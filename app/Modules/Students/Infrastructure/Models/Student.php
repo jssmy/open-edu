@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'identifier', 'phone', 'is_active'])]
+#[Fillable(['user_id', 'identifier', 'birth_date', 'phone', 'is_active'])]
 class Student extends Model
 {
     /** @use HasFactory<StudentFactory> */
@@ -19,7 +19,10 @@ class Student extends Model
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'birth_date' => 'date:Y-m-d',
+            'is_active' => 'boolean',
+        ];
     }
 
     /** @return BelongsTo<User, $this> */

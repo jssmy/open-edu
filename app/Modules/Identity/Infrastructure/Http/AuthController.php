@@ -25,24 +25,39 @@ class AuthController extends Controller
 
     public function store(Request $request): RedirectResponse|Response
     {
-        $credentials = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-        $key = strtolower($credentials['email']).'|'.$request->ip();
+        $input = $request->validate([
+            'login' => ['required_without:email', 'string'],
+            'email' => ['sometimes', 'nullable', 'string'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $loginValue = trim((string) ($input['login'] ?? $input['email']));
+        $field = filter_var($loginValue, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        $credentials = [$field => $loginValue, 'password' => $input['password']];
+
+        $key = strtolower($loginValue).'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
-            $this->auditor->log('auth.throttled', null, null, ['email' => $credentials['email']]);
+            $this->auditor->log('auth.throttled', null, null, [$field => $loginValue]);
             abort(429, 'Demasiados intentos. Inténtalo de nuevo en un minuto.');
         }
 
         if (! Auth::attempt([...$credentials, 'is_active' => true, fn ($query) => $query->whereDoesntHave('roles', fn ($roles) => $roles->where('is_active', false))], $request->boolean('remember'))) {
             RateLimiter::hit($key, 60);
-            $this->auditor->log('auth.failed', null, null, ['email' => $credentials['email']]);
+            $this->auditor->log('auth.failed', null, null, [$field => $loginValue]);
 
-            return back()->withErrors(['email' => 'Las credenciales no son válidas.'])->onlyInput('email');
+            $errorKey = $request->has('email') && ! $request->has('login') ? 'email' : 'login';
+
+            return back()->withErrors([$errorKey => 'Las credenciales no son válidas.'])->onlyInput('login', 'email');
         }
 
         RateLimiter::clear($key);
         $request->session()->regenerate();
         $this->auditor->log('auth.login', Auth::id());
+
+        if (Auth::user()?->must_change_password) {
+            return redirect()->route('password.change');
+        }
 
         return redirect()->intended($this->home());
     }

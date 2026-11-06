@@ -128,3 +128,133 @@ test('student can review their in_progress assessment and see canContinue as tru
             ->where('canContinue', true)
         );
 });
+
+test('completed assessment review returns incorrect answer flag when student marked wrong choice', function (): void {
+    $teacher = userWithRole(Role::Docente);
+    $studentUser = userWithRole(Role::Estudiante);
+    $student = Student::factory()->create(['user_id' => $studentUser->id]);
+
+    $course = Course::factory()->create();
+    $course->teachers()->sync([$teacher->id]);
+
+    Enrollment::factory()->create([
+        'course_id' => $course->id,
+        'student_id' => $student->id,
+        'status' => EnrollmentStatus::Active->value,
+    ]);
+
+    $assessment = Assessment::query()->create([
+        'course_id' => $course->id,
+        'title' => 'Examen con Respuesta Incorrecta',
+        'is_published' => true,
+        'total_score' => 10,
+        'passing_score' => 6,
+        'max_attempts' => 1,
+    ]);
+
+    $question = Question::query()->create([
+        'assessment_id' => $assessment->id,
+        'statement' => ['type' => 'doc', 'content' => []],
+        'points' => 10,
+        'position' => 1,
+    ]);
+
+    $correctChoice = Choice::query()->create([
+        'question_id' => $question->id,
+        'text' => 'Opción Correcta',
+        'is_correct' => true,
+    ]);
+
+    $wrongChoice = Choice::query()->create([
+        'question_id' => $question->id,
+        'text' => 'Opción Incorrecta',
+        'is_correct' => false,
+    ]);
+
+    $attempt = Attempt::query()->create([
+        'assessment_id' => $assessment->id,
+        'student_id' => $student->id,
+        'attempt_number' => 1,
+        'status' => 'completed',
+        'score' => 0,
+        'passed' => false,
+        'started_at' => now()->subHour(),
+        'submitted_at' => now(),
+    ]);
+
+    AttemptAnswer::create([
+        'attempt_id' => $attempt->id,
+        'question_id' => $question->id,
+        'choice_id' => $wrongChoice->id,
+    ]);
+
+    $this->actingAs($teacher)
+        ->get("/assessments/{$assessment->id}/review?student_id={$student->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Assessments/Review')
+            ->where('questions.0.student_answer.choice_id', $wrongChoice->id)
+            ->where('questions.0.student_answer.is_correct', false)
+            ->where('questions.0.choices.0.is_correct', true)
+            ->where('questions.0.choices.1.is_correct', false)
+        );
+});
+
+test('in_progress assessment review hides is_correct flags from choices and student answer', function (): void {
+    $studentUser = userWithRole(Role::Estudiante);
+    $student = Student::factory()->create(['user_id' => $studentUser->id]);
+
+    $course = Course::factory()->create(['status' => 'published']);
+
+    Enrollment::factory()->create([
+        'course_id' => $course->id,
+        'student_id' => $student->id,
+        'status' => EnrollmentStatus::Active->value,
+    ]);
+
+    $assessment = Assessment::query()->create([
+        'course_id' => $course->id,
+        'title' => 'Examen Protegido',
+        'is_published' => true,
+        'total_score' => 10,
+        'passing_score' => 6,
+        'max_attempts' => 1,
+    ]);
+
+    $question = Question::query()->create([
+        'assessment_id' => $assessment->id,
+        'statement' => ['type' => 'doc', 'content' => []],
+        'points' => 10,
+        'position' => 1,
+    ]);
+
+    $correctChoice = Choice::query()->create([
+        'question_id' => $question->id,
+        'text' => 'Opción Correcta',
+        'is_correct' => true,
+    ]);
+
+    $attempt = Attempt::query()->create([
+        'assessment_id' => $assessment->id,
+        'student_id' => $student->id,
+        'attempt_number' => 1,
+        'status' => 'in_progress',
+        'started_at' => now(),
+    ]);
+
+    AttemptAnswer::create([
+        'attempt_id' => $attempt->id,
+        'question_id' => $question->id,
+        'choice_id' => $correctChoice->id,
+    ]);
+
+    $this->actingAs($studentUser)
+        ->get("/assessments/{$assessment->id}/review")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Assessments/Review')
+            ->where('questions.0.student_answer.choice_id', $correctChoice->id)
+            ->where('questions.0.student_answer.is_correct', null)
+            ->where('questions.0.choices.0.is_correct', null)
+        );
+});

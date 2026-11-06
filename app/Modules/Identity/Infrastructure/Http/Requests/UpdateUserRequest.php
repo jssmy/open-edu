@@ -4,6 +4,7 @@ namespace App\Modules\Identity\Infrastructure\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -18,6 +19,7 @@ class UpdateUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'role' => ['required', Rule::exists('roles', 'name')->where('is_active', true)->where('guard_name', 'web')],
+            'password' => ['nullable', 'string', Password::min(8)],
         ];
     }
 }

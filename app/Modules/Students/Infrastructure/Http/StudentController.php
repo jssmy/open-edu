@@ -38,9 +38,11 @@ class StudentController extends Controller
         $data = $request->validated();
         $register(
             $data['name'],
-            $data['email'],
+            $data['username'],
+            $data['email'] ?? null,
             $data['temporary_password'],
-            $data['identifier'] ?? null,
+            $data['identifier'],
+            $data['birth_date'],
             $data['phone'] ?? null,
             $request->user()->id,
         );
@@ -77,8 +79,11 @@ class StudentController extends Controller
         $update(
             $studentId,
             $data['name'],
-            $data['email'],
-            $data['identifier'] ?? null,
+            $data['username'],
+            $data['email'] ?? null,
+            $data['identifier'],
+            $data['birth_date'],
+            $data['temporary_password'] ?? null,
             $data['phone'] ?? null,
             $request->user()->id,
         );
@@ -94,15 +99,17 @@ class StudentController extends Controller
         return back()->with('success', 'Estado del estudiante actualizado.');
     }
 
-    /** @return array{id: int, user_id: int, name: string, email: string, identifier: ?string, phone: ?string, is_active: bool} */
+    /** @return array{id: int, user_id: int, name: string, username: ?string, email: ?string, identifier: ?string, birth_date: ?string, phone: ?string, is_active: bool} */
     private function present(StudentRecord $student): array
     {
         return [
             'id' => $student->id,
             'user_id' => $student->userId,
             'name' => $student->name,
+            'username' => $student->username,
             'email' => $student->email,
             'identifier' => $student->identifier,
+            'birth_date' => $student->birthDate,
             'phone' => $student->phone,
             'is_active' => $student->isActive,
         ];

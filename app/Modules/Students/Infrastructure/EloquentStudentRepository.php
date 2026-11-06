@@ -14,14 +14,17 @@ final class EloquentStudentRepository implements StudentRepository
 {
     public function register(
         string $name,
-        string $email,
+        string $username,
+        ?string $email,
         string $passwordHash,
-        ?string $identifier,
-        ?string $phone,
+        string $identifier,
+        string $birthDate,
+        ?string $phone = null,
     ): StudentRecord {
-        return DB::transaction(function () use ($name, $email, $passwordHash, $identifier, $phone): StudentRecord {
+        return DB::transaction(function () use ($name, $username, $email, $passwordHash, $identifier, $birthDate, $phone): StudentRecord {
             $user = User::query()->create([
                 'name' => $name,
+                'username' => $username,
                 'email' => $email,
                 'password' => $passwordHash,
                 'must_change_password' => true,
@@ -32,6 +35,7 @@ final class EloquentStudentRepository implements StudentRepository
             $student = Student::query()->create([
                 'user_id' => $user->id,
                 'identifier' => $identifier,
+                'birth_date' => $birthDate,
                 'phone' => $phone,
                 'is_active' => true,
             ]);
@@ -40,12 +44,26 @@ final class EloquentStudentRepository implements StudentRepository
         });
     }
 
-    public function update(int $studentId, string $name, string $email, ?string $identifier, ?string $phone): void
-    {
-        DB::transaction(function () use ($studentId, $name, $email, $identifier, $phone): void {
+    public function update(
+        int $studentId,
+        string $name,
+        string $username,
+        ?string $email,
+        string $identifier,
+        string $birthDate,
+        ?string $passwordHash = null,
+        ?string $phone = null,
+    ): void {
+        DB::transaction(function () use ($studentId, $name, $username, $email, $identifier, $birthDate, $passwordHash, $phone): void {
             $student = Student::query()->with('user')->findOrFail($studentId);
-            $student->user->update(['name' => $name, 'email' => $email]);
-            $student->update(['identifier' => $identifier, 'phone' => $phone]);
+            $userPayload = ['name' => $name, 'username' => $username, 'email' => $email];
+            if ($passwordHash !== null) {
+                $userPayload['password'] = $passwordHash;
+                $userPayload['must_change_password'] = true;
+                $userPayload['remember_token'] = null;
+            }
+            $student->user->update($userPayload);
+            $student->update(['identifier' => $identifier, 'birth_date' => $birthDate, 'phone' => $phone]);
         });
     }
 
@@ -228,8 +246,10 @@ final class EloquentStudentRepository implements StudentRepository
             $student->id,
             $student->user_id,
             $student->user->name,
+            $student->user->username,
             $student->user->email,
             $student->identifier,
+            $student->birth_date ? $student->birth_date->format('Y-m-d') : null,
             $student->phone,
             $student->is_active && $student->user->is_active,
         );

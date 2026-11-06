@@ -13,7 +13,7 @@ interface UserRepository
 
     public function create(string $name, string $email, string $passwordHash, Role|string $role, bool $mustChangePassword): UserRecord;
 
-    public function update(int $id, string $name, string $email): void;
+    public function update(int $id, string $name, string $email, ?string $passwordHash = null, bool $mustChangePassword = false): void;
 
     public function setActive(int $id, bool $active): void;
 

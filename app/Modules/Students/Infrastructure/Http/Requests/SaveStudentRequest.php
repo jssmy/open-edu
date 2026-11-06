@@ -23,17 +23,22 @@ class SaveStudentRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            'username' => [
+                'required', 'string', 'min:3', 'max:50', 'alpha_dash:ascii',
+                Rule::unique('users', 'username')->ignore($userId),
+            ],
+            'identifier' => [
+                'required', 'string', 'max:50',
+                Rule::unique('students', 'identifier')->ignore($studentId),
+            ],
+            'birth_date' => ['required', 'date', 'before:today'],
             'email' => [
-                'required', 'email', 'max:255',
+                'nullable', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
             'temporary_password' => [
-                $this->isMethod('post') ? 'required' : 'sometimes',
+                $this->isMethod('post') ? 'required' : 'nullable',
                 Password::min(8),
-            ],
-            'identifier' => [
-                'nullable', 'string', 'max:255',
-                Rule::unique('students', 'identifier')->ignore($studentId),
             ],
             'phone' => ['nullable', 'string', 'max:50'],
         ];

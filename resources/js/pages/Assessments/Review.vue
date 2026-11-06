@@ -30,7 +30,7 @@ interface QuestionItem {
 interface AttemptItem {
     id: number;
     attempt_number: number;
-    status: 'in_progress' | 'completed' | 'abandoned';
+    status: 'in_progress' | 'completed' | 'submitted' | 'abandoned';
     score: number;
     passed: boolean;
     started_at: string;
@@ -57,7 +57,7 @@ const props = defineProps<{
     canContinue: boolean;
 }>();
 
-const isCompleted = computed(() => props.attempt?.status === 'completed');
+const isCompleted = computed(() => props.attempt?.status === 'completed' || props.attempt?.status === 'submitted');
 const isInProgress = computed(() => props.attempt?.status === 'in_progress');
 
 function formatDate(iso: string | null | undefined): string {
@@ -149,6 +149,20 @@ function formatDate(iso: string | null | undefined): string {
                     class="font-medium text-primary underline"
                 >
                     Comenzar evaluación
+                </Link>
+            </EmptyState>
+
+            <!-- Bloqueo de revisión cuando hay un intento en curso -->
+            <EmptyState
+                v-else-if="canContinue"
+                title="Revisión no disponible mientras el examen esté en curso"
+                description="Para garantizar la integridad de la evaluación, las preguntas y respuestas correctas se mostrarán una vez que finalices tu intento activo."
+            >
+                <Link
+                    :href="`/assessments/${assessment.id}/take`"
+                    class="inline-flex min-h-9 items-center justify-center rounded-control bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition shadow-sm"
+                >
+                    Ir al examen en curso →
                 </Link>
             </EmptyState>
 

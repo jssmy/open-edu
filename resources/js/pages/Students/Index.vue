@@ -18,9 +18,9 @@ import { submit } from '@/services/http';
 interface Student {
     id: number;
     name: string;
-    email: string;
+    username: string | null;
     identifier: string | null;
-    phone: string | null;
+    birth_date: string | null;
     is_active: boolean;
 }
 
@@ -50,18 +50,19 @@ const statusOptions = [
 ];
 const columns = [
     { key: 'name', label: 'Estudiante' },
-    { key: 'identifier', label: 'Identificador' },
-    { key: 'phone', label: 'Teléfono' },
+    { key: 'username', label: 'Usuario' },
+    { key: 'identifier', label: 'Documento / Identificador' },
+    { key: 'birth_date', label: 'Fecha de nacimiento' },
     { key: 'is_active', label: 'Estado' },
     { key: 'actions', label: 'Acciones' },
 ];
 const creating = ref(false);
 const form = useForm({
     name: '',
-    email: '',
-    temporary_password: '',
     identifier: '',
-    phone: '',
+    username: '',
+    birth_date: '',
+    temporary_password: '',
 });
 
 function register() {
@@ -89,7 +90,7 @@ function register() {
                 <Input
                     id="filter-q"
                     v-model="filters.q"
-                    placeholder="Nombre, correo, identificador o teléfono"
+                    placeholder="Nombre, usuario, documento o correo"
                 />
             </div>
             <div class="w-48">
@@ -103,10 +104,11 @@ function register() {
         <Table :columns="columns" :rows="students.data as unknown as Record<string, unknown>[]">
             <template #cell-name="{ row }">
                 <p class="font-semibold">{{ row.name }}</p>
-                <p class="text-xs text-text-muted">{{ row.email }}</p>
+                <p class="text-xs text-text-muted">@{{ row.username }}</p>
             </template>
+            <template #cell-username="{ row }">{{ row.username || '—' }}</template>
             <template #cell-identifier="{ row }">{{ row.identifier || '—' }}</template>
-            <template #cell-phone="{ row }">{{ row.phone || '—' }}</template>
+            <template #cell-birth_date="{ row }">{{ row.birth_date || '—' }}</template>
             <template #cell-is_active="{ row }">
                 <Badge :variant="row.is_active ? 'success' : 'neutral'">{{
                     row.is_active ? 'Activo' : 'Inactivo'
@@ -152,15 +154,21 @@ function register() {
 
         <Modal :open="creating" title="Registrar estudiante" @close="creating = false">
             <form class="flex flex-col gap-3" @submit.prevent="register">
-                <FormField id="name" label="Nombre" :error="form.errors.name">
+                <FormField id="name" label="Nombre completo" :error="form.errors.name">
                     <Input id="name" v-model="form.name" :error="form.errors.name" />
                 </FormField>
-                <FormField id="email" label="Correo" :error="form.errors.email">
-                    <Input id="email" v-model="form.email" type="email" :error="form.errors.email" />
+                <FormField id="identifier" label="Documento / Identificador" :error="form.errors.identifier">
+                    <Input id="identifier" v-model="form.identifier" :error="form.errors.identifier" />
+                </FormField>
+                <FormField id="username" label="Nombre de usuario" :error="form.errors.username">
+                    <Input id="username" v-model="form.username" :error="form.errors.username" />
+                </FormField>
+                <FormField id="birth_date" label="Fecha de nacimiento" :error="form.errors.birth_date">
+                    <Input id="birth_date" v-model="form.birth_date" type="date" :error="form.errors.birth_date" />
                 </FormField>
                 <FormField
                     id="temporary_password"
-                    label="Contraseña temporal"
+                    label="Contraseña inicial"
                     :error="form.errors.temporary_password"
                 >
                     <Input
@@ -169,12 +177,6 @@ function register() {
                         type="password"
                         :error="form.errors.temporary_password"
                     />
-                </FormField>
-                <FormField id="identifier" label="Documento / identificador" :error="form.errors.identifier">
-                    <Input id="identifier" v-model="form.identifier" :error="form.errors.identifier" />
-                </FormField>
-                <FormField id="phone" label="Teléfono" :error="form.errors.phone">
-                    <Input id="phone" v-model="form.phone" :error="form.errors.phone" />
                 </FormField>
                 <div class="flex items-center justify-end gap-2 pt-2">
                     <Button type="button" variant="secondary" @click="creating = false">

@@ -18,6 +18,7 @@ class StudentFactory extends Factory
         return [
             'user_id' => User::factory(),
             'identifier' => fake()->unique()->bothify('ST-####'),
+            'birth_date' => fake()->date('Y-m-d', '-10 years'),
             'phone' => fake()->phoneNumber(),
             'is_active' => true,
         ];

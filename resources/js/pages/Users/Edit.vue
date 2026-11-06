@@ -16,6 +16,7 @@ const form = useForm({
     name: props.user.name,
     email: props.user.email,
     role: props.user.role ?? 'estudiante',
+    password: '',
 });
 </script>
 
@@ -36,6 +37,9 @@ const form = useForm({
                 </FormField>
                 <FormField id="role" label="Rol" :error="form.errors.role">
                     <Select id="role" v-model="form.role" :options="roles" />
+                </FormField>
+                <FormField id="password" label="Nueva contraseña (opcional)" :error="form.errors.password">
+                    <Input id="password" v-model="form.password" type="password" placeholder="Dejar en blanco para no cambiar" :error="form.errors.password" />
                 </FormField>
                 <div class="flex gap-2">
                     <Button type="submit" :loading="form.processing">Guardar</Button>

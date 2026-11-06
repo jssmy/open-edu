@@ -29,6 +29,8 @@ defineProps<{
     } | null;
     result: Result | null;
     results: Result[];
+    hasInProgressAttempt?: boolean;
+    canTake?: boolean;
 }>();
 
 function submittedAt(value: string): string {
@@ -47,10 +49,59 @@ function submittedAt(value: string): string {
                 >
                     {{ assessment ? 'Volver a la evaluación' : 'Volver a mis cursos' }}
                 </Link>
-                <h1 class="text-2xl font-semibold">
-                    {{ assessment ? `Resultados: ${assessment.title}` : 'Mis resultados' }}
-                </h1>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h1 class="text-2xl font-semibold">
+                        {{ assessment ? `Resultados: ${assessment.title}` : 'Mis resultados' }}
+                    </h1>
+                    <Link
+                        v-if="assessment && result"
+                        :href="`/assessments/${assessment.id}/review`"
+                        class="inline-flex min-h-9 items-center justify-center rounded-control bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition shadow-xs"
+                    >
+                        Ver respuestas y corrección detallada →
+                    </Link>
+                </div>
             </header>
+
+            <!-- Alerta para examen en curso -->
+            <Alert
+                v-if="hasInProgressAttempt"
+                variant="warning"
+                title="Evaluación en curso"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm">
+                        Tienes un intento activo en curso para este examen. Puedes reanudarlo para responder tus preguntas y finalizarlo.
+                    </p>
+                    <Link
+                        v-if="assessment"
+                        :href="`/assessments/${assessment.id}/take`"
+                        class="inline-flex min-h-9 items-center justify-center rounded-control bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition shadow-xs"
+                    >
+                        Continuar evaluación →
+                    </Link>
+                </div>
+            </Alert>
+
+            <!-- Alerta para examen aún disponible con intentos pendientes -->
+            <Alert
+                v-else-if="canTake && result"
+                variant="info"
+                title="Evaluación aún disponible"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm">
+                        Aún dispones de intentos para rendir esta evaluación y mejorar tu calificación.
+                    </p>
+                    <Link
+                        v-if="assessment"
+                        :href="`/assessments/${assessment.id}/take`"
+                        class="inline-flex min-h-9 items-center justify-center rounded-control bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition shadow-xs"
+                    >
+                        Rendir nuevo intento →
+                    </Link>
+                </div>
+            </Alert>
 
             <section
                 v-if="assessment"

@@ -8,8 +8,10 @@ final readonly class Student
         public int $id,
         public int $userId,
         public string $name,
-        public string $email,
+        public ?string $username,
+        public ?string $email,
         public ?string $identifier,
+        public ?string $birthDate,
         public ?string $phone,
         public bool $isActive,
     ) {}

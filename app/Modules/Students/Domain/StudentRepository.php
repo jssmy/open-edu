@@ -6,13 +6,24 @@ interface StudentRepository
 {
     public function register(
         string $name,
-        string $email,
+        string $username,
+        ?string $email,
         string $passwordHash,
-        ?string $identifier,
-        ?string $phone,
+        string $identifier,
+        string $birthDate,
+        ?string $phone = null,
     ): Student;
 
-    public function update(int $studentId, string $name, string $email, ?string $identifier, ?string $phone): void;
+    public function update(
+        int $studentId,
+        string $name,
+        string $username,
+        ?string $email,
+        string $identifier,
+        string $birthDate,
+        ?string $passwordHash = null,
+        ?string $phone = null,
+    ): void;
 
     public function setActive(int $studentId, bool $isActive): void;
 

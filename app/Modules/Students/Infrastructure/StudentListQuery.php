@@ -26,8 +26,9 @@ class StudentListQuery
             ->when($term !== '', fn ($query) => $query->where(function ($inner) use ($term): void {
                 $like = '%'.addcslashes($term, '%_\\').'%';
                 $inner->where('identifier', 'like', $like)
-                    ->orWhere('phone', 'like', $like)
-                    ->orWhereHas('user', fn ($user) => $user->where('name', 'like', $like)->orWhere('email', 'like', $like));
+                    ->orWhereHas('user', fn ($user) => $user->where('name', 'like', $like)
+                        ->orWhere('username', 'like', $like)
+                        ->orWhere('email', 'like', $like));
             }))
             ->when($status === 'active', fn ($query) => $query->where('is_active', true)->whereHas('user', fn ($user) => $user->where('is_active', true)))
             ->when($status === 'inactive', fn ($query) => $query->where(function ($inner): void {
@@ -41,9 +42,10 @@ class StudentListQuery
                 'id' => $student->id,
                 'user_id' => $student->user_id,
                 'name' => $student->user->name,
+                'username' => $student->user->username,
                 'email' => $student->user->email,
                 'identifier' => $student->identifier,
-                'phone' => $student->phone,
+                'birth_date' => $student->birth_date ? $student->birth_date->format('Y-m-d') : null,
                 'is_active' => $student->is_active && $student->user->is_active,
             ])->all(),
             'meta' => [

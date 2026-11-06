@@ -17,18 +17,22 @@ final class RegisterStudent
 
     public function __invoke(
         string $name,
-        string $email,
+        string $username,
+        ?string $email,
         string $temporaryPassword,
-        ?string $identifier,
-        ?string $phone,
+        string $identifier,
+        string $birthDate,
+        ?string $phone = null,
         ?int $actorId = null,
     ): Student {
         $student = $this->students->register(
             trim($name),
-            strtolower(trim($email)),
+            trim($username),
+            $email !== null && trim($email) !== '' ? strtolower(trim($email)) : null,
             $this->hasher->hash($temporaryPassword),
-            $identifier,
-            $phone,
+            trim($identifier),
+            $birthDate,
+            $phone !== null && trim($phone) !== '' ? trim($phone) : null,
         );
         $this->auditor->log('student.registered', $actorId, "student:{$student->id}");
 
