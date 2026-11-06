@@ -9,8 +9,9 @@ COPY package.json package-lock.json* ./
 RUN npm ci --prefer-offline --no-audit
 
 # Copy frontend source code and configs
-COPY tsconfig.json vite.config.ts ./
+COPY tsconfig.json vite.config.ts tailwind.config.ts ./
 COPY resources/ ./resources/
+COPY public/ ./public/
 
 # Compile frontend production bundles
 RUN npm run build
