@@ -3,6 +3,9 @@ set -e
 
 echo "Starting Open-Edu application setup..."
 
+# Ensure log directories exist
+mkdir -p /var/log/supervisor /var/log/nginx
+
 # Ensure storage directories and permissions
 mkdir -p /var/www/html/storage/framework/cache/data \
          /var/www/html/storage/framework/sessions \

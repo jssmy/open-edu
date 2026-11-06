@@ -99,7 +99,8 @@ COPY --from=frontend-builder /app/public/build /var/www/html/public/build
 COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && mkdir -p /var/log/supervisor /var/log/nginx
 
 # Run package discovery and autoloader dump now that all files are in place
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative 2>/dev/null || true
