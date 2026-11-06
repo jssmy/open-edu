@@ -41,3 +41,9 @@ Thumbs.db
 # Local agent skills; core Speckit skills already tracked remain versioned.
 /.agents/skills/
 /.claude/skills/
+
+# Database dumps and local backups
+/backups/*.dump
+/backups/*.sql
+/backups/*.gz
+!backups/.gitkeep

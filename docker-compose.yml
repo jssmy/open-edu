@@ -1,0 +1,48 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open-edu-app:latest
+    container_name: openedu_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    environment:
+      APP_NAME: "${APP_NAME:-Open Edu}"
+      APP_ENV: "${APP_ENV:-production}"
+      APP_KEY: "${APP_KEY}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_URL: "${APP_URL:-http://localhost:8000}"
+      DB_CONNECTION: "${DB_CONNECTION:-pgsql}"
+      DB_HOST: "${DB_HOST}"
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_DATABASE: "${DB_DATABASE:-openedu}"
+      DB_USERNAME: "${DB_USERNAME:-openedu}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      SESSION_DRIVER: "${SESSION_DRIVER:-database}"
+      QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
+      CACHE_STORE: "${CACHE_STORE:-database}"
+      FILESYSTEM_DISK: "${FILESYSTEM_DISK:-local}"
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: "${LOG_LEVEL:-error}"
+      RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
+    volumes:
+      - app_storage:/var/www/html/storage
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+    networks:
+      - dokploy-network
+
+volumes:
+  app_storage:
+    name: openedu_app_storage
+
+networks:
+  dokploy-network:
+    external: true
