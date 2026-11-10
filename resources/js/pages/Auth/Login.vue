@@ -12,7 +12,7 @@ const workshops = [
     {
         name: 'Karate',
         badge: 'DISCIPLINA',
-        icon: '🥋',
+        image: '/images/workshops/karate.jpg',
         desc: 'Fuerza, respeto y autocontrol para la vida',
         tagBg: 'bg-red-50 text-red-700 border-red-200',
         cardBorder: 'hover:border-red-300',
@@ -20,7 +20,7 @@ const workshops = [
     {
         name: 'Teatro',
         badge: 'EXPRESIÓN',
-        icon: '🎭',
+        image: '/images/workshops/theatre.jpg',
         desc: 'Confianza, empatía, oratoria y expresión corporal',
         tagBg: 'bg-purple-50 text-purple-700 border-purple-200',
         cardBorder: 'hover:border-purple-300',
@@ -28,7 +28,7 @@ const workshops = [
     {
         name: 'Arte y Pintura',
         badge: 'CREATIVIDAD',
-        icon: '🎨',
+        image: '/images/workshops/art.jpg',
         desc: 'Creatividad, dibujo, pintura y sensibilidad estética',
         tagBg: 'bg-pink-50 text-pink-700 border-pink-200',
         cardBorder: 'hover:border-pink-300',
@@ -36,7 +36,7 @@ const workshops = [
     {
         name: 'Matemáticas',
         badge: 'LÓGICA',
-        icon: '📐',
+        image: '/images/workshops/math.jpg',
         desc: 'Pensamiento analítico, resolución de retos y cálculo',
         tagBg: 'bg-blue-50 text-blue-700 border-blue-200',
         cardBorder: 'hover:border-blue-300',
@@ -44,7 +44,7 @@ const workshops = [
     {
         name: 'Inglés',
         badge: 'IDIOMAS',
-        icon: '🗣️',
+        image: '/images/workshops/english.jpg',
         desc: 'Apertura al mundo, vocabulario y comunicación',
         tagBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         cardBorder: 'hover:border-emerald-300',
@@ -52,7 +52,7 @@ const workshops = [
     {
         name: 'Computación',
         badge: 'DIGITAL',
-        icon: '💻',
+        image: '/images/workshops/computing.jpg',
         desc: 'Habilidades digitales, tecnología e innovación',
         tagBg: 'bg-amber-50 text-amber-700 border-amber-200',
         cardBorder: 'hover:border-amber-300',
@@ -184,12 +184,17 @@ const showPassword = ref(false);
                             <div
                                 v-for="workshop in workshops"
                                 :key="workshop.name"
-                                :class="['p-4 rounded-xl bg-white border border-stone-200 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-start gap-3.5', workshop.cardBorder]"
+                                :class="['p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center gap-3.5', workshop.cardBorder]"
                             >
-                                <span class="text-2xl p-2 rounded-lg bg-stone-50 border border-stone-100 flex-shrink-0 select-none">
-                                    {{ workshop.icon }}
-                                </span>
-                                <div class="min-w-0">
+                                <div class="w-14 h-14 rounded-xl bg-stone-50 border border-stone-100 flex-shrink-0 overflow-hidden p-1 shadow-inner flex items-center justify-center">
+                                    <img
+                                        :src="workshop.image"
+                                        :alt="workshop.name"
+                                        class="w-full h-full object-contain rounded-lg hover:scale-105 transition-transform duration-200"
+                                        loading="lazy"
+                                    />
+                                </div>
+                                <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 mb-0.5">
                                         <h3 class="font-bold text-sm text-slate-900 truncate">{{ workshop.name }}</h3>
                                         <span :class="['text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border', workshop.tagBg]">
