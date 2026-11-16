@@ -48,6 +48,7 @@ interface Course {
     can_claim_certificate?: boolean;
     certificate?: CertificateInfo | null;
     units: Unit[];
+    course_offering_id?: number | null;
     progress: {
         completed_lessons: number;
         total_lessons: number;
@@ -67,11 +68,15 @@ const props = withDefaults(
         course: Course;
         isTeacherView?: boolean;
         isReadOnly?: boolean;
+        canMarkComplete?: boolean;
+        course_offering_id?: number | null;
         backUrl?: string;
     }>(),
     {
         isTeacherView: false,
         isReadOnly: false,
+        canMarkComplete: true,
+        course_offering_id: null,
         backUrl: '/my/classes',
     },
 );
@@ -123,13 +128,11 @@ const flattenedLessons = computed<FlattenedLesson[]>(() => {
     return list;
 });
 
-// Inicializar en la primera lección no completada (si es estudiante) o en la primera
+// Inicializar en la última lección completada (tanto para docente como estudiante) o en la primera si no hay avance
 const activeLessonIndex = ref(0);
-if (!props.isTeacherView) {
-    const firstIncomplete = flattenedLessons.value.findIndex((l) => !l.is_completed);
-    if (firstIncomplete >= 0) {
-        activeLessonIndex.value = firstIncomplete;
-    }
+const lastCompletedIndex = flattenedLessons.value.findLastIndex((l) => l.is_completed);
+if (lastCompletedIndex >= 0) {
+    activeLessonIndex.value = lastCompletedIndex;
 }
 
 const activeLesson = computed<FlattenedLesson | null>(() => {
@@ -177,16 +180,26 @@ onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown);
 });
 
-function completeLesson(lesson: Lesson) {
-    if (lesson.is_completed || completingLessonId.value !== null) {
+function completeLesson(lesson: Lesson, action: 'complete' | 'toggle' = 'complete') {
+    if (completingLessonId.value !== null) {
+        return;
+    }
+
+    if (!props.isTeacherView && lesson.is_completed && action === 'complete') {
         return;
     }
 
     completionError.value = null;
     completingLessonId.value = lesson.id;
+
+    const offeringId = props.course_offering_id ?? props.course.course_offering_id ?? null;
+
     router.post(
         `/lessons/${lesson.id}/complete`,
-        {},
+        {
+            course_offering_id: offeringId,
+            action,
+        },
         {
             preserveScroll: true,
             onError: (errors) => {
@@ -248,7 +261,7 @@ function isStoredContent(content: Lesson['content']): boolean {
             <div class="flex flex-col gap-1">
                 <div class="flex items-center gap-2">
                     <Link :href="backUrl" class="text-sm font-medium text-primary hover:underline">
-                        ← Volver a mis clases
+                        ← {{ backUrl === '/courses' ? 'Volver a cursos' : 'Volver a mis clases' }}
                     </Link>
                     <Badge v-if="isTeacherView" variant="neutral">Modo Docente / Proyección</Badge>
                 </div>
@@ -259,7 +272,7 @@ function isStoredContent(content: Lesson['content']): boolean {
                 <Button variant="secondary" @click="isDrawerOpen = !isDrawerOpen">
                     <span class="mr-1">📋</span> Temario ({{ flattenedLessons.length }} lecciones)
                 </Button>
-                <div v-if="!isTeacherView" class="hidden sm:flex flex-col items-end">
+                <div v-if="course.progress" class="hidden sm:flex flex-col items-end">
                     <span class="text-xs text-text-muted">Progreso</span>
                     <span class="text-sm font-bold text-primary">{{ course.progress.percentage }}%</span>
                 </div>
@@ -293,8 +306,8 @@ function isStoredContent(content: Lesson['content']): boolean {
                                 <h2 class="text-xl font-bold text-text sm:text-2xl">{{ activeLesson.title }}</h2>
                             </div>
                             <div class="flex items-center gap-2">
-                                <Badge v-if="!isTeacherView" :variant="activeLesson.is_completed ? 'success' : 'neutral'">
-                                    {{ activeLesson.is_completed ? 'Completada' : 'Pendiente' }}
+                                <Badge :variant="activeLesson.is_completed ? 'success' : 'neutral'">
+                                    {{ activeLesson.is_completed ? (isTeacherView ? 'Dictada' : 'Completada') : 'Pendiente' }}
                                 </Badge>
                                 <Badge variant="neutral">
                                     Diapositiva {{ activeLessonIndex + 1 }} / {{ flattenedLessons.length }}
@@ -385,21 +398,54 @@ function isStoredContent(content: Lesson['content']): boolean {
 
                         <!-- Acción de completar lección (centro/separada de la navegación para evitar clics accidentales) -->
                         <div class="flex items-center justify-center">
-                            <Button
-                                v-if="!isTeacherView && !isFinishedCourse && !activeLesson.is_completed"
-                                variant="secondary"
-                                :disabled="completingLessonId !== null"
-                                :loading="completingLessonId === activeLesson.id"
-                                @click="completeLesson(activeLesson)"
-                            >
-                                ✓ Marcar completada
-                            </Button>
-                            <span v-else-if="!isTeacherView && activeLesson.is_completed" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400">
-                                ✓ Lección completada
-                            </span>
-                            <span v-else-if="!isTeacherView && isFinishedCourse" class="text-xs text-text-muted italic">
-                                Modo lectura (Finalizado)
-                            </span>
+                            <!-- Modo Docente: Marcar / Desmarcar lección dictada para la oferta -->
+                            <template v-if="isTeacherView">
+                                <Button
+                                    v-if="!activeLesson.is_completed"
+                                    variant="secondary"
+                                    :disabled="completingLessonId !== null"
+                                    :loading="completingLessonId === activeLesson.id"
+                                    @click="completeLesson(activeLesson, 'complete')"
+                                >
+                                    ✓ Marcar completada
+                                </Button>
+                                <div v-else class="flex items-center gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400">
+                                        ✓ Lección dictada
+                                    </span>
+                                    <Button
+                                        variant="secondary"
+                                        class="text-xs text-text-muted hover:text-danger"
+                                        :disabled="completingLessonId !== null"
+                                        :loading="completingLessonId === activeLesson.id"
+                                        @click="completeLesson(activeLesson, 'toggle')"
+                                    >
+                                        Desmarcar
+                                    </Button>
+                                </div>
+                            </template>
+
+                            <!-- Modo Estudiante / Participante -->
+                            <template v-else>
+                                <span v-if="isFinishedCourse" class="text-xs text-text-muted italic">
+                                    Modo lectura (Finalizado)
+                                </span>
+                                <span v-else-if="activeLesson.is_completed" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400">
+                                    ✓ Lección completada
+                                </span>
+                                <Button
+                                    v-else-if="canMarkComplete"
+                                    variant="secondary"
+                                    :disabled="completingLessonId !== null"
+                                    :loading="completingLessonId === activeLesson.id"
+                                    @click="completeLesson(activeLesson, 'complete')"
+                                >
+                                    ✓ Marcar completada
+                                </Button>
+                                <span v-else class="text-xs text-text-muted italic">
+                                    Avance guiado por el docente
+                                </span>
+                            </template>
                         </div>
 
                         <!-- Navegación a siguiente lección -->
@@ -413,6 +459,15 @@ function isStoredContent(content: Lesson['content']): boolean {
                             </Button>
                         </div>
                     </div>
+                </Card>
+
+                <!-- Barra de progreso general para el docente de clase programada -->
+                <Card v-if="isTeacherView && course.progress" class="flex flex-col gap-3">
+                    <div class="flex justify-between gap-3 text-xs font-medium text-text-muted">
+                        <span>Progreso de clases dictadas</span>
+                        <span>{{ course.progress.completed_lessons }} de {{ course.progress.total_lessons }} dictadas ({{ course.progress.percentage }}%)</span>
+                    </div>
+                    <ProgressBar :percentage="course.progress.percentage" />
                 </Card>
 
                 <!-- Barra de progreso general y certificado para el participante -->
@@ -503,7 +558,7 @@ function isStoredContent(content: Lesson['content']): boolean {
                                 @click="selectLesson(flattenedLessons.findIndex((l) => l.id === lesson.id))"
                             >
                                 <span class="truncate pr-2">{{ lesson.title }}</span>
-                                <span v-if="!isTeacherView && lesson.is_completed" class="text-xs" :class="activeLesson?.id === lesson.id ? 'text-white' : 'text-emerald-600'">
+                                <span v-if="lesson.is_completed" class="text-xs" :class="activeLesson?.id === lesson.id ? 'text-white' : 'text-emerald-600'">
                                     ✓
                                 </span>
                             </button>

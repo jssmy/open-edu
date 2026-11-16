@@ -49,9 +49,15 @@ interface ProgressRepository
      *     }>
      * }|null
      */
-    public function courseStudyData(int $courseId, ?int $studentId, ?int $userId = null): ?array;
+    public function courseStudyData(int $courseId, ?int $studentId, ?int $userId = null, ?int $courseOfferingId = null): ?array;
 
-    public function markLessonCompleted(?int $studentId, int $lessonId, ?int $userId = null): void;
+    public function markLessonCompleted(
+        ?int $studentId,
+        int $lessonId,
+        ?int $userId = null,
+        ?int $courseOfferingId = null,
+        string $action = 'complete',
+    ): bool;
 
     /**
      * @return array{

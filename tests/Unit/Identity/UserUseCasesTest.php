@@ -46,7 +46,7 @@ final class InMemoryUsers implements UserRepository
         return $this->items[$id] = new UserRecord($id, $name, $email, true, $mustChangePassword, $role instanceof Role ? $role : null, $role instanceof Role ? $role->value : $role);
     }
 
-    public function update(int $id, string $name, string $email): void {}
+    public function update(int $id, string $name, string $email, ?string $passwordHash = null, bool $mustChangePassword = false): void {}
 
     public function setActive(int $id, bool $active): void
     {
@@ -124,6 +124,11 @@ it('rechaza permisos desconocidos y la edición del Administrador', function () 
         public function allPermissions(): array
         {
             return ['courses.view'];
+        }
+
+        public function allPermissionRecords(): array
+        {
+            return [];
         }
 
         public function permissionsOf(Role|string $role): array

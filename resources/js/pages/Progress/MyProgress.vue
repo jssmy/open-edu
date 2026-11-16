@@ -39,7 +39,7 @@ defineProps<{ courses: CourseProgress[] }>();
         <main class="flex flex-col gap-6">
             <header class="flex flex-wrap items-center justify-between gap-3">
                 <h1 class="text-2xl font-semibold">Mi progreso</h1>
-                <Link href="/my/courses" class="text-sm text-primary hover:underline">Mis cursos</Link>
+                <Link href="/my/classes" class="text-sm text-primary hover:underline">Mis clases</Link>
             </header>
 
             <EmptyState

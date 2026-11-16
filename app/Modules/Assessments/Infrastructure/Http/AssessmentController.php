@@ -109,11 +109,15 @@ class AssessmentController extends Controller
         $user = $request->user();
         $student = Student::query()->where('user_id', $user->id)->first();
         $attempt = $start($assessment->id, $student?->id, $user->id);
-        $assessment->load('questions.choices');
+        $assessment->load(['questions.choices', 'course:id,name']);
+
+        $isStudent = $user->hasRole('estudiante');
 
         return Inertia::render('Assessments/Take', [
             'assessment' => [
                 'id' => $assessment->id,
+                'course_id' => $assessment->course_id,
+                'course_name' => $assessment->course?->name,
                 'title' => $assessment->title,
                 'instructions' => $assessment->instructions,
                 'total_score' => $assessment->total_score,
@@ -128,6 +132,9 @@ class AssessmentController extends Controller
                     ])->all(),
                 ])->all(),
             ],
+            'backCourseUrl' => "/my/courses/{$assessment->course_id}",
+            'backListUrl' => $isStudent ? '/my/classes' : '/courses',
+            'backListLabel' => $isStudent ? 'Volver a mis clases' : 'Volver a mis cursos',
         ]);
     }
 
@@ -150,7 +157,7 @@ class AssessmentController extends Controller
     public function results(Request $request, Assessment $assessment, GetResults $getResults): Response
     {
         Gate::authorize('viewResults', $assessment);
-        $assessment->load('questions');
+        $assessment->load(['questions', 'course:id,name']);
         $user = $request->user();
         $isStudent = $user->hasRole('estudiante');
         $student = $isStudent
@@ -185,9 +192,13 @@ class AssessmentController extends Controller
             $canTake = Gate::forUser($user)->allows('take', $assessment);
         }
 
+        $canManage = Gate::forUser($user)->allows('manageAssessment', $assessment->course);
+
         return Inertia::render('Assessments/Results', [
             'assessment' => [
                 'id' => $assessment->id,
+                'course_id' => $assessment->course_id,
+                'course_name' => $assessment->course?->name,
                 'title' => $assessment->title,
                 'instructions' => $assessment->instructions,
                 'total_score' => $assessment->total_score,
@@ -196,6 +207,11 @@ class AssessmentController extends Controller
                     'statement' => $question->statement,
                 ])->all(),
             ],
+            'canManage' => $canManage,
+            'isStudent' => $isStudent || $isEnrolledTeacher,
+            'backCourseUrl' => "/my/courses/{$assessment->course_id}",
+            'backListUrl' => $isStudent ? '/my/classes' : '/courses',
+            'backListLabel' => $isStudent ? 'Volver a mis clases' : 'Volver a mis cursos',
             'hasInProgressAttempt' => $hasInProgressAttempt,
             'canTake' => $canTake,
             ...$data,
@@ -211,6 +227,11 @@ class AssessmentController extends Controller
             'assessment' => null,
             'result' => null,
             'results' => $getResults->forStudent($student->id),
+            'canManage' => false,
+            'isStudent' => true,
+            'backCourseUrl' => null,
+            'backListUrl' => '/my/classes',
+            'backListLabel' => 'Volver a mis clases',
         ]);
     }
 
@@ -290,6 +311,7 @@ class AssessmentController extends Controller
         return Inertia::render('Assessments/Review', [
             'assessment' => [
                 'id' => $assessment->id,
+                'course_id' => $assessment->course_id,
                 'title' => $assessment->title,
                 'instructions' => $assessment->instructions,
                 'total_score' => $assessment->total_score,
@@ -317,6 +339,9 @@ class AssessmentController extends Controller
             'questions' => $questionsData,
             'isStudent' => $isLearner,
             'canContinue' => $isLearner && $latestAttempt?->status === 'in_progress',
+            'backCourseUrl' => "/my/courses/{$assessment->course_id}",
+            'backListUrl' => $isStudent ? '/my/classes' : '/courses',
+            'backListLabel' => $isStudent ? 'Volver a mis clases' : 'Volver a mis cursos',
         ]);
     }
 }

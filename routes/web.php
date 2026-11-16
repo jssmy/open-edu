@@ -12,7 +12,6 @@ use App\Modules\Identity\Infrastructure\Http\AuthController;
 use App\Modules\Identity\Infrastructure\Http\PasswordController;
 use App\Modules\Identity\Infrastructure\Http\RoleController;
 use App\Modules\Identity\Infrastructure\Http\UserController;
-use App\Modules\Progress\Application\GetMyCourses;
 use App\Modules\Progress\Infrastructure\Http\CertificateController;
 use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Reports\Infrastructure\Http\ReportController;
@@ -116,14 +115,15 @@ Route::middleware('auth')->group(function () {
         Route::patch('/enrollments/{enrollment}/status', [EnrollmentController::class, 'status'])->name('enrollments.status');
     });
 
-    Route::middleware('can:study')->group(function () {
-        Route::get('/my/courses', function (Request $request) {
-            if ($request->user()->hasRole('estudiante')) {
-                return redirect()->route('my.classes.index');
-            }
+    Route::get('/my/courses', function (Request $request) {
+        if ($request->user()->hasRole('estudiante')) {
+            return redirect()->route('my.classes.index');
+        }
 
-            return app(StudyController::class)->index($request, app(GetMyCourses::class));
-        })->name('study.courses.index');
+        return redirect()->route('courses.index');
+    })->name('study.courses.index');
+
+    Route::middleware('can:study')->group(function () {
         Route::get('/my/results', [AssessmentController::class, 'myResults'])->name('assessments.my-results');
         Route::get('/my/progress', [ReportController::class, 'myProgress'])->name('progress.my');
     });

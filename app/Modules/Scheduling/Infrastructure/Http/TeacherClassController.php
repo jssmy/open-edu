@@ -3,6 +3,7 @@
 namespace App\Modules\Scheduling\Infrastructure\Http;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Progress\Application\GetCourseProgress;
 use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Http\Request;
@@ -85,48 +86,36 @@ final class TeacherClassController extends Controller
         ]);
     }
 
-    public function viewer(Request $request, CourseOffering $offering): Response
-    {
+    public function viewer(
+        Request $request,
+        CourseOffering $offering,
+        GetCourseProgress $getCourseProgress,
+    ): Response {
         Gate::authorize('viewOwn', $offering);
 
         $course = $offering->course;
         abort_if($course === null, 404);
 
-        $course->load([
-            'units' => fn ($q) => $q->orderBy('position')->with([
-                'lessons' => fn ($lq) => $lq->orderBy('position'),
-            ]),
-        ]);
+        $user = $request->user();
 
-        $courseData = [
-            'id' => $course->id,
-            'name' => $course->name,
-            'description' => $course->description,
-            'intro_video_embed_url' => $course->introVideoEmbedUrl(),
-            'units' => $course->units->map(fn ($unit): array => [
-                'id' => $unit->id,
-                'title' => $unit->title,
-                'position' => $unit->position,
-                'lessons' => $unit->lessons->map(fn ($lesson): array => [
-                    'id' => $lesson->id,
-                    'title' => $lesson->title,
-                    'position' => $lesson->position,
-                    'content_type' => $lesson->content_type,
-                    'content' => $lesson->content,
-                    'is_completed' => false,
-                ])->all(),
-            ])->all(),
-            'progress' => [
-                'completed_lessons' => 0,
-                'total_lessons' => $course->units->sum(fn ($u) => $u->lessons->count()),
-                'percentage' => 0,
-            ],
-            'assessments' => [],
-        ];
+        $courseData = $getCourseProgress(
+            courseId: $course->id,
+            studentId: null,
+            userId: $user->id,
+            courseOfferingId: $offering->id,
+        );
+
+        abort_if($courseData === null, 404);
+
+        $courseData['course_offering_id'] = $offering->id;
+        $courseData['intro_video_embed_url'] = $course->introVideoEmbedUrl();
+        $courseData['assessments'] = [];
 
         return Inertia::render('Study/CourseViewer', [
             'course' => $courseData,
             'isTeacherView' => true,
+            'canMarkComplete' => true,
+            'course_offering_id' => $offering->id,
             'backUrl' => '/my/classes',
         ]);
     }

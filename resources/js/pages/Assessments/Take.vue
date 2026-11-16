@@ -20,16 +20,28 @@ interface Question {
     choices: Choice[];
 }
 
-const props = defineProps<{
-    assessment: {
-        id: number;
-        title: string;
-        instructions: RichTextDocument | null;
-        total_score: number;
-        attempt_number: number;
-        questions: Question[];
-    };
-}>();
+const props = withDefaults(
+    defineProps<{
+        assessment: {
+            id: number;
+            course_id?: number;
+            course_name?: string | null;
+            title: string;
+            instructions: RichTextDocument | null;
+            total_score: number;
+            attempt_number: number;
+            questions: Question[];
+        };
+        backCourseUrl?: string | null;
+        backListUrl?: string;
+        backListLabel?: string;
+    }>(),
+    {
+        backCourseUrl: null,
+        backListUrl: '/courses',
+        backListLabel: 'Volver a mis cursos',
+    },
+);
 
 const form = useForm<{ answers: Record<number, number> }>({ answers: {} });
 
@@ -47,9 +59,22 @@ function submitAttempt() {
     <AppLayout>
         <main class="mx-auto flex w-full max-w-3xl flex-col gap-6">
             <header class="flex flex-col gap-2">
-                <Link href="/my/courses" class="text-sm text-primary hover:underline"
-                    >Volver a mis cursos</Link
-                >
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <Link
+                        v-if="backCourseUrl || assessment.course_id"
+                        :href="backCourseUrl || `/my/courses/${assessment.course_id}`"
+                        class="font-medium text-primary hover:underline"
+                    >
+                        ← Volver al curso
+                    </Link>
+                    <span v-if="backCourseUrl || assessment.course_id" class="text-text-muted">·</span>
+                    <Link :href="backListUrl" class="text-text-muted hover:text-text hover:underline">
+                        {{ backListLabel }}
+                    </Link>
+                </div>
+                <span v-if="assessment.course_name" class="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    {{ assessment.course_name }}
+                </span>
                 <h1 class="text-2xl font-semibold">{{ assessment.title }}</h1>
                 <p class="text-sm text-text-muted">
                     Intento {{ assessment.attempt_number }} · Puntaje total: {{ assessment.total_score }}

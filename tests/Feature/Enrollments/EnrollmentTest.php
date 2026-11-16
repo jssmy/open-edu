@@ -13,6 +13,9 @@ function createRegisteredStudentForEnrollment(): int
     test()->actingAs(test()->manager)->post('/students', [
         'name' => 'Estudiante de prueba',
         'email' => fake()->unique()->safeEmail(),
+        'username' => 'student_'.fake()->unique()->numerify('#####'),
+        'identifier' => fake()->unique()->numerify('ID-#####'),
+        'birth_date' => '2000-01-01',
         'temporary_password' => 'temporal-123',
     ])->assertRedirect('/students');
 

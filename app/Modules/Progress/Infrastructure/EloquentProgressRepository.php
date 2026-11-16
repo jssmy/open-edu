@@ -74,23 +74,28 @@ final class EloquentProgressRepository implements ProgressRepository
         ])->all();
     }
 
-    public function courseStudyData(int $courseId, ?int $studentId, ?int $userId = null): ?array
+    public function courseStudyData(int $courseId, ?int $studentId, ?int $userId = null, ?int $courseOfferingId = null): ?array
     {
-        if ($studentId === null && $userId === null) {
+        if ($studentId === null && $userId === null && $courseOfferingId === null) {
             return null;
         }
 
-        $course = Course::query()
-            ->whereKey($courseId)
-            ->where('status', 'published')
-            ->whereHas('enrollments', function (Builder $query) use ($studentId, $userId): void {
-                $query->where('status', EnrollmentStatus::Active->value);
-                if ($studentId !== null) {
-                    $query->where('student_id', $studentId);
-                } else {
-                    $query->where('user_id', $userId);
-                }
-            })
+        $courseQuery = Course::query()
+            ->whereKey($courseId);
+
+        if ($courseOfferingId === null) {
+            $courseQuery->where('status', 'published')
+                ->whereHas('enrollments', function (Builder $query) use ($studentId, $userId): void {
+                    $query->where('status', EnrollmentStatus::Active->value);
+                    if ($studentId !== null) {
+                        $query->where('student_id', $studentId);
+                    } else {
+                        $query->where('user_id', $userId);
+                    }
+                });
+        }
+
+        $course = $courseQuery
             ->with(['units.lessons' => fn (Relation $query) => $query
                 ->where('is_archived', false)
                 ->orderBy('position')])
@@ -100,21 +105,6 @@ final class EloquentProgressRepository implements ProgressRepository
             return null;
         }
 
-        $lessons = $course->units->flatMap(fn (Unit $unit) => $unit->lessons);
-        $completedLessonIds = $lessons->isEmpty()
-            ? []
-            : DB::table('lesson_progress')
-                ->when(
-                    $studentId !== null,
-                    fn ($query) => $query->where('student_id', $studentId),
-                    fn ($query) => $query->where('user_id', $userId),
-                )
-                ->whereIn('lesson_id', $lessons->pluck('id')->all())
-                ->pluck('lesson_id')
-                ->map(fn ($lessonId): int => (int) $lessonId)
-                ->all();
-        $completedLessons = array_fill_keys($completedLessonIds, true);
-
         $enrollment = Enrollment::query()
             ->where('course_id', $course->id)
             ->where('status', EnrollmentStatus::Active->value)
@@ -123,8 +113,38 @@ final class EloquentProgressRepository implements ProgressRepository
                 fn (Builder $query) => $query->where('student_id', $studentId),
                 fn (Builder $query) => $query->where('user_id', $userId),
             )
-            ->with('certificate')
+            ->with(['certificate', 'courseOffering'])
             ->first();
+
+        $offeringId = $courseOfferingId ?? $enrollment?->course_offering_id;
+
+        $lessons = $course->units->flatMap(fn (Unit $unit) => $unit->lessons);
+        $completedLessonIds = $lessons->isEmpty()
+            ? []
+            : DB::table('lesson_progress')
+                ->where(function ($query) use ($studentId, $userId, $offeringId): void {
+                    if ($offeringId !== null) {
+                        $query->where('course_offering_id', $offeringId);
+                        if ($studentId !== null || $userId !== null) {
+                            $query->orWhere(function ($sub) use ($studentId, $userId): void {
+                                if ($studentId !== null) {
+                                    $sub->where('student_id', $studentId);
+                                } elseif ($userId !== null) {
+                                    $sub->where('user_id', $userId);
+                                }
+                            });
+                        }
+                    } elseif ($studentId !== null) {
+                        $query->where('student_id', $studentId);
+                    } elseif ($userId !== null) {
+                        $query->where('user_id', $userId);
+                    }
+                })
+                ->whereIn('lesson_id', $lessons->pluck('id')->all())
+                ->pluck('lesson_id')
+                ->map(fn ($lessonId): int => (int) $lessonId)
+                ->all();
+        $completedLessons = array_fill_keys($completedLessonIds, true);
 
         $certificateData = null;
         if ($enrollment?->certificate !== null) {
@@ -163,51 +183,122 @@ final class EloquentProgressRepository implements ProgressRepository
         ];
     }
 
-    public function markLessonCompleted(?int $studentId, int $lessonId, ?int $userId = null): void
-    {
+    public function markLessonCompleted(
+        ?int $studentId,
+        int $lessonId,
+        ?int $userId = null,
+        ?int $courseOfferingId = null,
+        string $action = 'complete',
+    ): bool {
         $now = now();
 
+        // 1. Avance de clase programada dictada por docente
+        if ($courseOfferingId !== null) {
+            $existing = DB::table('lesson_progress')
+                ->where('course_offering_id', $courseOfferingId)
+                ->where('lesson_id', $lessonId)
+                ->first();
+
+            if ($existing !== null) {
+                if ($action === 'uncomplete' || $action === 'toggle') {
+                    DB::table('lesson_progress')->where('id', $existing->id)->delete();
+
+                    return false;
+                }
+
+                return true;
+            }
+
+            if ($action === 'uncomplete') {
+                return false;
+            }
+
+            DB::table('lesson_progress')->insert([
+                'course_offering_id' => $courseOfferingId,
+                'user_id' => $userId,
+                'student_id' => null,
+                'lesson_id' => $lessonId,
+                'completed_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            return true;
+        }
+
+        // 2. Avance individual de estudiante
         if ($studentId !== null) {
             $resolvedUserId = $userId ?? Student::query()->whereKey($studentId)->value('user_id');
+
+            $existing = DB::table('lesson_progress')
+                ->where('student_id', $studentId)
+                ->where('lesson_id', $lessonId)
+                ->first();
+
+            if ($existing !== null) {
+                if ($action === 'uncomplete' || $action === 'toggle') {
+                    DB::table('lesson_progress')->where('id', $existing->id)->delete();
+
+                    return false;
+                }
+
+                return true;
+            }
+
+            if ($action === 'uncomplete') {
+                return false;
+            }
 
             DB::table('lesson_progress')->insertOrIgnore([
                 'student_id' => $studentId,
                 'user_id' => $resolvedUserId,
+                'course_offering_id' => null,
                 'lesson_id' => $lessonId,
                 'completed_at' => $now,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
 
-            if (! DB::table('lesson_progress')
-                ->where('student_id', $studentId)
-                ->where('lesson_id', $lessonId)
-                ->exists()) {
-                throw new RuntimeException('No se pudo registrar el progreso de la lección.');
-            }
-
-            return;
+            return true;
         }
 
+        // 3. Avance individual de usuario directo (docente autoinscrito / offline)
         if ($userId === null) {
             throw new RuntimeException('Se requiere un participante válido para registrar el progreso.');
         }
 
-        $exists = DB::table('lesson_progress')
+        $existing = DB::table('lesson_progress')
             ->where('user_id', $userId)
             ->where('lesson_id', $lessonId)
-            ->exists();
+            ->whereNull('course_offering_id')
+            ->whereNull('student_id')
+            ->first();
 
-        if (! $exists) {
-            DB::table('lesson_progress')->insert([
-                'student_id' => null,
-                'user_id' => $userId,
-                'lesson_id' => $lessonId,
-                'completed_at' => $now,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+        if ($existing !== null) {
+            if ($action === 'uncomplete' || $action === 'toggle') {
+                DB::table('lesson_progress')->where('id', $existing->id)->delete();
+
+                return false;
+            }
+
+            return true;
         }
+
+        if ($action === 'uncomplete') {
+            return false;
+        }
+
+        DB::table('lesson_progress')->insert([
+            'student_id' => null,
+            'user_id' => $userId,
+            'course_offering_id' => null,
+            'lesson_id' => $lessonId,
+            'completed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return true;
     }
 
     public function issueCertificate(int $courseId, int $userId, ?int $studentId = null): array

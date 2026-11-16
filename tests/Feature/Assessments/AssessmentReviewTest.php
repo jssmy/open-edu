@@ -256,5 +256,38 @@ test('in_progress assessment review hides is_correct flags from choices and stud
             ->where('questions.0.student_answer.choice_id', $correctChoice->id)
             ->where('questions.0.student_answer.is_correct', null)
             ->where('questions.0.choices.0.is_correct', null)
+            ->where('backCourseUrl', "/my/courses/{$course->id}")
+            ->where('backListUrl', '/my/classes')
+            ->where('backListLabel', 'Volver a mis clases')
+        );
+});
+
+test('enrolled teacher gets course and catalog back links on review', function (): void {
+    $teacher = userWithRole(Role::Docente);
+    $course = Course::factory()->create();
+
+    Enrollment::factory()->create([
+        'course_id' => $course->id,
+        'user_id' => $teacher->id,
+        'status' => EnrollmentStatus::Active->value,
+    ]);
+
+    $assessment = Assessment::query()->create([
+        'course_id' => $course->id,
+        'title' => 'Examen Docente',
+        'is_published' => true,
+        'total_score' => 10,
+        'passing_score' => 6,
+        'max_attempts' => 1,
+    ]);
+
+    $this->actingAs($teacher)
+        ->get("/assessments/{$assessment->id}/review")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Assessments/Review')
+            ->where('backCourseUrl', "/my/courses/{$course->id}")
+            ->where('backListUrl', '/courses')
+            ->where('backListLabel', 'Volver a mis cursos')
         );
 });

@@ -18,8 +18,10 @@ function createActiveStudentForEnrollment(string $name = 'Estudiante Activo'): i
     test()->actingAs(test()->admin)->post('/students', [
         'name' => $name,
         'email' => fake()->unique()->safeEmail(),
+        'username' => 'student_'.fake()->unique()->numerify('#####'),
         'temporary_password' => 'temporal-123',
         'identifier' => fake()->unique()->numerify('DOC-#####'),
+        'birth_date' => '2000-01-01',
     ])->assertRedirect('/students');
 
     return (int) DB::table('students')->latest('id')->value('id');

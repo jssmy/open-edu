@@ -37,25 +37,36 @@ interface AttemptItem {
     submitted_at: string | null;
 }
 
-const props = defineProps<{
-    assessment: {
-        id: number;
-        title: string;
-        instructions: RichTextDocument | null;
-        total_score: number;
-        passing_score: number;
-        course_name?: string | null;
-    };
-    student: {
-        id: number;
-        name: string;
-        email?: string;
-    } | null;
-    attempt: AttemptItem | null;
-    questions: QuestionItem[];
-    isStudent: boolean;
-    canContinue: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        assessment: {
+            id: number;
+            course_id?: number;
+            title: string;
+            instructions: RichTextDocument | null;
+            total_score: number;
+            passing_score: number;
+            course_name?: string | null;
+        };
+        student: {
+            id: number;
+            name: string;
+            email?: string;
+        } | null;
+        attempt: AttemptItem | null;
+        questions: QuestionItem[];
+        isStudent: boolean;
+        canContinue: boolean;
+        backCourseUrl?: string | null;
+        backListUrl?: string;
+        backListLabel?: string;
+    }>(),
+    {
+        backCourseUrl: null,
+        backListUrl: '/courses',
+        backListLabel: 'Volver a mis cursos',
+    },
+);
 
 const isCompleted = computed(() => props.attempt?.status === 'completed' || props.attempt?.status === 'submitted');
 const isInProgress = computed(() => props.attempt?.status === 'in_progress');
@@ -74,21 +85,30 @@ function formatDate(iso: string | null | undefined): string {
         <main class="mx-auto flex w-full max-w-4xl flex-col gap-6" data-testid="assessment-review-page">
             <!-- Encabezado y Navegación de Regreso -->
             <header class="flex flex-col gap-2">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2 text-sm">
                     <Link
                         v-if="student && !isStudent"
                         :href="`/students/${student.id}`"
-                        class="text-sm font-medium text-primary hover:underline"
+                        class="font-medium text-primary hover:underline"
                     >
                         ← Volver al perfil de {{ student.name }}
                     </Link>
-                    <Link
-                        v-else
-                        href="/my/classes"
-                        class="text-sm font-medium text-primary hover:underline"
-                    >
-                        ← Volver a mis clases
-                    </Link>
+                    <template v-else>
+                        <Link
+                            v-if="backCourseUrl || assessment.course_id"
+                            :href="backCourseUrl || `/my/courses/${assessment.course_id}`"
+                            class="font-medium text-primary hover:underline"
+                        >
+                            ← Volver al curso
+                        </Link>
+                        <span v-if="backCourseUrl || assessment.course_id" class="text-text-muted">·</span>
+                        <Link
+                            :href="backListUrl"
+                            class="text-text-muted hover:text-text hover:underline"
+                        >
+                            {{ backListLabel }}
+                        </Link>
+                    </template>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-3">

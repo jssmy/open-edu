@@ -11,7 +11,9 @@ use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Progress\Application\CompleteLesson;
 use App\Modules\Progress\Application\GetCourseProgress;
 use App\Modules\Progress\Application\GetMyCourses;
+use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use App\Modules\Students\Infrastructure\Models\Student;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -82,9 +84,12 @@ final class StudyController extends Controller
             ? '/courses'
             : '/my/classes';
 
+        $canMarkComplete = ! $isFinished && ($enrollment === null || $enrollment->course_offering_id === null);
+
         return Inertia::render('Study/CourseViewer', [
             'course' => $courseData,
             'isReadOnly' => $isFinished,
+            'canMarkComplete' => $canMarkComplete,
             'backUrl' => $backUrl,
         ]);
     }
@@ -93,13 +98,41 @@ final class StudyController extends Controller
         Request $request,
         Lesson $lesson,
         CompleteLesson $completeLesson,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $course = $lesson->unit->course;
         abort_if($course === null, 404);
-        Gate::authorize('accessCourse', $course);
         abort_if($lesson->is_archived, 404);
 
         $user = $request->user();
+        $courseOfferingId = $request->input('course_offering_id') ? (int) $request->input('course_offering_id') : null;
+        $action = (string) $request->input('action', 'complete');
+
+        if ($courseOfferingId !== null) {
+            $isAuthorizedTeacher = CourseOffering::query()
+                ->whereKey($courseOfferingId)
+                ->where('course_id', $course->id)
+                ->whereHas('teachers', fn ($q) => $q->where('users.id', $user->id))
+                ->exists();
+
+            $canManage = $user->hasRole('administrador') || $user->can('courses.manage') || $isAuthorizedTeacher;
+            abort_unless($canManage, 403, 'No autorizado para marcar clases en esta oferta.');
+
+            $isCompleted = $completeLesson(null, $lesson->id, $user->id, $courseOfferingId, $action);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'is_completed' => $isCompleted,
+                    'course_offering_id' => $courseOfferingId,
+                    'lesson_id' => $lesson->id,
+                ]);
+            }
+
+            return back()->with('success', $isCompleted ? 'Lección marcada como dictada.' : 'Lección desmarcada.');
+        }
+
+        Gate::authorize('accessCourse', $course);
+
         $student = $this->optionalActiveStudent($request);
 
         $enrollment = Enrollment::query()
@@ -119,7 +152,15 @@ final class StudyController extends Controller
             }
         }
 
-        $completeLesson($student?->id, $lesson->id, $user->id);
+        $isCompleted = $completeLesson($student?->id, $lesson->id, $user->id, null, $action);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'is_completed' => $isCompleted,
+                'lesson_id' => $lesson->id,
+            ]);
+        }
 
         return to_route('study.courses.show', $course)->with('success', 'Lección completada.');
     }

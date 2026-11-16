@@ -19,19 +19,39 @@ interface Result {
     submitted_at: string;
 }
 
-defineProps<{
-    assessment: {
-        id: number;
-        title: string;
-        total_score: number;
-        instructions: RichTextDocument | null;
-        questions: { id: number; statement: RichTextDocument }[];
-    } | null;
-    result: Result | null;
-    results: Result[];
-    hasInProgressAttempt?: boolean;
-    canTake?: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        assessment: {
+            id: number;
+            course_id?: number;
+            course_name?: string | null;
+            title: string;
+            total_score: number;
+            instructions: RichTextDocument | null;
+            questions: { id: number; statement: RichTextDocument }[];
+        } | null;
+        result?: Result | null;
+        results?: Result[];
+        canManage?: boolean;
+        isStudent?: boolean;
+        backCourseUrl?: string | null;
+        backListUrl?: string;
+        backListLabel?: string;
+        hasInProgressAttempt?: boolean;
+        canTake?: boolean;
+    }>(),
+    {
+        result: null,
+        results: () => [],
+        canManage: false,
+        isStudent: false,
+        backCourseUrl: null,
+        backListUrl: '/courses',
+        backListLabel: 'Volver a mis cursos',
+        hasInProgressAttempt: false,
+        canTake: false,
+    },
+);
 
 function submittedAt(value: string): string {
     return new Date(value).toLocaleString();
@@ -43,16 +63,38 @@ function submittedAt(value: string): string {
     <AppLayout>
         <main class="mx-auto flex w-full max-w-4xl flex-col gap-6">
             <header class="flex flex-col gap-2">
-                <Link
-                    :href="assessment ? `/assessments/${assessment.id}/edit` : '/my/courses'"
-                    class="text-sm text-primary hover:underline"
-                >
-                    {{ assessment ? 'Volver a la evaluación' : 'Volver a mis cursos' }}
-                </Link>
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <Link
+                        v-if="assessment && canManage"
+                        :href="`/assessments/${assessment.id}/edit`"
+                        class="font-medium text-primary hover:underline"
+                    >
+                        ← Volver a editar evaluación
+                    </Link>
+                    <Link
+                        v-else-if="assessment && (backCourseUrl || assessment.course_id)"
+                        :href="backCourseUrl || `/my/courses/${assessment.course_id}`"
+                        class="font-medium text-primary hover:underline"
+                    >
+                        ← Volver al curso
+                    </Link>
+                    <span v-if="assessment && (backCourseUrl || assessment.course_id)" class="text-text-muted">·</span>
+                    <Link
+                        :href="backListUrl"
+                        class="text-text-muted hover:text-text hover:underline"
+                    >
+                        {{ backListLabel }}
+                    </Link>
+                </div>
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h1 class="text-2xl font-semibold">
-                        {{ assessment ? `Resultados: ${assessment.title}` : 'Mis resultados' }}
-                    </h1>
+                    <div>
+                        <span v-if="assessment?.course_name" class="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                            {{ assessment.course_name }}
+                        </span>
+                        <h1 class="text-2xl font-semibold">
+                            {{ assessment ? `Resultados: ${assessment.title}` : 'Mis resultados' }}
+                        </h1>
+                    </div>
                     <Link
                         v-if="assessment && result"
                         :href="`/assessments/${assessment.id}/review`"

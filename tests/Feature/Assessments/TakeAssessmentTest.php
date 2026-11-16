@@ -177,3 +177,70 @@ it('forbids starting an assessment without an active enrollment', function () {
 
     $this->assertDatabaseCount('attempts', 0);
 });
+
+it('provides appropriate back links on take and results for students and enrolled teachers', function () {
+    $course = Course::factory()->create(['status' => 'published']);
+    $assessment = Assessment::query()->create([
+        'course_id' => $course->id,
+        'title' => 'Evaluación de prueba de navegación',
+        'max_attempts' => 2,
+        'passing_score' => 1,
+        'total_score' => 1,
+        'is_published' => true,
+    ]);
+    $question = $assessment->questions()->create([
+        'statement' => richTextDocument('Pregunta 1'),
+        'points' => 1,
+        'position' => 1,
+    ]);
+    $choice = $question->choices()->create(['text' => 'Opción 1', 'is_correct' => true]);
+
+    // 1. Verificación para Estudiante
+    $studentUser = userWithRole(Role::Estudiante, ['must_change_password' => false]);
+    $student = Student::factory()->create(['user_id' => $studentUser->id]);
+    Enrollment::query()->create([
+        'student_id' => $student->id,
+        'course_id' => $course->id,
+        'status' => EnrollmentStatus::Active,
+        'enrolled_at' => now(),
+    ]);
+
+    $this->actingAs($studentUser)->get("/assessments/{$assessment->id}/take")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Assessments/Take')
+            ->where('backCourseUrl', "/my/courses/{$course->id}")
+            ->where('backListUrl', '/my/classes')
+            ->where('backListLabel', 'Volver a mis clases'));
+
+    $this->actingAs($studentUser)->get("/assessments/{$assessment->id}/results")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Assessments/Results')
+            ->where('canManage', false)
+            ->where('backCourseUrl', "/my/courses/{$course->id}")
+            ->where('backListUrl', '/my/classes')
+            ->where('backListLabel', 'Volver a mis clases'));
+
+    // 2. Verificación para Docente matriculado
+    $teacher = userWithRole(Role::Docente, ['must_change_password' => false]);
+    Enrollment::query()->create([
+        'user_id' => $teacher->id,
+        'course_id' => $course->id,
+        'status' => EnrollmentStatus::Active,
+        'enrolled_at' => now(),
+    ]);
+
+    $this->actingAs($teacher)->get("/assessments/{$assessment->id}/take")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Assessments/Take')
+            ->where('backCourseUrl', "/my/courses/{$course->id}")
+            ->where('backListUrl', '/courses')
+            ->where('backListLabel', 'Volver a mis cursos'));
+
+    $this->actingAs($teacher)->get("/assessments/{$assessment->id}/results")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Assessments/Results')
+            ->where('canManage', false)
+            ->where('backCourseUrl', "/my/courses/{$course->id}")
+            ->where('backListUrl', '/courses')
+            ->where('backListLabel', 'Volver a mis cursos'));
+});

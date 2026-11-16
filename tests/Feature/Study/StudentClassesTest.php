@@ -43,6 +43,13 @@ it('redirects student from /my/courses to /my/classes', function () {
         ->assertRedirect(route('my.classes.index'));
 });
 
+it('redirects teacher from /my/courses to /courses', function () {
+    $teacher = userWithRole(Role::Docente, ['must_change_password' => false]);
+
+    $this->actingAs($teacher)->get('/my/courses')
+        ->assertRedirect(route('courses.index'));
+});
+
 it('lists student enrolled classes on /my/classes with state filters', function () {
     [$user, $student, $activeCourse, $activeOffering] = setupStudentWithOffering([
         'starts_on' => now()->subDays(5)->toDateString(),
