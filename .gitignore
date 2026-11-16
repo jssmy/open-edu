@@ -47,3 +47,5 @@ Thumbs.db
 /backups/*.sql
 /backups/*.gz
 !backups/.gitkeep
+
+/graphify-out/

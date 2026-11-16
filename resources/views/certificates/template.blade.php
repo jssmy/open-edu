@@ -138,7 +138,7 @@
             <div class="participant-name">{{ $participantName }}</div>
 
             <p class="completion-text">Por haber culminado satisfactoriamente el curso:</p>
-            <div class="course-title">«{{ $courseName }}»</div>
+            <div class="course-title">{{ $courseName }}</div>
 
             <p class="motto">“Educando con amor y construyendo futuro en el Perú”</p>
 

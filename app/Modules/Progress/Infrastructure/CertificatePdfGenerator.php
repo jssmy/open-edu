@@ -158,9 +158,9 @@ final class CertificatePdfGenerator
                 '0.20 0.25 0.33',
             ),
             $this->centeredText(
-                '«'.$this->toPdfEncoding($courseName).'»',
+                $this->toPdfEncoding($courseName),
                 242,
-                21,
+                mb_strlen($courseName) > 45 ? 18 : 21,
                 'F2',
                 '0.06 0.09 0.16',
             ),
