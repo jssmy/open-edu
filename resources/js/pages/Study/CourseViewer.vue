@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Alert from '@/design-system/Alert.vue';
@@ -128,12 +128,26 @@ const flattenedLessons = computed<FlattenedLesson[]>(() => {
     return list;
 });
 
-// Inicializar en la última lección completada (tanto para docente como estudiante) o en la primera si no hay avance
-const activeLessonIndex = ref(0);
-const lastCompletedIndex = flattenedLessons.value.findLastIndex((l) => l.is_completed);
-if (lastCompletedIndex >= 0) {
-    activeLessonIndex.value = lastCompletedIndex;
+// Determina de forma robusta la última lección completada recorriendo la lista en reversa
+function resolveLastCompletedLessonIndex(lessons: FlattenedLesson[]): number {
+    for (let i = lessons.length - 1; i >= 0; i--) {
+        if (lessons[i]?.is_completed) {
+            return i;
+        }
+    }
+    return 0;
 }
+
+// Inicializar en la última lección completada (tanto para docente como estudiante) o en la primera si no hay avance
+const activeLessonIndex = ref(resolveLastCompletedLessonIndex(flattenedLessons.value));
+
+// Sincronizar reactivamente si cambia de curso dentro de la navegación SPA de Inertia
+watch(
+    () => props.course.id,
+    () => {
+        activeLessonIndex.value = resolveLastCompletedLessonIndex(flattenedLessons.value);
+    },
+);
 
 const activeLesson = computed<FlattenedLesson | null>(() => {
     return flattenedLessons.value[activeLessonIndex.value] ?? null;
@@ -174,6 +188,10 @@ function handleKeydown(event: KeyboardEvent) {
 
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown);
+    // Validación de límites ante hidratación asíncrona
+    if (activeLessonIndex.value >= flattenedLessons.value.length && flattenedLessons.value.length > 0) {
+        activeLessonIndex.value = resolveLastCompletedLessonIndex(flattenedLessons.value);
+    }
 });
 
 onUnmounted(() => {

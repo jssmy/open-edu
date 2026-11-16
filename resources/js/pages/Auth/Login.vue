@@ -14,50 +14,103 @@ const workshops = [
         badge: 'DISCIPLINA',
         image: '/images/workshops/karate.jpg',
         desc: 'Fuerza, respeto y autocontrol para la vida',
-        tagBg: 'bg-red-50 text-red-700 border-red-200',
-        cardBorder: 'hover:border-red-300',
+        tagBg: 'bg-rose-600 text-white',
+        orbBorder: 'ring-rose-500 shadow-rose-500/30',
+        desktopStyle: 'top: calc(50% - 195px); left: calc(50% - 130px);',
+        popupSide: 'right',
+        pulseDelay: '0s',
     },
     {
         name: 'Teatro',
         badge: 'EXPRESIÓN',
         image: '/images/workshops/theatre.jpg',
         desc: 'Confianza, empatía, oratoria y expresión corporal',
-        tagBg: 'bg-purple-50 text-purple-700 border-purple-200',
-        cardBorder: 'hover:border-purple-300',
+        tagBg: 'bg-purple-600 text-white',
+        orbBorder: 'ring-purple-500 shadow-purple-500/30',
+        desktopStyle: 'top: calc(50% - 195px); left: calc(50% + 130px);',
+        popupSide: 'left',
+        pulseDelay: '0.4s',
     },
     {
         name: 'Arte y Pintura',
         badge: 'CREATIVIDAD',
         image: '/images/workshops/art.jpg',
         desc: 'Creatividad, dibujo, pintura y sensibilidad estética',
-        tagBg: 'bg-pink-50 text-pink-700 border-pink-200',
-        cardBorder: 'hover:border-pink-300',
+        tagBg: 'bg-pink-600 text-white',
+        orbBorder: 'ring-pink-500 shadow-pink-500/30',
+        desktopStyle: 'top: 50%; left: calc(50% - 245px);',
+        popupSide: 'right',
+        pulseDelay: '0.8s',
     },
     {
         name: 'Matemáticas',
         badge: 'LÓGICA',
         image: '/images/workshops/math.jpg',
         desc: 'Pensamiento analítico, resolución de retos y cálculo',
-        tagBg: 'bg-blue-50 text-blue-700 border-blue-200',
-        cardBorder: 'hover:border-blue-300',
+        tagBg: 'bg-blue-600 text-white',
+        orbBorder: 'ring-blue-500 shadow-blue-500/30',
+        desktopStyle: 'top: 50%; left: calc(50% + 245px);',
+        popupSide: 'left',
+        pulseDelay: '1.2s',
     },
     {
         name: 'Inglés',
         badge: 'IDIOMAS',
         image: '/images/workshops/english.jpg',
         desc: 'Apertura al mundo, vocabulario y comunicación',
-        tagBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        cardBorder: 'hover:border-emerald-300',
+        tagBg: 'bg-emerald-600 text-white',
+        orbBorder: 'ring-emerald-500 shadow-emerald-500/30',
+        desktopStyle: 'top: calc(50% + 195px); left: calc(50% - 130px);',
+        popupSide: 'right',
+        pulseDelay: '1.6s',
     },
     {
         name: 'Computación',
         badge: 'DIGITAL',
         image: '/images/workshops/computing.jpg',
         desc: 'Habilidades digitales, tecnología e innovación',
-        tagBg: 'bg-amber-50 text-amber-700 border-amber-200',
-        cardBorder: 'hover:border-amber-300',
+        tagBg: 'bg-amber-600 text-white',
+        orbBorder: 'ring-amber-500 shadow-amber-500/30',
+        desktopStyle: 'top: calc(50% + 195px); left: calc(50% + 130px);',
+        popupSide: 'left',
+        pulseDelay: '2s',
     },
 ];
+
+const metrics = [
+    {
+        value: '6+',
+        label: 'Talleres Activos',
+        desc: 'Talleres de formación integral continua',
+        tagBg: 'bg-rose-600 text-white',
+        orbBorder: 'ring-rose-400 shadow-rose-400/25 text-rose-700 bg-rose-50',
+        desktopStyle: 'top: calc(50% - 85px); left: 50%;',
+        popupSide: 'right',
+    },
+    {
+        value: '100%',
+        label: 'Gratuito y Solidario',
+        desc: 'Acceso universal y libre de costos',
+        tagBg: 'bg-amber-600 text-white',
+        orbBorder: 'ring-amber-400 shadow-amber-400/25 text-amber-700 bg-amber-50',
+        desktopStyle: 'top: calc(50% + 75px); left: calc(50% - 75px);',
+        popupSide: 'right',
+    },
+    {
+        value: 'Futuro',
+        label: 'Oportunidades',
+        desc: 'Construyendo proyectos de vida',
+        tagBg: 'bg-sky-600 text-white',
+        orbBorder: 'ring-sky-400 shadow-sky-400/25 text-sky-700 bg-sky-50',
+        desktopStyle: 'top: calc(50% + 75px); left: calc(50% + 75px);',
+        popupSide: 'left',
+    },
+];
+
+const activeMobileWorkshop = ref<string | null>(null);
+const toggleMobileWorkshop = (name: string) => {
+    activeMobileWorkshop.value = activeMobileWorkshop.value === name ? null : name;
+};
 
 const showPassword = ref(false);
 </script>
@@ -152,57 +205,197 @@ const showPassword = ref(false);
                         </p>
                     </div>
 
-                    <!-- Impact Metrics Strip -->
-                    <div class="grid grid-cols-3 gap-3 sm:gap-4 p-4 rounded-2xl bg-white border border-stone-200 shadow-sm">
-                        <div class="text-center p-2 rounded-xl bg-rose-50/60 border border-rose-100">
-                            <span class="block text-2xl sm:text-3xl font-black text-rose-700">6+</span>
-                            <span class="text-[11px] sm:text-xs font-semibold text-rose-900 tracking-wider uppercase">Talleres Activos</span>
-                        </div>
-                        <div class="text-center p-2 rounded-xl bg-amber-50/60 border border-amber-100">
-                            <span class="block text-2xl sm:text-3xl font-black text-amber-700">100%</span>
-                            <span class="text-[11px] sm:text-xs font-semibold text-amber-900 tracking-wider uppercase">Gratuito y Solidario</span>
-                        </div>
-                        <div class="text-center p-2 rounded-xl bg-sky-50/60 border border-sky-100">
-                            <span class="block text-2xl sm:text-3xl font-black text-sky-700">Futuro</span>
-                            <span class="text-[11px] sm:text-xs font-semibold text-sky-900 tracking-wider uppercase">Oportunidades</span>
-                        </div>
-                    </div>
-
-                    <!-- Workshops Grid -->
-                    <div>
-                        <div class="flex items-center justify-between mb-4">
+                    <!-- Ecosistema Atómico Formativo (Sin Card, Órbitas Atómicas e Iconos Expansibles en Hover) -->
+                    <div class="relative w-full py-2">
+                        <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
-                                <span class="h-2.5 w-2.5 rounded-full bg-rose-600"></span>
+                                <span class="h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse"></span>
                                 <h2 class="text-xs font-bold tracking-widest uppercase text-stone-500">
-                                    NUESTROS TALLERES FORMATIVOS
+                                    ÁTOMO FORMATIVO • TALLERES Y VALORES
                                 </h2>
                             </div>
-                            <span class="text-xs font-medium text-stone-400">Aprende, Descubre y Crece</span>
+                            <span class="text-xs font-medium text-stone-400 hidden sm:inline">Pasa el cursor sobre cada electrón</span>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                            <div
-                                v-for="workshop in workshops"
-                                :key="workshop.name"
-                                :class="['p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center gap-3.5', workshop.cardBorder]"
-                            >
-                                <div class="w-14 h-14 rounded-xl bg-stone-50 border border-stone-100 flex-shrink-0 overflow-hidden p-1 shadow-inner flex items-center justify-center">
-                                    <img
-                                        :src="workshop.image"
-                                        :alt="workshop.name"
-                                        class="w-full h-full object-contain rounded-lg hover:scale-105 transition-transform duration-200"
-                                        loading="lazy"
-                                    />
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center gap-2 mb-0.5">
-                                        <h3 class="font-bold text-sm text-slate-900 truncate">{{ workshop.name }}</h3>
-                                        <span :class="['text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border', workshop.tagBg]">
-                                            {{ workshop.badge }}
+                        <!-- Atomic Canvas (Completamente sin tarjeta / Frameless) -->
+                        <div class="relative w-full overflow-visible">
+                            <!-- Desktop Atomic System (lg screens) -->
+                            <div class="hidden lg:block relative w-full h-[500px]" aria-label="Estructura atómica de talleres formativos y valores">
+                                <!-- 3 Intersecting Atomic Orbital Ellipses ⚛️ -->
+                                <div class="atom-orbit atom-orbit--1" aria-hidden="true"></div>
+                                <div class="atom-orbit atom-orbit--2" aria-hidden="true"></div>
+                                <div class="atom-orbit atom-orbit--3" aria-hidden="true"></div>
+                                <div class="atom-orbit atom-orbit--core" aria-hidden="true"></div>
+
+                                <!-- Central Nucleus: Núcleo Atómico con Logotipo Institucional -->
+                                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+                                    <div class="relative w-20 h-20 rounded-full p-1 bg-gradient-to-tr from-rose-600 via-amber-400 to-rose-500 shadow-xl shadow-rose-500/25 animate-pulse-gentle">
+                                        <div class="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-1.5 border-2 border-white shadow-inner">
+                                            <img
+                                                src="/images/workshops/logo.jpeg"
+                                                alt="Logo Asociación Un Día de Esperanza"
+                                                class="w-full h-full object-contain"
+                                                onerror="this.style.display='none'"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur-sm border border-stone-200/90 shadow-sm">
+                                        <span class="w-2 h-2 rounded-full bg-rose-600"></span>
+                                        <span class="text-[10px] font-black tracking-wide text-rose-800 uppercase">
+                                            Un Día de Esperanza
                                         </span>
                                     </div>
-                                    <p class="text-xs text-stone-500 leading-snug line-clamp-2">
-                                        {{ workshop.desc }}
+                                </div>
+
+                                <!-- 3 Metric Quantum Particles (Inner Orbitals) -->
+                                <div
+                                    v-for="metric in metrics"
+                                    :key="metric.label"
+                                    class="absolute -translate-x-1/2 -translate-y-1/2 z-20 hover:z-50 focus-within:z-50 group"
+                                    :style="metric.desktopStyle"
+                                >
+                                    <!-- Metric Orb Node (solo valor visible, animación directa al nodo) -->
+                                    <div
+                                        :class="[
+                                            'relative w-10 h-10 rounded-full border flex items-center justify-center cursor-pointer shadow-md transition-all duration-300 atom-icon-pulse group-hover:scale-125 group-hover:shadow-lg',
+                                            metric.orbBorder
+                                        ]"
+                                    >
+                                        <span class="text-xs font-black tracking-tight leading-none">{{ metric.value }}</span>
+                                    </div>
+
+                                    <!-- Expanding Card on Hover (z-50 siempre por encima) -->
+                                    <div
+                                        :class="[
+                                            'absolute top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out z-50',
+                                            metric.popupSide === 'right' ? 'left-full ml-3 -translate-x-2 group-hover:translate-x-0' : 'right-full mr-3 translate-x-2 group-hover:translate-x-0'
+                                        ]"
+                                    >
+                                        <div class="px-3 py-2 rounded-xl bg-slate-900/95 text-white shadow-2xl backdrop-blur-md border border-slate-700/80 min-w-[150px] whitespace-nowrap">
+                                            <div class="font-extrabold text-xs text-rose-300">{{ metric.value }} {{ metric.label }}</div>
+                                            <p class="text-[10px] text-stone-300 font-normal">{{ metric.desc }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 6 Workshop Electrons (Solo Iconos Visibles • Animación directa al icono • Expanden en Hover) -->
+                                <div
+                                    v-for="workshop in workshops"
+                                    :key="workshop.name"
+                                    class="absolute -translate-x-1/2 -translate-y-1/2 z-20 hover:z-50 focus-within:z-50 group"
+                                    :style="workshop.desktopStyle"
+                                >
+                                    <!-- Pure Circular Icon Orb con Animación Pulsante Directa -->
+                                    <div
+                                        :class="[
+                                            'relative w-12 h-12 rounded-full p-0.5 bg-white ring-2 ring-offset-2 flex items-center justify-center flex-shrink-0 cursor-pointer shadow-md transition-all duration-300 atom-icon-pulse group-hover:scale-125 group-hover:shadow-2xl group-hover:ring-4',
+                                            workshop.orbBorder
+                                        ]"
+                                        :style="{ animationDelay: workshop.pulseDelay }"
+                                    >
+                                        <img
+                                            :src="workshop.image"
+                                            :alt="workshop.name"
+                                            class="w-full h-full object-contain rounded-full"
+                                            loading="lazy"
+                                        />
+                                    </div>
+
+                                    <!-- Expands in Hover: Shows Name, Badge and Description (z-50 Siempre Por Encima de Todos los Iconos) -->
+                                    <div
+                                        :class="[
+                                            'absolute top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out z-50',
+                                            workshop.popupSide === 'right' ? 'left-full ml-3 -translate-x-2 group-hover:translate-x-0' : 'right-full mr-3 translate-x-2 group-hover:translate-x-0'
+                                        ]"
+                                    >
+                                        <div class="p-3 rounded-2xl bg-slate-900/95 text-white shadow-2xl backdrop-blur-md border border-slate-700/80 w-60">
+                                            <div class="flex items-center justify-between gap-2 mb-1">
+                                                <span class="font-extrabold text-sm text-white tracking-tight">{{ workshop.name }}</span>
+                                                <span :class="['text-[8px] font-black uppercase px-2 py-0.5 rounded-full', workshop.tagBg]">
+                                                    {{ workshop.badge }}
+                                                </span>
+                                            </div>
+                                            <p class="text-xs text-stone-300 leading-snug">
+                                                {{ workshop.desc }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mobile / Tablet Fallback (< lg screens, Sin Tarjeta) -->
+                            <div class="lg:hidden flex flex-col items-center space-y-5 py-4">
+                                <!-- Mobile Nucleus -->
+                                <div class="flex flex-col items-center">
+                                    <div class="w-16 h-16 rounded-full p-1 bg-gradient-to-tr from-rose-600 via-amber-400 to-rose-500 shadow-lg">
+                                        <div class="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-1">
+                                            <img
+                                                src="/images/workshops/logo.jpeg"
+                                                alt="Logo Asociación Un Día de Esperanza"
+                                                class="w-full h-full object-contain"
+                                                onerror="this.style.display='none'"
+                                            />
+                                        </div>
+                                    </div>
+                                    <span class="text-xs font-bold text-rose-800 mt-1.5">Un Día de Esperanza</span>
+                                </div>
+
+                                <!-- Mobile Metric Particles Strip -->
+                                <div class="flex items-center justify-center gap-3 w-full">
+                                    <div
+                                        v-for="metric in metrics"
+                                        :key="metric.label"
+                                        class="px-3 py-1 rounded-full border text-center flex items-center gap-1.5 shadow-sm"
+                                        :class="metric.orbBorder"
+                                    >
+                                        <span class="text-xs font-black">{{ metric.value }}</span>
+                                        <span class="text-[9px] font-bold uppercase opacity-85">{{ metric.label }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Mobile Workshop Icons Row (Solo Iconos, Tocar para expandir) -->
+                                <div class="w-full">
+                                    <div class="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+                                        <button
+                                            v-for="workshop in workshops"
+                                            :key="workshop.name"
+                                            type="button"
+                                            @click="toggleMobileWorkshop(workshop.name)"
+                                            :class="[
+                                                'relative w-12 h-12 rounded-full p-0.5 bg-white ring-2 ring-offset-2 flex-shrink-0 transition-transform duration-200 active:scale-95 shadow-md',
+                                                workshop.orbBorder,
+                                                activeMobileWorkshop === workshop.name ? 'scale-110 ring-4' : ''
+                                            ]"
+                                            :title="workshop.name"
+                                        >
+                                            <img
+                                                :src="workshop.image"
+                                                :alt="workshop.name"
+                                                class="w-full h-full object-contain rounded-full"
+                                                loading="lazy"
+                                            />
+                                        </button>
+                                    </div>
+
+                                    <!-- Expanded Details on Tap (Mobile) -->
+                                    <div
+                                        v-if="activeMobileWorkshop"
+                                        class="mt-4 p-3.5 rounded-2xl bg-slate-900 text-white shadow-xl border border-slate-700/80 transition-all duration-200"
+                                    >
+                                        <template v-for="ws in workshops" :key="ws.name">
+                                            <div v-if="activeMobileWorkshop === ws.name">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <span class="font-extrabold text-sm text-white">{{ ws.name }}</span>
+                                                    <span :class="['text-[8px] font-black uppercase px-2 py-0.5 rounded-full', ws.tagBg]">
+                                                        {{ ws.badge }}
+                                                    </span>
+                                                </div>
+                                                <p class="text-xs text-stone-300 leading-snug">{{ ws.desc }}</p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p v-else class="text-center text-[11px] text-stone-400 mt-2 font-medium">
+                                        Toca un icono para ver el taller
                                     </p>
                                 </div>
                             </div>
@@ -367,3 +560,82 @@ const showPassword = ref(false);
         </footer>
     </div>
 </template>
+
+<style scoped>
+.atom-orbit {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 490px;
+    height: 180px;
+    border-radius: 50%;
+    pointer-events: none;
+    transform-origin: center center;
+}
+
+.atom-orbit--1 {
+    transform: translate(-50%, -50%) rotate(0deg);
+    border: 1.5px dashed rgba(225, 29, 72, 0.45);
+    box-shadow: 0 0 30px rgba(225, 29, 72, 0.05);
+}
+
+.atom-orbit--2 {
+    transform: translate(-50%, -50%) rotate(60deg);
+    border: 1.5px dashed rgba(124, 58, 237, 0.45);
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.05);
+}
+
+.atom-orbit--3 {
+    transform: translate(-50%, -50%) rotate(-60deg);
+    border: 1.5px dashed rgba(13, 148, 136, 0.45);
+    box-shadow: 0 0 30px rgba(13, 148, 136, 0.05);
+}
+
+.atom-orbit--core {
+    width: 170px;
+    height: 170px;
+    border: 1.5px dotted rgba(245, 158, 11, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes pulse-gentle {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.25);
+    }
+    50% {
+        transform: scale(1.04);
+        box-shadow: 0 16px 32px -5px rgba(245, 158, 11, 0.35);
+    }
+}
+
+.animate-pulse-gentle {
+    animation: pulse-gentle 4s ease-in-out infinite;
+}
+
+@keyframes atom-icon-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+.atom-icon-pulse {
+    animation: atom-icon-pulse 3s ease-in-out infinite;
+    will-change: transform;
+}
+
+.group:hover .atom-icon-pulse {
+    animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-pulse-gentle,
+    .atom-icon-pulse {
+        animation: none;
+    }
+}
+</style>

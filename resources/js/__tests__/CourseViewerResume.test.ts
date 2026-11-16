@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import CourseViewer from '@/pages/Study/CourseViewer.vue';
 
@@ -17,8 +17,19 @@ vi.mock('@/layouts/AppLayout.vue', () => ({
 }));
 
 describe('CourseViewer Resume and Completion Controls', () => {
-    const createCourse = (lesson1Completed: boolean, lesson2Completed: boolean, lesson3Completed: boolean) => ({
-        id: 10,
+    const originalFindLastIndex = Array.prototype.findLastIndex;
+
+    afterEach(() => {
+        Array.prototype.findLastIndex = originalFindLastIndex;
+    });
+
+    const createCourse = (
+        lesson1Completed: boolean,
+        lesson2Completed: boolean,
+        lesson3Completed: boolean,
+        courseId = 10,
+    ) => ({
+        id: courseId,
         name: 'Curso de Arquitectura',
         description: null,
         intro_video_embed_url: null,
@@ -112,6 +123,70 @@ describe('CourseViewer Resume and Completion Controls', () => {
         expect(wrapper.text()).toContain('Marcar completada');
     });
 
+    it('resumes at the final slide when course is 100% completed', () => {
+        const wrapper = mount(CourseViewer, {
+            props: {
+                course: createCourse(true, true, true),
+                isTeacherView: false,
+                canMarkComplete: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain('Lección 3: Práctica Avanzada');
+        expect(wrapper.text()).toContain('Diapositiva 3 / 3');
+        expect(wrapper.text()).toContain('Completada');
+    });
+
+    it('resumes at the highest completed lesson index when lessons are completed non-linearly (e.g. 1 and 3)', () => {
+        const wrapper = mount(CourseViewer, {
+            props: {
+                course: createCourse(true, false, true),
+                isTeacherView: false,
+                canMarkComplete: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain('Lección 3: Práctica Avanzada');
+        expect(wrapper.text()).toContain('Diapositiva 3 / 3');
+    });
+
+    it('works safely even if Array.prototype.findLastIndex is undefined in older browsers', () => {
+        // @ts-expect-error simulating older environment
+        delete Array.prototype.findLastIndex;
+
+        const wrapper = mount(CourseViewer, {
+            props: {
+                course: createCourse(true, true, false),
+                isTeacherView: false,
+                canMarkComplete: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain('Lección 2: Conceptos Clave');
+        expect(wrapper.text()).toContain('Diapositiva 2 / 3');
+    });
+
+    it('recalculates active lesson index reactively when course prop changes with different progress', async () => {
+        const wrapper = mount(CourseViewer, {
+            props: {
+                course: createCourse(true, true, false, 10),
+                isTeacherView: false,
+                canMarkComplete: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain('Lección 2: Conceptos Clave');
+        expect(wrapper.text()).toContain('Diapositiva 2 / 3');
+
+        // Navegación Inertia SPA a otro curso sin progreso
+        await wrapper.setProps({
+            course: createCourse(false, false, false, 20),
+        });
+
+        expect(wrapper.text()).toContain('Lección 1: Introducción');
+        expect(wrapper.text()).toContain('Diapositiva 1 / 3');
+    });
+
     it('shows guided progress notice when student is in scheduled class (canMarkComplete = false)', () => {
         const wrapper = mount(CourseViewer, {
             props: {
@@ -125,4 +200,3 @@ describe('CourseViewer Resume and Completion Controls', () => {
         expect(wrapper.text()).not.toContain('Marcar completada');
     });
 });
-
