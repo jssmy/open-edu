@@ -11,6 +11,15 @@ const page = usePage<SharedProps>();
 <template>
     <main class="flex min-h-screen items-center justify-center px-gutter">
         <div class="w-full max-w-sm">
+            <div class="mb-4 flex justify-center">
+                <div class="size-14 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-border shadow-xs flex items-center justify-center">
+                    <img
+                        src="/images/workshops/logo.jpeg"
+                        alt="Logo Asociación Un Día de Esperanza"
+                        class="size-full object-contain"
+                    />
+                </div>
+            </div>
             <h1 class="mb-4 text-center text-2xl font-semibold text-primary">{{ title }}</h1>
             <Card><slot /></Card>
         </div>

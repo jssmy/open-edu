@@ -77,7 +77,7 @@ const showPassword = ref(false);
                 >
                     <div class="relative w-12 h-12 rounded-xl bg-white shadow-sm ring-1 ring-stone-200 flex items-center justify-center overflow-hidden p-1">
                         <img
-                            src="https://www.undiadeesperanzaperu.org/wp-content/uploads/2023/10/logo-un-dia-de-esperanza.jpg"
+                            src="/images/workshops/logo.jpeg"
                             alt="Logo Asociación Un Día de Esperanza"
                             class="w-full h-full object-contain"
                             onerror="this.style.display='none'"
@@ -332,7 +332,7 @@ const showPassword = ref(false);
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-500">
                 <div class="flex items-center gap-3">
                     <img
-                        src="https://www.undiadeesperanzaperu.org/wp-content/uploads/2023/10/logo-un-dia-de-esperanza.jpg"
+                        src="/images/workshops/logo.jpeg"
                         alt="Logo Un Día de Esperanza"
                         class="h-6 w-auto object-contain"
                         onerror="this.style.display='none'"

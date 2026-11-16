@@ -224,11 +224,15 @@ function logout(): void {
             aria-label="Navegación lateral"
         >
             <div class="flex items-center gap-3 border-b border-border px-6 py-5">
-                <span
-                    class="flex size-11 items-center justify-center rounded-control bg-primary text-sm font-bold tracking-wide text-white"
+                <div
+                    class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-control bg-white p-1 ring-1 ring-border shadow-xs"
                 >
-                    AV
-                </span>
+                    <img
+                        src="/images/workshops/logo.jpeg"
+                        alt="Logo Asociación Un Día de Esperanza"
+                        class="size-full object-contain"
+                    />
+                </div>
                 <div class="min-w-0">
                     <p class="truncate text-base font-semibold tracking-tight text-primary">Aula Virtual</p>
                     <p class="mt-0.5 truncate text-xs text-text-muted">Asociación Un Día de Esperanza</p>

@@ -64,10 +64,30 @@ final class CertificatePdfGenerator
         string $issuedDate,
         string $code,
     ): string {
+        $logoPath = public_path('images/workshops/logo.jpeg');
+        if (! file_exists($logoPath)) {
+            $logoPath = base_path('public/images/workshops/logo.jpeg');
+        }
+
+        $hasLogo = file_exists($logoPath);
+        $logoBytes = '';
+        $logoWidth = 0;
+        $logoHeight = 0;
+        if ($hasLogo) {
+            $logoBytes = (string) file_get_contents($logoPath);
+            $size = @getimagesize($logoPath);
+            if (is_array($size) && ($size[0] ?? 0) > 0 && ($size[1] ?? 0) > 0) {
+                $logoWidth = (int) $size[0];
+                $logoHeight = (int) $size[1];
+            } else {
+                $hasLogo = false;
+            }
+        }
+
         $lines = [
-            // 1. Fondo cálido marfil (Ivory Canvas #FFFCF7)
+            // 1. Fondo blanco puro (#FFFFFF) para integrarse con el fondo blanco del logo
             'q',
-            '1.00 0.99 0.97 rg',
+            '1.00 1.00 1.00 rg',
             '0 0 842 595 re f',
             'Q',
 
@@ -96,49 +116,75 @@ final class CertificatePdfGenerator
             '778 38 26 12 re f',
             'Q',
 
-            // 5. Franja superior institucional (Carmesí + Dorado)
+            // 5. Franja superior institucional decorativa (Carmesí + Dorado)
             'q',
             '0.75 0.07 0.24 rg',
-            '311 520 110 5 re f',
+            '351 530 70 4 re f',
             '0.96 0.62 0.04 rg',
-            '421 520 110 5 re f',
+            '421 530 70 4 re f',
             'Q',
+        ];
 
-            // 6. Cabecera con el nombre de la ONG
+        // 6. Logo institucional si está disponible
+        if ($hasLogo) {
+            $lines[] = 'q';
+            $lines[] = '56 0 0 56 393 466 cm';
+            $lines[] = '/ImLogo Do';
+            $lines[] = 'Q';
+        }
+
+        $ongNameY = $hasLogo ? 448 : 488;
+        $titleY = $hasLogo ? 404 : 432;
+        $dividerY = $hasLogo ? 388 : 414;
+        $dividerDiamondY = $hasLogo ? 384 : 410;
+        $grantY = $hasLogo ? 356 : 380;
+        $participantY = $hasLogo ? 312 : 332;
+        $lineParticipantY = $hasLogo ? 298 : 316;
+        $courseLabelY = $hasLogo ? 264 : 282;
+        $courseTitleY = $hasLogo ? 228 : 242;
+        $mottoY = $hasLogo ? 176 : 188;
+        $sigLineY = $hasLogo ? 108 : 112;
+        $sigText1Y = $hasLogo ? 92 : 96;
+        $sigText2Y = $hasLogo ? 78 : 82;
+        $verifDateY = $hasLogo ? 98 : 102;
+        $verifCodeY = $hasLogo ? 82 : 86;
+
+        $lines = array_merge($lines, [
+            // Cabecera con el nombre de la ONG
             $this->centeredText(
                 $this->toPdfEncoding(mb_strtoupper($ongName, 'UTF-8')),
-                488,
-                16,
+                $ongNameY,
+                $hasLogo ? 15 : 16,
                 'F2',
                 '0.75 0.07 0.24',
             ),
 
-            // 7. Título Principal del Certificado
+            // Título Principal del Certificado
             $this->centeredText(
                 'CERTIFICADO DE RECONOCIMIENTO',
-                432,
-                28,
+                $titleY,
+                $hasLogo ? 26 : 28,
                 'F3',
                 '0.06 0.09 0.16',
             ),
 
             // Separador central dorado con diamante
             'q',
-            '0.96 0.62 0.04 RG 1.6 w 280 414 m 562 414 l S',
-            '0.75 0.07 0.24 rg 417 410 8 8 re f',
+            "0.96 0.62 0.04 RG 1.6 w 280 {$dividerY} m 562 {$dividerY} l S",
+            "0.75 0.07 0.24 rg 417 {$dividerDiamondY} 8 8 re f",
             'Q',
 
-            // 8. Texto de otorgamiento y nombre del participante
+            // Texto de otorgamiento y nombre del participante
             $this->centeredText(
                 $this->toPdfEncoding("La {$ongName} otorga el presente certificado a:"),
-                380,
+                $grantY,
                 13,
                 'F1',
                 '0.28 0.33 0.41',
             ),
             $this->centeredText(
                 $this->toPdfEncoding($participantName),
-                332,
+                $participantY,
                 26,
                 'F3',
                 '0.75 0.07 0.24',
@@ -146,40 +192,40 @@ final class CertificatePdfGenerator
 
             // Línea dorada bajo el nombre del participante
             'q',
-            '0.85 0.47 0.02 RG 1.4 w 185 316 m 657 316 l S',
+            "0.85 0.47 0.02 RG 1.4 w 185 {$lineParticipantY} m 657 {$lineParticipantY} l S",
             'Q',
 
-            // 9. Curso completado (sin categoría ni texto "Aula Virtual")
+            // Curso completado (sin categoría ni texto "Aula Virtual")
             $this->centeredText(
                 'Por haber culminado satisfactoriamente el curso:',
-                282,
+                $courseLabelY,
                 13,
                 'F1',
                 '0.20 0.25 0.33',
             ),
             $this->centeredText(
                 $this->toPdfEncoding($courseName),
-                242,
+                $courseTitleY,
                 mb_strlen($courseName) > 45 ? 18 : 21,
                 'F2',
                 '0.06 0.09 0.16',
             ),
 
-            // 10. Lema de la ONG
+            // Lema de la ONG
             $this->centeredText(
                 $this->toPdfEncoding('"Educando con amor y construyendo futuro en el Perú"'),
-                188,
+                $mottoY,
                 12,
                 'F4',
                 '0.39 0.45 0.55',
             ),
 
-            // 11. Pie de certificado: Firma izquierda | Metadatos de verificación derecha (sin sello central)
-            'q 0.20 0.25 0.33 RG 1.2 w 90 112 m 270 112 l S Q',
+            // Pie de certificado: Firma izquierda | Metadatos de verificación derecha (sin sello central)
+            "q 0.20 0.25 0.33 RG 1.2 w 90 {$sigLineY} m 270 {$sigLineY} l S Q",
             $this->positionedText(
                 $this->toPdfEncoding('Dirección Académica'),
                 128,
-                96,
+                $sigText1Y,
                 11,
                 'F2',
                 '0.06 0.09 0.16',
@@ -187,7 +233,7 @@ final class CertificatePdfGenerator
             $this->positionedText(
                 $this->toPdfEncoding($ongName),
                 102,
-                82,
+                $sigText2Y,
                 9,
                 'F1',
                 '0.39 0.45 0.55',
@@ -197,7 +243,7 @@ final class CertificatePdfGenerator
             $this->positionedText(
                 $this->toPdfEncoding('Fecha de emisión: '.$issuedDate),
                 560,
-                102,
+                $verifDateY,
                 10,
                 'F2',
                 '0.20 0.25 0.33',
@@ -205,26 +251,33 @@ final class CertificatePdfGenerator
             $this->positionedText(
                 $this->toPdfEncoding('Código: '.$code),
                 560,
-                86,
+                $verifCodeY,
                 10,
                 'F2',
                 '0.75 0.07 0.24',
             ),
-        ];
+        ]);
 
         $contentStream = implode("\n", $lines);
         $streamLength = strlen($contentStream);
 
+        $xObjectRes = $hasLogo ? '/XObject << /ImLogo 9 0 R >> ' : '';
+
         $objects = [
             1 => '<< /Type /Catalog /Pages 2 0 R >>',
             2 => '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-            3 => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R /F4 7 0 R >> >> /Contents 8 0 R >>',
+            3 => "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R /F4 7 0 R >> {$xObjectRes}>> /Contents 8 0 R >>",
             4 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
             5 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
             6 => '<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>',
             7 => '<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>',
             8 => "<< /Length {$streamLength} >>\nstream\n{$contentStream}\nendstream",
         ];
+
+        if ($hasLogo) {
+            $logoLength = strlen($logoBytes);
+            $objects[9] = "<< /Type /XObject /Subtype /Image /Width {$logoWidth} /Height {$logoHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {$logoLength} >>\nstream\n{$logoBytes}\nendstream";
+        }
 
         $pdf = "%PDF-1.4\n";
         $offsets = [];

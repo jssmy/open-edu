@@ -1,3 +1,10 @@
+@php
+    $logoFile = public_path('images/workshops/logo.jpeg');
+    if (! file_exists($logoFile)) {
+        $logoFile = base_path('public/images/workshops/logo.jpeg');
+    }
+    $logoBase64 = file_exists($logoFile) ? 'data:image/jpeg;base64,'.base64_encode(file_get_contents($logoFile)) : '/images/workshops/logo.jpeg';
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -11,59 +18,73 @@
             font-family: 'Georgia', 'Times New Roman', serif;
             margin: 0;
             padding: 32px;
-            background: #faf7f2;
+            background: #ffffff;
             color: #0f172a;
         }
         .certificate-canvas {
             position: relative;
             max-width: 1040px;
             margin: 0 auto;
-            background: #fffcf7;
+            background: #ffffff;
             border: 4px solid #be123c;
             padding: 14px;
-            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
         }
         .certificate-inner {
             border: 2px solid #d97706;
-            padding: 48px 56px 40px;
+            padding: 36px 56px 36px;
             text-align: center;
             position: relative;
+            background: #ffffff;
         }
         .top-accent {
-            height: 6px;
-            width: 180px;
-            margin: 0 auto 20px;
+            height: 4px;
+            width: 120px;
+            margin: 0 auto 12px;
             background: linear-gradient(90deg, #be123c 0%, #f59e0b 50%, #dc2626 100%);
             border-radius: 999px;
         }
+        .logo-container {
+            margin: 0 auto 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .certificate-logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+        }
         .ong-name {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 900;
-            letter-spacing: 3.5px;
+            letter-spacing: 3px;
             text-transform: uppercase;
             color: #be123c;
             margin: 0;
         }
         .certificate-heading {
-            font-size: 36px;
+            font-size: 34px;
             font-weight: bold;
             letter-spacing: 2px;
             text-transform: uppercase;
             color: #0f172a;
-            margin: 26px 0 8px;
+            margin: 20px 0 8px;
         }
         .divider {
             width: 240px;
             height: 2px;
             background: #f59e0b;
-            margin: 0 auto 24px;
+            margin: 0 auto 20px;
         }
         .grant-label {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 14px;
             color: #475569;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
         .participant-name {
             font-size: 32px;
@@ -72,32 +93,32 @@
             border-bottom: 2px solid #f59e0b;
             display: inline-block;
             padding: 0 40px 8px;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }
         .completion-text {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 14px;
             color: #334155;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .course-title {
             font-size: 24px;
             font-weight: bold;
             color: #0f172a;
-            margin: 8px 0 18px;
+            margin: 8px 0 16px;
         }
         .motto {
             font-style: italic;
             font-size: 13px;
             color: #64748b;
-            margin: 12px 0 32px;
+            margin: 10px 0 28px;
         }
         .footer-row {
             display: flex;
             align-items: flex-end;
             justify-content: space-between;
-            margin-top: 32px;
-            padding-top: 18px;
+            margin-top: 28px;
+            padding-top: 16px;
             border-top: 1px solid #f1f5f9;
             font-family: Helvetica, Arial, sans-serif;
         }
@@ -129,6 +150,9 @@
     <div class="certificate-canvas">
         <div class="certificate-inner">
             <div class="top-accent"></div>
+            <div class="logo-container">
+                <img src="{{ $logoBase64 }}" alt="Logo {{ $ongName ?? 'Asociación Un Día de Esperanza' }}" class="certificate-logo" />
+            </div>
             <p class="ong-name">{{ $ongName ?? 'Asociación Un Día de Esperanza' }}</p>
 
             <h1 class="certificate-heading">Certificado de Reconocimiento</h1>
