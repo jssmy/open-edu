@@ -20,9 +20,14 @@
             padding: 32px;
             background: #ffffff;
             color: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
         .certificate-canvas {
             position: relative;
+            width: 100%;
             max-width: 1040px;
             margin: 0 auto;
             background: #ffffff;
@@ -36,19 +41,24 @@
             text-align: center;
             position: relative;
             background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         .top-accent {
             height: 4px;
             width: 120px;
-            margin: 0 auto 12px;
+            margin: 0 auto 14px;
             background: linear-gradient(90deg, #be123c 0%, #f59e0b 50%, #dc2626 100%);
             border-radius: 999px;
         }
         .logo-container {
-            margin: 0 auto 10px;
+            margin: 0 auto 12px;
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100%;
         }
         .certificate-logo {
             width: 72px;
@@ -64,7 +74,9 @@
             letter-spacing: 3px;
             text-transform: uppercase;
             color: #be123c;
-            margin: 0;
+            margin: 0 auto;
+            text-align: center;
+            width: 100%;
         }
         .certificate-heading {
             font-size: 34px;
@@ -72,7 +84,9 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             color: #0f172a;
-            margin: 20px 0 8px;
+            margin: 20px auto 8px;
+            text-align: center;
+            width: 100%;
         }
         .divider {
             width: 240px;
@@ -84,7 +98,15 @@
             font-family: Helvetica, Arial, sans-serif;
             font-size: 14px;
             color: #475569;
-            margin-bottom: 12px;
+            margin: 0 auto 12px;
+            text-align: center;
+            width: 100%;
+        }
+        .participant-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin: 0 auto 20px;
         }
         .participant-name {
             font-size: 32px;
@@ -93,30 +115,38 @@
             border-bottom: 2px solid #f59e0b;
             display: inline-block;
             padding: 0 40px 8px;
-            margin-bottom: 20px;
+            text-align: center;
+            margin: 0 auto;
         }
         .completion-text {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 14px;
             color: #334155;
-            margin-bottom: 8px;
+            margin: 0 auto 8px;
+            text-align: center;
+            width: 100%;
         }
         .course-title {
             font-size: 24px;
             font-weight: bold;
             color: #0f172a;
-            margin: 8px 0 16px;
+            margin: 8px auto 16px;
+            text-align: center;
+            width: 100%;
         }
         .motto {
             font-style: italic;
             font-size: 13px;
             color: #64748b;
-            margin: 10px 0 28px;
+            margin: 10px auto 28px;
+            text-align: center;
+            width: 100%;
         }
         .footer-row {
             display: flex;
             align-items: flex-end;
             justify-content: space-between;
+            width: 100%;
             margin-top: 28px;
             padding-top: 16px;
             border-top: 1px solid #f1f5f9;
@@ -159,7 +189,9 @@
             <div class="divider"></div>
 
             <p class="grant-label">La <strong>{{ $ongName ?? 'Asociación Un Día de Esperanza' }}</strong> otorga el presente certificado a:</p>
-            <div class="participant-name">{{ $participantName }}</div>
+            <div class="participant-container">
+                <div class="participant-name">{{ $participantName }}</div>
+            </div>
 
             <p class="completion-text">Por haber culminado satisfactoriamente el curso:</p>
             <div class="course-title">{{ $courseName }}</div>
