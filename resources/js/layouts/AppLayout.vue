@@ -227,11 +227,11 @@ function logout(): void {
                 <span
                     class="flex size-11 items-center justify-center rounded-control bg-primary text-sm font-bold tracking-wide text-white"
                 >
-                    OE
+                    AV
                 </span>
                 <div class="min-w-0">
-                    <p class="truncate text-base font-semibold tracking-tight text-primary">Open Edu</p>
-                    <p class="mt-0.5 text-xs text-text-muted">Portal institucional</p>
+                    <p class="truncate text-base font-semibold tracking-tight text-primary">Aula Virtual</p>
+                    <p class="mt-0.5 truncate text-xs text-text-muted">Asociación Un Día de Esperanza</p>
                 </div>
                 <button
                     type="button"
@@ -318,8 +318,8 @@ function logout(): void {
             </nav>
 
             <div class="border-t border-border px-6 py-4">
-                <p class="text-xs font-medium text-text-muted">Open Edu</p>
-                <p class="mt-1 text-xs text-text-muted">Formación · Comunidad · Futuro</p>
+                <p class="text-xs font-medium text-text-muted">Aula Virtual</p>
+                <p class="mt-1 text-xs text-text-muted">Asociación Un Día de Esperanza</p>
             </div>
         </aside>
 
@@ -348,8 +348,8 @@ function logout(): void {
                         </svg>
                     </button>
                     <div class="hidden min-w-0 sm:block">
-                        <p class="truncate text-sm font-medium text-text">Plataforma de aprendizaje</p>
-                        <p class="truncate text-xs text-text-muted">Espacio académico institucional</p>
+                        <p class="truncate text-sm font-medium text-text">Aula Virtual</p>
+                        <p class="truncate text-xs text-text-muted">Asociación Un Día de Esperanza</p>
                     </div>
                 </div>
 
@@ -429,7 +429,7 @@ function logout(): void {
                 <slot />
             </main>
             <footer class="border-t border-border px-4 py-4 text-center text-xs text-text-muted sm:px-8">
-                Open Edu <span aria-hidden="true">·</span> Plataforma institucional de aprendizaje
+                Aula Virtual <span aria-hidden="true">·</span> Asociación Un Día de Esperanza
             </footer>
         </div>
         <AlertDialogHost />

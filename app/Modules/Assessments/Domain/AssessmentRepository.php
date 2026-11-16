@@ -39,7 +39,7 @@ interface AssessmentRepository
     public function delete(int $assessmentId): void;
 
     /** @return array{id: int, attempt_number: int} */
-    public function startAttempt(int $assessmentId, int $studentId): array;
+    public function startAttempt(int $assessmentId, ?int $studentId, ?int $userId = null): array;
 
     /**
      * @param  array<int, int>  $answers
@@ -53,7 +53,7 @@ interface AssessmentRepository
      *     submitted_at: string
      * }
      */
-    public function submitAttempt(int $assessmentId, int $studentId, array $answers): array;
+    public function submitAttempt(int $assessmentId, ?int $studentId, array $answers, ?int $userId = null): array;
 
     /**
      * @return array{
@@ -66,7 +66,7 @@ interface AssessmentRepository
      *     submitted_at: string
      * }|null
      */
-    public function latestResult(int $assessmentId, int $studentId): ?array;
+    public function latestResult(int $assessmentId, ?int $studentId, ?int $userId = null): ?array;
 
     /** @return list<array{student_name: string, attempt_number: int, score: int, total_score: int, passed: bool, submitted_at: string}> */
     public function resultsForAssessment(int $assessmentId): array;

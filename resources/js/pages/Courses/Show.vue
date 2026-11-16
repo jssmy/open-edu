@@ -20,6 +20,11 @@ import type { RichTextDocument } from '@/types/richText';
 interface Course {
     id: number;
     name: string;
+    category_id?: number | null;
+    category_name?: string | null;
+    category_role_name?: string | null;
+    target_audience?: 'student' | 'teacher';
+    issues_certificate?: boolean;
     description: RichTextDocument | null;
     objectives: RichTextDocument | null;
     intro_video_url: string | null;
@@ -88,11 +93,20 @@ async function deleteCourse() {
             <div class="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
                 <div class="min-w-0 flex-1 basis-72">
                     <Link href="/courses" class="text-sm text-text-muted hover:text-primary">← Cursos</Link>
-                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
                         <h1 class="text-2xl font-semibold tracking-tight">{{ course.name }}</h1>
                         <Badge :variant="statusVariant(course.status)">{{
                             statusLabel(course.status)
                         }}</Badge>
+                        <Badge v-if="course.category_name" variant="neutral">
+                            {{ course.category_name }}
+                        </Badge>
+                        <Badge v-if="course.category_role_name || course.target_audience" variant="neutral">
+                            Rol: {{ (course.category_role_name ?? (course.target_audience === 'teacher' ? 'docente' : 'estudiante')) === 'docente' ? 'Docente' : 'Estudiante' }}
+                        </Badge>
+                        <Badge :variant="course.issues_certificate !== false ? 'success' : 'neutral'">
+                            {{ course.issues_certificate !== false ? 'Emite certificado' : 'Sin certificado' }}
+                        </Badge>
                     </div>
                     <dl class="mt-4 grid grid-cols-3 gap-3 sm:max-w-md">
                         <div class="rounded-control bg-surface p-3">

@@ -27,6 +27,7 @@ class SchedulingController extends Controller
         Gate::authorize('scheduling.manage');
 
         $courses = Course::query()
+            ->forStudentAudience()
             ->with('offerings:id,course_id,group_code')
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -61,6 +62,7 @@ class SchedulingController extends Controller
 
         $baseQuery = CourseOffering::query()
             ->whereNotNull('starts_on')
+            ->whereHas('course', fn ($q) => $q->forStudentAudience())
             ->with([
                 'course:id,name',
                 'teachers:id,name',
@@ -88,7 +90,10 @@ class SchedulingController extends Controller
         $paginator = (clone $baseQuery)->paginate(10, ['*'], 'page', max(1, $request->integer('page', 1)));
         $calendarOfferings = (clone $baseQuery)->limit(500)->get();
 
-        $pendingCount = CourseOffering::query()->whereNull('starts_on')->count();
+        $pendingCount = CourseOffering::query()
+            ->whereNull('starts_on')
+            ->whereHas('course', fn ($q) => $q->forStudentAudience())
+            ->count();
 
         return Inertia::render('Scheduling/Index', [
             'schedules' => [
@@ -125,6 +130,7 @@ class SchedulingController extends Controller
 
         $paginator = CourseOffering::query()
             ->whereNull('starts_on')
+            ->whereHas('course', fn ($q) => $q->forStudentAudience())
             ->with(['course:id,name', 'teachers:id,name'])
             ->when($term !== '', function ($q) use ($term): void {
                 $like = '%'.addcslashes($term, '%_\\').'%';

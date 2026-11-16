@@ -36,6 +36,8 @@ class CourseFactory extends Factory
                 ]],
             ],
             'status' => 'draft',
+            'target_audience' => 'student',
+            'issues_certificate' => true,
         ];
     }
 
@@ -43,6 +45,13 @@ class CourseFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => 'published',
+        ]);
+    }
+
+    public function forTeachers(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'target_audience' => 'teacher',
         ]);
     }
 }

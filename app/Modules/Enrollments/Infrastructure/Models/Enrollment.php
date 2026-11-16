@@ -2,8 +2,10 @@
 
 namespace App\Modules\Enrollments\Infrastructure\Models;
 
+use App\Models\User;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Enrollments\Domain\EnrollmentStatus;
+use App\Modules\Progress\Infrastructure\Models\Certificate;
 use App\Modules\Scheduling\Infrastructure\Models\CourseOffering;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Carbon\CarbonImmutable;
@@ -13,15 +15,17 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * @property int $student_id
+ * @property ?int $student_id
+ * @property ?int $user_id
  * @property int $course_id
  * @property ?int $course_offering_id
  * @property EnrollmentStatus $status
  * @property CarbonImmutable $enrolled_at
  */
-#[Fillable(['student_id', 'course_id', 'course_offering_id', 'status', 'enrolled_at'])]
+#[Fillable(['student_id', 'user_id', 'course_id', 'course_offering_id', 'status', 'enrolled_at'])]
 class Enrollment extends Model
 {
     /** @use HasFactory<EnrollmentFactory> */
@@ -46,6 +50,12 @@ class Enrollment extends Model
         return $this->belongsTo(Student::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     /** @return BelongsTo<Course, $this> */
     public function course(): BelongsTo
     {
@@ -56,5 +66,11 @@ class Enrollment extends Model
     public function courseOffering(): BelongsTo
     {
         return $this->belongsTo(CourseOffering::class, 'course_offering_id');
+    }
+
+    /** @return HasOne<Certificate, $this> */
+    public function certificate(): HasOne
+    {
+        return $this->hasOne(Certificate::class, 'enrollment_id');
     }
 }

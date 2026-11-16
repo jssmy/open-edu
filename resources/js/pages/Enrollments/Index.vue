@@ -17,9 +17,16 @@ import ScheduleCalendar from '@/design-system/ScheduleCalendar.vue';
 import SearchableSelect from '@/design-system/SearchableSelect.vue';
 import type { CalendarScheduleBlock } from '@/composables/useScheduleCalendar';
 import { requestAlertDialog } from '@/composables/useAlertDialog';
-import type { CourseStatus } from '@/services/courses';
+import type { CourseCategoryItem, CourseStatus, CourseTargetAudience } from '@/services/courses';
 
 interface StudentOption {
+    id: number;
+    name: string;
+    email: string;
+    identifier: string | null;
+}
+
+interface TeacherOption {
     id: number;
     name: string;
     email: string;
@@ -66,6 +73,9 @@ interface CourseItem {
     cover_url: string;
     units_count: number;
     status: CourseStatus;
+    category?: CourseCategoryItem | null;
+    target_audience?: CourseTargetAudience;
+    issues_certificate?: boolean;
     teachers: { id: number; name: string }[];
     offerings_count: number;
     total_available_spots: number;
@@ -88,6 +98,15 @@ interface StudentEnrollmentItem {
     enrolled_at: string;
 }
 
+interface TeacherEnrollmentItem {
+    id: number;
+    course_id: number;
+    course_name: string;
+    category_name: string | null;
+    issues_certificate: boolean;
+    enrolled_at: string;
+}
+
 interface PaginationMeta {
     page: number;
     last_page: number;
@@ -96,23 +115,39 @@ interface PaginationMeta {
     to: number;
 }
 
-const props = defineProps<{
-    students: StudentOption[];
-    selectedStudentId: number | null;
-    courses: {
-        data: CourseItem[];
-        meta: PaginationMeta;
-    };
-    studentEnrollments: StudentEnrollmentItem[];
-    calendarBlocks: CalendarScheduleBlock[];
-    filters: {
-        q: string;
-        student_id: number | null;
-    };
-}>();
+const props = withDefaults(
+    defineProps<{
+        participantType?: 'student' | 'teacher';
+        students: StudentOption[];
+        selectedStudentId: number | null;
+        teachers?: TeacherOption[];
+        selectedTeacherId?: number | null;
+        courses: {
+            data: CourseItem[];
+            meta: PaginationMeta;
+        };
+        studentEnrollments: StudentEnrollmentItem[];
+        teacherEnrollments?: TeacherEnrollmentItem[];
+        calendarBlocks: CalendarScheduleBlock[];
+        filters: {
+            q: string;
+            participant_type?: 'student' | 'teacher';
+            student_id: number | null;
+            teacher_id?: number | null;
+        };
+    }>(),
+    {
+        participantType: 'student',
+        teachers: () => [],
+        selectedTeacherId: null,
+        teacherEnrollments: () => [],
+    },
+);
 
+const currentParticipantType = computed(() => props.participantType ?? 'student');
 const searchQuery = ref(props.filters.q ?? '');
 const selectedCourseId = ref<number | null>(null);
+const enrollingCourseId = ref<number | null>(null);
 
 const selectedCourse = computed(
     () => props.courses.data.find((course) => course.id === selectedCourseId.value) ?? null,
@@ -129,9 +164,19 @@ const studentOptions = computed(() =>
     })),
 );
 
+const teacherOptions = computed(() =>
+    props.teachers.map((teacher) => ({
+        value: teacher.id,
+        label: `${teacher.name} (${teacher.email})`,
+    })),
+);
+
 const enrollForm = useForm({
+    participant_type: currentParticipantType.value,
     student_id: props.selectedStudentId ?? ('' as number | ''),
     course_offering_id: '' as number | '',
+    teacher_id: props.selectedTeacherId ?? ('' as number | ''),
+    course_id: '' as number | '',
 });
 
 const modalityLabels: Record<string, string> = {
@@ -158,15 +203,29 @@ const dayNames: Record<number, string> = {
     7: 'Dom',
 };
 
-function buildQuery(params: { studentId?: number | null; q?: string; page?: number }): Record<string, string | number> {
+function buildQuery(params: {
+    participantType?: 'student' | 'teacher';
+    studentId?: number | null;
+    teacherId?: number | null;
+    q?: string;
+    page?: number;
+}): Record<string, string | number> {
     const query: Record<string, string | number> = {};
+    const type = params.participantType ?? currentParticipantType.value;
     const studentId = params.studentId !== undefined ? params.studentId : props.selectedStudentId;
+    const teacherId = params.teacherId !== undefined ? params.teacherId : props.selectedTeacherId;
     const q = (params.q !== undefined ? params.q : searchQuery.value).trim();
     const page = params.page ?? 1;
 
-    if (studentId) {
+    if (type === 'teacher') {
+        query.participant_type = 'teacher';
+        if (teacherId) {
+            query.teacher_id = teacherId;
+        }
+    } else if (studentId) {
         query.student_id = studentId;
     }
+
     if (q !== '') {
         query.q = q;
     }
@@ -177,10 +236,30 @@ function buildQuery(params: { studentId?: number | null; q?: string; page?: numb
     return query;
 }
 
+function switchParticipantType(type: 'student' | 'teacher'): void {
+    enrollForm.clearErrors();
+    enrollForm.participant_type = type;
+    router.get('/enrollments', buildQuery({ participantType: type, page: 1 }), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
+
 function selectStudent(value: string | number | null | undefined): void {
     const nextId = value ? Number(value) : null;
     enrollForm.student_id = nextId ?? '';
-    router.get('/enrollments', buildQuery({ studentId: nextId, page: 1 }), {
+    router.get('/enrollments', buildQuery({ participantType: 'student', studentId: nextId, page: 1 }), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+}
+
+function selectTeacher(value: string | number | null | undefined): void {
+    const nextId = value ? Number(value) : null;
+    enrollForm.teacher_id = nextId ?? '';
+    router.get('/enrollments', buildQuery({ participantType: 'teacher', teacherId: nextId, page: 1 }), {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -227,6 +306,7 @@ function enrollInGroup(offeringId: number): void {
         return;
     }
 
+    enrollForm.participant_type = 'student';
     enrollForm.student_id = props.selectedStudentId;
     enrollForm.course_offering_id = offeringId;
     enrollForm.post('/enrollments', {
@@ -237,11 +317,47 @@ function enrollInGroup(offeringId: number): void {
     });
 }
 
+function enrollTeacherInCourse(course: CourseItem): void {
+    if (!props.selectedTeacherId) {
+        return;
+    }
+
+    enrollForm.clearErrors();
+    enrollingCourseId.value = course.id;
+    enrollForm.participant_type = 'teacher';
+    enrollForm.teacher_id = props.selectedTeacherId;
+    enrollForm.course_id = course.id;
+    enrollForm.post('/enrollments', {
+        preserveScroll: true,
+        onFinish: () => {
+            enrollingCourseId.value = null;
+        },
+    });
+}
+
 async function confirmUnenroll(enrollment: StudentEnrollmentItem): Promise<void> {
     const confirmed = await requestAlertDialog({
         variant: 'danger',
         title: 'Desmatricular estudiante',
         message: `¿Confirmas desmatricular al estudiante del curso «${enrollment.course_name}» (${enrollment.group_code})? Se liberará inmediatamente su cupo y se actualizará su horario en tiempo real.`,
+        confirmLabel: 'Desmatricular',
+        cancelLabel: 'Cancelar',
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    router.delete(`/enrollments/${enrollment.id}`, {
+        preserveScroll: true,
+    });
+}
+
+async function confirmUnenrollTeacher(enrollment: TeacherEnrollmentItem): Promise<void> {
+    const confirmed = await requestAlertDialog({
+        variant: 'danger',
+        title: 'Desmatricular docente',
+        message: `¿Confirmas desmatricular al docente del curso «${enrollment.course_name}»?`,
         confirmLabel: 'Desmatricular',
         cancelLabel: 'Cancelar',
     });
@@ -274,13 +390,13 @@ function handleCalendarBlockClick(scheduleId: number, eventProps?: Record<string
 
 <template>
     <AppLayout>
-        <Head title="Matrículas de estudiantes" />
+        <Head title="Matrículas" />
 
         <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h1 class="text-xl font-semibold text-text">Matrícula de estudiantes en clases</h1>
+                <h1 class="text-xl font-semibold text-text">Matrícula en cursos</h1>
                 <p class="mt-1 text-sm text-text-muted">
-                    Selecciona un estudiante, visualiza su horario completo en tiempo real y gestiona sus inscripciones en los cursos con vacantes disponibles.
+                    Selecciona un estudiante activo para gestionar su matrícula en los cursos publicados de categorías de estudiantes.
                 </p>
             </div>
         </div>
@@ -293,208 +409,211 @@ function handleCalendarBlockClick(scheduleId: number, eventProps?: Record<string
             {{ enrollForm.errors.course_offering_id ?? enrollForm.errors.student_id }}
         </Alert>
 
-        <EmptyState
-            v-if="students.length === 0"
-            title="No hay estudiantes activos disponibles"
-            description="Registra o activa un estudiante en el módulo de Estudiantes para gestionar su matrícula."
-        />
+        <!-- Vista de Matrícula de Estudiantes -->
+        <template v-if="true">
+            <EmptyState
+                v-if="students.length === 0"
+                title="No hay estudiantes activos disponibles"
+                description="Registra o activa un estudiante en el módulo de Estudiantes para gestionar su matrícula."
+            />
 
-        <div v-else class="space-y-8">
-            <!-- Selector de estudiante y cursos matriculados actualmente -->
-            <Card>
-                <div class="grid gap-6 lg:grid-cols-12 lg:items-start">
-                    <div class="lg:col-span-4">
-                        <FormField
-                            id="student-selector"
-                            label="Estudiante activo"
-                            :error="enrollForm.errors.student_id"
-                        >
-                            <SearchableSelect
+            <div v-else class="space-y-8">
+                <!-- Selector de estudiante y cursos matriculados actualmente -->
+                <Card>
+                    <div class="grid gap-6 lg:grid-cols-12 lg:items-start">
+                        <div class="lg:col-span-4">
+                            <FormField
                                 id="student-selector"
-                                :model-value="selectedStudentId"
-                                :options="studentOptions"
-                                placeholder="Selecciona un estudiante activo..."
-                                search-placeholder="Buscar estudiante por nombre, documento o correo..."
-                                empty-message="No hay estudiantes activos registrados."
-                                @update:model-value="selectStudent"
-                            />
-                        </FormField>
-                        <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-                            <Badge variant="neutral">
-                                {{ studentEnrollments.length }}
-                                {{ studentEnrollments.length === 1 ? 'curso matriculado' : 'cursos matriculados' }}
-                            </Badge>
-                            <Badge variant="neutral">
-                                {{ calendarBlocks.length }}
-                                {{ calendarBlocks.length === 1 ? 'sesión en horario' : 'sesiones en horario' }}
-                            </Badge>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-border pt-4 lg:col-span-8 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-                        <div class="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                            <div class="flex flex-wrap items-baseline gap-2">
-                                <h2 id="cursos-matriculados-heading" class="text-sm font-semibold text-text">
-                                    Cursos matriculados del estudiante ({{ studentEnrollments.length }})
-                                </h2>
-                                <span class="text-xs text-text-muted">
-                                    · Desmatricula un curso para liberar su vacante inmediatamente.
-                                </span>
+                                label="Estudiante activo"
+                                :error="enrollForm.errors.student_id"
+                            >
+                                <SearchableSelect
+                                    id="student-selector"
+                                    :model-value="selectedStudentId"
+                                    :options="studentOptions"
+                                    placeholder="Selecciona un estudiante activo..."
+                                    search-placeholder="Buscar estudiante por nombre, documento o correo..."
+                                    empty-message="No hay estudiantes activos registrados."
+                                    @update:model-value="selectStudent"
+                                />
+                            </FormField>
+                            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                                <Badge variant="neutral">
+                                    {{ studentEnrollments.length }}
+                                    {{ studentEnrollments.length === 1 ? 'curso matriculado' : 'cursos matriculados' }}
+                                </Badge>
+                                <Badge variant="neutral">
+                                    {{ calendarBlocks.length }}
+                                    {{ calendarBlocks.length === 1 ? 'sesión en horario' : 'sesiones en horario' }}
+                                </Badge>
                             </div>
                         </div>
 
-                        <p
-                            v-if="studentEnrollments.length === 0"
-                            class="rounded-control border border-dashed border-border bg-surface/40 px-4 py-3 text-xs text-text-muted"
-                        >
-                            El estudiante aún no tiene cursos matriculados. Selecciona un curso del catálogo inferior para inscribirlo.
-                        </p>
-
-                        <ul
-                            v-else
-                            class="max-h-44 space-y-2 overflow-y-auto pr-1"
-                            data-testid="student-enrollments-list"
-                        >
-                            <li
-                                v-for="enrollment in studentEnrollments"
-                                :key="enrollment.id"
-                                class="flex items-center justify-between gap-3 rounded-control border border-border bg-surface/50 px-3 py-2 transition hover:border-border-strong"
-                            >
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-1.5">
-                                        <span class="truncate text-sm font-semibold text-text">
-                                            {{ enrollment.course_name }}
-                                        </span>
-                                        <Badge variant="neutral">{{ enrollment.group_code }}</Badge>
-                                        <Badge variant="neutral">
-                                            {{ modalityLabels[enrollment.modality] ?? enrollment.modality }}
-                                        </Badge>
-                                    </div>
-                                    <p class="mt-0.5 truncate text-xs text-text-muted">
-                                        <span v-if="enrollment.teacher_name">Docente: {{ enrollment.teacher_name }}</span>
-                                        <span v-if="enrollment.teacher_name && enrollment.starts_on && enrollment.ends_on"> · </span>
-                                        <span v-if="enrollment.starts_on && enrollment.ends_on">
-                                            {{ enrollment.starts_on }} al {{ enrollment.ends_on }}
-                                        </span>
-                                    </p>
+                        <div class="border-t border-border pt-4 lg:col-span-8 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                            <div class="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex flex-wrap items-baseline gap-2">
+                                    <h2 id="cursos-matriculados-heading" class="text-sm font-semibold text-text">
+                                        Cursos matriculados del estudiante ({{ studentEnrollments.length }})
+                                    </h2>
+                                    <span class="text-xs text-text-muted">
+                                        · Desmatricula un curso para liberar su vacante inmediatamente.
+                                    </span>
                                 </div>
-                                <Button
-                                    variant="danger"
-                                    size="sm"
-                                    class="shrink-0"
-                                    :data-testid="`unenroll-btn-${enrollment.id}`"
-                                    @click="confirmUnenroll(enrollment)"
+                            </div>
+
+                            <p
+                                v-if="studentEnrollments.length === 0"
+                                class="rounded-control border border-dashed border-border bg-surface/40 px-4 py-3 text-xs text-text-muted"
+                            >
+                                El estudiante aún no tiene cursos matriculados. Selecciona un curso del catálogo inferior para inscribirlo.
+                            </p>
+
+                            <ul
+                                v-else
+                                class="max-h-44 space-y-2 overflow-y-auto pr-1"
+                                data-testid="student-enrollments-list"
+                            >
+                                <li
+                                    v-for="enrollment in studentEnrollments"
+                                    :key="enrollment.id"
+                                    class="flex items-center justify-between gap-3 rounded-control border border-border bg-surface/50 px-3 py-2 transition hover:border-border-strong"
                                 >
-                                    Desmatricular
-                                </Button>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </Card>
-
-            <!-- Catálogo de cursos publicados disponibles (Cards reutilizables + Paginación) -->
-            <section class="w-full space-y-4" aria-labelledby="cursos-disponibles-heading">
-                <div class="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <h2 id="cursos-disponibles-heading" class="text-base font-semibold text-text">
-                            Cursos publicados disponibles ({{ courses.meta.total }})
-                        </h2>
-                        <p class="text-xs text-text-muted">
-                            Se muestran primero los cursos que cuentan con cupos disponibles para matrícula.
-                        </p>
-                    </div>
-
-                    <form class="flex flex-wrap items-end gap-2" role="search" @submit.prevent="applySearch">
-                        <div class="w-full sm:w-72">
-                            <label for="course-search" class="mb-1 block text-xs text-text-muted">
-                                Buscar cursos publicados
-                            </label>
-                            <Input
-                                id="course-search"
-                                v-model="searchQuery"
-                                placeholder="Nombre del curso o docente..."
-                            />
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            <span class="truncate text-sm font-semibold text-text">
+                                                {{ enrollment.course_name }}
+                                            </span>
+                                            <Badge variant="neutral">{{ enrollment.group_code }}</Badge>
+                                            <Badge variant="neutral">
+                                                {{ modalityLabels[enrollment.modality] ?? enrollment.modality }}
+                                            </Badge>
+                                        </div>
+                                        <p class="mt-0.5 truncate text-xs text-text-muted">
+                                            <span v-if="enrollment.teacher_name">Docente: {{ enrollment.teacher_name }}</span>
+                                            <span v-if="enrollment.teacher_name && enrollment.starts_on && enrollment.ends_on"> · </span>
+                                            <span v-if="enrollment.starts_on && enrollment.ends_on">
+                                                {{ enrollment.starts_on }} al {{ enrollment.ends_on }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <Button
+                                        variant="danger"
+                                        size="sm"
+                                        class="shrink-0"
+                                        :data-testid="`unenroll-btn-${enrollment.id}`"
+                                        @click="confirmUnenroll(enrollment)"
+                                    >
+                                        Desmatricular
+                                    </Button>
+                                </li>
+                            </ul>
                         </div>
-                        <IconButton icon="search" label="Buscar" type="submit" variant="primary" />
-                        <IconButton
-                            v-if="hasSearchFilter"
-                            icon="clear"
-                            label="Limpiar búsqueda"
-                            @click="clearSearch"
-                        />
-                    </form>
-                </div>
-
-                <div v-if="courses.data.length === 0" class="rounded-card border border-border bg-panel">
-                    <EmptyState
-                        title="No se encontraron cursos publicados"
-                        description="Ajusta el filtro de búsqueda o publica cursos en el catálogo académico."
-                    />
-                </div>
-
-                <ul v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <li v-for="course in courses.data" :key="course.id" class="flex flex-col">
-                        <CourseCard :course="course">
-                            <template #badges>
-                                <Badge v-if="course.is_enrolled" variant="success">
-                                    Matriculado · {{ course.enrolled_group_code ?? 'Activo' }}
-                                </Badge>
-                                <Badge :variant="course.total_available_spots > 0 ? 'success' : 'warning'">
-                                    {{ course.total_available_spots }}
-                                    {{ course.total_available_spots === 1 ? 'vacante disponible' : 'vacantes disponibles' }}
-                                </Badge>
-                            </template>
-                            <template #footer>
-                                <span class="text-xs text-text-muted">
-                                    <strong class="text-text">{{ course.offerings_count }}</strong>
-                                    {{ course.offerings_count === 1 ? 'programación abierta' : 'programaciones abiertas' }}
-                                </span>
-                                <Button
-                                    size="sm"
-                                    :variant="course.is_enrolled ? 'secondary' : 'primary'"
-                                    :data-testid="`open-course-modal-${course.id}`"
-                                    @click="openCourseModal(course)"
-                                >
-                                    Ver programación y cupos
-                                </Button>
-                            </template>
-                        </CourseCard>
-                    </li>
-                </ul>
-
-                <Pagination
-                    class="mt-4"
-                    :page="courses.meta.page"
-                    :last-page="courses.meta.last_page"
-                    :total="courses.meta.total"
-                    :from="courses.meta.from"
-                    :to="courses.meta.to"
-                    @change="goToPage"
-                />
-            </section>
-
-            <!-- Horario del estudiante en tiempo real a ancho completo -->
-            <section class="w-full space-y-3" aria-labelledby="horario-estudiante-heading">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <h2 id="horario-estudiante-heading" class="text-base font-semibold text-text">
-                            Horario del estudiante en tiempo real
-                        </h2>
-                        <p class="text-xs text-text-muted">
-                            Visualización completa por semana, día o mes de todas las sesiones programadas para los grupos matriculados. Haz clic sobre una sesión para desmatricular.
-                        </p>
                     </div>
-                </div>
+                </Card>
 
-                <ScheduleCalendar
-                    :blocks="calendarBlocks"
-                    :editable="false"
-                    title="Horario del estudiante en tiempo real"
-                    @event-click="handleCalendarBlockClick"
-                />
-            </section>
-        </div>
+                <!-- Catálogo de cursos publicados disponibles (Cards reutilizables + Paginación) -->
+                <section class="w-full space-y-4" aria-labelledby="cursos-disponibles-heading">
+                    <div class="flex flex-wrap items-end justify-between gap-4">
+                        <div>
+                            <h2 id="cursos-disponibles-heading" class="text-base font-semibold text-text">
+                                Cursos publicados disponibles ({{ courses.meta.total }})
+                            </h2>
+                            <p class="text-xs text-text-muted">
+                                Se muestran primero los cursos que cuentan con cupos disponibles para matrícula.
+                            </p>
+                        </div>
+
+                        <form class="flex flex-wrap items-end gap-2" role="search" @submit.prevent="applySearch">
+                            <div class="w-full sm:w-72">
+                                <label for="course-search" class="mb-1 block text-xs text-text-muted">
+                                    Buscar cursos publicados
+                                </label>
+                                <Input
+                                    id="course-search"
+                                    v-model="searchQuery"
+                                    placeholder="Nombre del curso o docente..."
+                                />
+                            </div>
+                            <IconButton icon="search" label="Buscar" type="submit" variant="primary" />
+                            <IconButton
+                                v-if="hasSearchFilter"
+                                icon="clear"
+                                label="Limpiar búsqueda"
+                                @click="clearSearch"
+                            />
+                        </form>
+                    </div>
+
+                    <div v-if="courses.data.length === 0" class="rounded-card border border-border bg-panel">
+                        <EmptyState
+                            title="No se encontraron cursos publicados"
+                            description="Ajusta el filtro de búsqueda o publica cursos en el catálogo académico."
+                        />
+                    </div>
+
+                    <ul v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        <li v-for="course in courses.data" :key="course.id" class="flex flex-col">
+                            <CourseCard :course="course">
+                                <template #badges>
+                                    <Badge v-if="course.is_enrolled" variant="success">
+                                        Matriculado · {{ course.enrolled_group_code ?? 'Activo' }}
+                                    </Badge>
+                                    <Badge :variant="course.total_available_spots > 0 ? 'success' : 'warning'">
+                                        {{ course.total_available_spots }}
+                                        {{ course.total_available_spots === 1 ? 'vacante disponible' : 'vacantes disponibles' }}
+                                    </Badge>
+                                </template>
+                                <template #footer>
+                                    <span class="text-xs text-text-muted">
+                                        <strong class="text-text">{{ course.offerings_count }}</strong>
+                                        {{ course.offerings_count === 1 ? 'programación abierta' : 'programaciones abiertas' }}
+                                    </span>
+                                    <Button
+                                        size="sm"
+                                        :variant="course.is_enrolled ? 'secondary' : 'primary'"
+                                        :data-testid="`open-course-modal-${course.id}`"
+                                        @click="openCourseModal(course)"
+                                    >
+                                        Ver programación y cupos
+                                    </Button>
+                                </template>
+                            </CourseCard>
+                        </li>
+                    </ul>
+
+                    <Pagination
+                        class="mt-4"
+                        :page="courses.meta.page"
+                        :last-page="courses.meta.last_page"
+                        :total="courses.meta.total"
+                        :from="courses.meta.from"
+                        :to="courses.meta.to"
+                        @change="goToPage"
+                    />
+                </section>
+
+                <!-- Horario del estudiante en tiempo real a ancho completo -->
+                <section class="w-full space-y-3" aria-labelledby="horario-estudiante-heading">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h2 id="horario-estudiante-heading" class="text-base font-semibold text-text">
+                                Horario del estudiante en tiempo real
+                            </h2>
+                            <p class="text-xs text-text-muted">
+                                Visualización completa por semana, día o mes de todas las sesiones programadas para los grupos matriculados. Haz clic sobre una sesión para desmatricular.
+                            </p>
+                        </div>
+                    </div>
+
+                    <ScheduleCalendar
+                        :blocks="calendarBlocks"
+                        :editable="false"
+                        title="Horario del estudiante en tiempo real"
+                        @event-click="handleCalendarBlockClick"
+                    />
+                </section>
+            </div>
+        </template>
 
         <!-- Modal de Programación Académica del Curso -->
         <Modal

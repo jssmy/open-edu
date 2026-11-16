@@ -3,6 +3,7 @@
 use App\Modules\Assessments\Infrastructure\Http\AssessmentController;
 use App\Modules\Courses\Infrastructure\Http\ContentController;
 use App\Modules\Courses\Infrastructure\Http\ContentImageController;
+use App\Modules\Courses\Infrastructure\Http\CourseCategoryController;
 use App\Modules\Courses\Infrastructure\Http\CourseController;
 use App\Modules\Courses\Infrastructure\Http\CourseCoverController;
 use App\Modules\Enrollments\Infrastructure\Http\CourseEnrollmentController;
@@ -12,6 +13,7 @@ use App\Modules\Identity\Infrastructure\Http\PasswordController;
 use App\Modules\Identity\Infrastructure\Http\RoleController;
 use App\Modules\Identity\Infrastructure\Http\UserController;
 use App\Modules\Progress\Application\GetMyCourses;
+use App\Modules\Progress\Infrastructure\Http\CertificateController;
 use App\Modules\Progress\Infrastructure\Http\StudyController;
 use App\Modules\Reports\Infrastructure\Http\ReportController;
 use App\Modules\Scheduling\Infrastructure\Http\ClassDispatcherController;
@@ -60,9 +62,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
         Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
         Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+        Route::post('/courses/{course}/enroll', [CourseController::class, 'selfEnroll'])->name('courses.self-enroll');
     });
 
     Route::middleware('can:courses.manage')->group(function () {
+        Route::post('/course-categories', [CourseCategoryController::class, 'store'])->name('course-categories.store');
         Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
         Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
         Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
@@ -120,12 +124,15 @@ Route::middleware('auth')->group(function () {
 
             return app(StudyController::class)->index($request, app(GetMyCourses::class));
         })->name('study.courses.index');
-        Route::get('/my/courses/{course}', [StudyController::class, 'show'])->name('study.courses.show');
-        Route::post('/lessons/{lesson}/complete', [StudyController::class, 'complete'])->name('study.lessons.complete');
-        Route::get('/lessons/{lesson}/content', [StudyController::class, 'content'])->name('study.lessons.content');
         Route::get('/my/results', [AssessmentController::class, 'myResults'])->name('assessments.my-results');
         Route::get('/my/progress', [ReportController::class, 'myProgress'])->name('progress.my');
     });
+
+    Route::get('/my/courses/{course}', [StudyController::class, 'show'])->name('study.courses.show');
+    Route::post('/lessons/{lesson}/complete', [StudyController::class, 'complete'])->name('study.lessons.complete');
+    Route::get('/lessons/{lesson}/content', [StudyController::class, 'content'])->name('study.lessons.content');
+    Route::post('/courses/{course}/certificate', [CertificateController::class, 'issue'])->name('certificates.issue');
+    Route::get('/certificates/{certificate}/download', [CertificateController::class, 'download'])->name('certificates.download');
 
     Route::get('/courses/{course}/progress', [ReportController::class, 'courseProgress'])
         ->name('progress.course');

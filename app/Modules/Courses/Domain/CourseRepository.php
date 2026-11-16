@@ -4,10 +4,13 @@ namespace App\Modules\Courses\Domain;
 
 interface CourseRepository
 {
-    /** @param array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
+    /** @return array{id: int, name: string, slug: string, role_name: string} */
+    public function createCategory(string $name, string $roleName = 'estudiante'): array;
+
+    /** @param array{name: string, category_id?: int|null, target_audience?: string, issues_certificate?: bool, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
     public function createCourse(array $attributes): int;
 
-    /** @param array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
+    /** @param array{name: string, category_id?: int|null, target_audience?: string, issues_certificate?: bool, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null} $attributes */
     public function updateCourse(int $courseId, int $expectedVersion, array $attributes): void;
 
     public function coverPath(int $courseId): ?string;

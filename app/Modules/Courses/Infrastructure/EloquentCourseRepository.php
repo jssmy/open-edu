@@ -7,22 +7,74 @@ use App\Modules\Courses\Domain\CourseRepository;
 use App\Modules\Courses\Domain\CourseStatus;
 use App\Modules\Courses\Domain\Lesson as LessonEntity;
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Modules\Courses\Infrastructure\Models\CourseCategory;
 use App\Modules\Courses\Infrastructure\Models\Lesson;
 use App\Modules\Courses\Infrastructure\Models\Unit;
 use App\Shared\Exceptions\DomainException;
 use App\Shared\Exceptions\StaleContentVersionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 final class EloquentCourseRepository implements CourseRepository
 {
+    public function createCategory(string $name, string $roleName = 'estudiante'): array
+    {
+        $trimmed = trim($name);
+        $slug = Str::slug($trimmed);
+        $normalizedRole = trim($roleName) !== '' ? trim($roleName) : 'estudiante';
+
+        if ($trimmed === '' || $slug === '') {
+            throw new DomainException('Ingresa un nombre válido para la categoría.', 'name');
+        }
+
+        $exists = CourseCategory::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($trimmed)])
+            ->orWhere('slug', $slug)
+            ->exists();
+
+        if ($exists) {
+            throw new DomainException('Ya existe una categoría con ese nombre.', 'name');
+        }
+
+        $category = CourseCategory::query()->create([
+            'name' => $trimmed,
+            'slug' => $slug,
+            'role_name' => $normalizedRole,
+            'is_active' => true,
+        ]);
+
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'slug' => $category->slug,
+            'role_name' => $category->role_name,
+        ];
+    }
+
     public function createCourse(array $attributes): int
     {
-        return Course::query()->create($attributes)->id;
+        $categoryId = $attributes['category_id'] ?? null;
+        $derivedAudience = $this->resolveTargetAudience($categoryId, $attributes['target_audience'] ?? null);
+
+        $payload = [
+            'issues_certificate' => true,
+            ...$attributes,
+            'target_audience' => $derivedAudience,
+        ];
+
+        return Course::query()->create($payload)->id;
     }
 
     public function updateCourse(int $courseId, int $expectedVersion, array $attributes): void
     {
+        if (array_key_exists('category_id', $attributes)) {
+            $attributes['target_audience'] = $this->resolveTargetAudience(
+                $attributes['category_id'],
+                $attributes['target_audience'] ?? null,
+            );
+        }
+
         $updated = Course::query()
             ->whereKey($courseId)
             ->where('lock_version', $expectedVersion)
@@ -33,6 +85,20 @@ final class EloquentCourseRepository implements CourseRepository
                 'El contenido cambió desde que abriste esta página. Recarga para revisar los cambios.',
             );
         }
+    }
+
+    private function resolveTargetAudience(?int $categoryId, ?string $fallbackAudience): string
+    {
+        if ($categoryId !== null) {
+            $roleName = CourseCategory::query()->whereKey($categoryId)->value('role_name');
+            if (is_string($roleName) && $roleName !== '') {
+                return $roleName === 'estudiante' ? 'student' : 'teacher';
+            }
+        }
+
+        return is_string($fallbackAudience) && $fallbackAudience !== ''
+            ? $fallbackAudience
+            : 'student';
     }
 
     public function coverPath(int $courseId): ?string

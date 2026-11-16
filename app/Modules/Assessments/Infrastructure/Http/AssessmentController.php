@@ -14,6 +14,7 @@ use App\Modules\Assessments\Infrastructure\Http\Requests\SaveAssessmentRequest;
 use App\Modules\Assessments\Infrastructure\Http\Requests\SubmitAttemptRequest;
 use App\Modules\Assessments\Infrastructure\Models\Assessment;
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -105,8 +106,9 @@ class AssessmentController extends Controller
     public function take(Request $request, Assessment $assessment, StartAttempt $start): Response
     {
         Gate::authorize('take', $assessment);
-        $student = Student::query()->where('user_id', $request->user()->id)->firstOrFail();
-        $attempt = $start($assessment->id, $student->id);
+        $user = $request->user();
+        $student = Student::query()->where('user_id', $user->id)->first();
+        $attempt = $start($assessment->id, $student?->id, $user->id);
         $assessment->load('questions.choices');
 
         return Inertia::render('Assessments/Take', [
@@ -134,12 +136,13 @@ class AssessmentController extends Controller
         Assessment $assessment,
         SubmitAttempt $submit,
     ): RedirectResponse {
-        $student = Student::query()->where('user_id', $request->user()->id)->firstOrFail();
+        $user = $request->user();
+        $student = Student::query()->where('user_id', $user->id)->first();
         $answers = array_map(
             fn (int|string $choiceId): int => (int) $choiceId,
             $request->validated('answers'),
         );
-        $submit($assessment->id, $student->id, $answers);
+        $submit($assessment->id, $student?->id, $answers, $user->id);
 
         return to_route('assessments.results', $assessment)->with('success', 'Evaluación enviada.');
     }
@@ -154,7 +157,16 @@ class AssessmentController extends Controller
             ? Student::query()->where('user_id', $user->id)->firstOrFail()
             : null;
         $studentId = $student?->id;
-        $data = $getResults->forAssessment($assessment->id, $studentId);
+
+        $isEnrolledTeacher = ! $isStudent
+            && $user->hasRole('docente')
+            && Enrollment::query()
+                ->where('user_id', $user->id)
+                ->where('course_id', $assessment->course_id)
+                ->exists();
+        $participantUserId = $isEnrolledTeacher ? $user->id : null;
+
+        $data = $getResults->forAssessment($assessment->id, $studentId, $participantUserId);
 
         $hasInProgressAttempt = false;
         $canTake = false;
@@ -162,6 +174,12 @@ class AssessmentController extends Controller
         if ($student !== null) {
             $hasInProgressAttempt = $assessment->attempts()
                 ->where('student_id', $student->id)
+                ->where('status', 'in_progress')
+                ->exists();
+            $canTake = Gate::forUser($user)->allows('take', $assessment);
+        } elseif ($participantUserId !== null) {
+            $hasInProgressAttempt = $assessment->attempts()
+                ->where('user_id', $participantUserId)
                 ->where('status', 'in_progress')
                 ->exists();
             $canTake = Gate::forUser($user)->allows('take', $assessment);
@@ -205,10 +223,17 @@ class AssessmentController extends Controller
             'course:id,name',
         ]);
 
-        $isStudent = $request->user()->hasRole('estudiante');
+        $user = $request->user();
+        $isStudent = $user->hasRole('estudiante');
+        $isEnrolledTeacher = ! $isStudent
+            && $user->hasRole('docente')
+            && Enrollment::query()
+                ->where('user_id', $user->id)
+                ->where('course_id', $assessment->course_id)
+                ->exists();
 
         if ($isStudent) {
-            $student = Student::query()->where('user_id', $request->user()->id)->firstOrFail();
+            $student = Student::query()->where('user_id', $user->id)->firstOrFail();
         } else {
             $studentId = $request->integer('student_id') ?: null;
             $student = $studentId ? Student::query()->find($studentId) : null;
@@ -223,11 +248,17 @@ class AssessmentController extends Controller
                 ->with('answers')
                 ->latest('id')
                 ->first();
+        } elseif ($isEnrolledTeacher) {
+            $latestAttempt = $assessment->attempts()
+                ->where('user_id', $user->id)
+                ->with('answers')
+                ->latest('id')
+                ->first();
+        }
 
-            if ($latestAttempt) {
-                foreach ($latestAttempt->answers as $ans) {
-                    $studentAnswers[$ans->question_id] = $ans->choice_id;
-                }
+        if ($latestAttempt) {
+            foreach ($latestAttempt->answers as $ans) {
+                $studentAnswers[$ans->question_id] = $ans->choice_id;
             }
         }
 
@@ -254,6 +285,8 @@ class AssessmentController extends Controller
             ];
         })->all();
 
+        $isLearner = $isStudent || $isEnrolledTeacher;
+
         return Inertia::render('Assessments/Review', [
             'assessment' => [
                 'id' => $assessment->id,
@@ -267,7 +300,11 @@ class AssessmentController extends Controller
                 'id' => $student->id,
                 'name' => $student->user?->name ?? 'Estudiante',
                 'email' => $student->user?->email,
-            ] : null,
+            ] : ($isEnrolledTeacher ? [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ] : null),
             'attempt' => $latestAttempt ? [
                 'id' => $latestAttempt->id,
                 'attempt_number' => $latestAttempt->attempt_number,
@@ -278,8 +315,8 @@ class AssessmentController extends Controller
                 'submitted_at' => $latestAttempt->submitted_at ? (string) $latestAttempt->submitted_at : null,
             ] : null,
             'questions' => $questionsData,
-            'isStudent' => $isStudent,
-            'canContinue' => $isStudent && $latestAttempt?->status === 'in_progress',
+            'isStudent' => $isLearner,
+            'canContinue' => $isLearner && $latestAttempt?->status === 'in_progress',
         ]);
     }
 }

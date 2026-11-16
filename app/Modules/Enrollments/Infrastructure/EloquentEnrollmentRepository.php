@@ -2,6 +2,8 @@
 
 namespace App\Modules\Enrollments\Infrastructure;
 
+use App\Models\User;
+use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Enrollments\Domain\Enrollment as EnrollmentRecord;
 use App\Modules\Enrollments\Domain\EnrollmentRepository;
 use App\Modules\Enrollments\Domain\EnrollmentStatus;
@@ -35,6 +37,11 @@ final class EloquentEnrollmentRepository implements EnrollmentRepository
 
     public function create(int $studentId, int $courseId, ?int $courseOfferingId = null): EnrollmentRecord
     {
+        $course = Course::query()->with('category:id,role_name')->find($courseId);
+        if ($course !== null && $course->effectiveRoleName() !== 'estudiante') {
+            throw new DomainException('Este curso no pertenece a una categoría de estudiantes.', 'course');
+        }
+
         $existing = Enrollment::query()
             ->where('student_id', $studentId)
             ->where('course_id', $courseId)
@@ -63,7 +70,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepository
     {
         return DB::transaction(function () use ($studentId, $courseOfferingId, $detector): EnrollmentRecord {
             $offering = CourseOffering::query()
-                ->with(['course', 'sessions'])
+                ->with(['course.category:id,role_name', 'sessions'])
                 ->lockForUpdate()
                 ->find($courseOfferingId);
 
@@ -73,6 +80,10 @@ final class EloquentEnrollmentRepository implements EnrollmentRepository
 
             if ($offering->course === null || $offering->course->status !== 'published') {
                 throw new DomainException('Solo se puede matricular en cursos publicados.', 'course');
+            }
+
+            if ($offering->course->effectiveRoleName() !== 'estudiante') {
+                throw new DomainException('Solo los cursos de categorías de estudiantes admiten matrícula académica.', 'course_offering_id');
             }
 
             if (! $offering->isEnrollable()) {
@@ -157,6 +168,61 @@ final class EloquentEnrollmentRepository implements EnrollmentRepository
         });
     }
 
+    public function enrollTeacherInCourse(int $teacherUserId, int $courseId): EnrollmentRecord
+    {
+        return DB::transaction(function () use ($teacherUserId, $courseId): EnrollmentRecord {
+            $user = User::query()->find($teacherUserId);
+            if ($user === null || ! $user->is_active) {
+                throw new DomainException('El usuario no se encuentra activo.', 'course_id');
+            }
+
+            $course = Course::query()->with('category:id,role_name')->lockForUpdate()->find($courseId);
+            if ($course === null || $course->status !== 'published') {
+                throw new DomainException('Solo puedes inscribirte en cursos publicados.', 'course_id');
+            }
+
+            $requiredRole = $course->effectiveRoleName();
+            if ($requiredRole === 'estudiante') {
+                throw new DomainException('Los cursos de categorías de estudiantes requieren matrícula por grupo y horario.', 'course_id');
+            }
+
+            if (! $user->hasRole($requiredRole) && ! $user->can('courses.manage')) {
+                throw new DomainException('Este curso no está habilitado para tu rol.', 'course_id');
+            }
+
+            $existing = Enrollment::query()
+                ->where('user_id', $teacherUserId)
+                ->where('course_id', $courseId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null && $existing->status !== EnrollmentStatus::Cancelled) {
+                return $this->toRecord($existing);
+            }
+
+            if ($existing !== null) {
+                $existing->update([
+                    'course_offering_id' => null,
+                    'status' => EnrollmentStatus::Active,
+                    'enrolled_at' => now(),
+                ]);
+
+                return $this->toRecord($existing->fresh());
+            }
+
+            $created = Enrollment::query()->create([
+                'student_id' => null,
+                'user_id' => $teacherUserId,
+                'course_id' => $courseId,
+                'course_offering_id' => null,
+                'status' => EnrollmentStatus::Active,
+                'enrolled_at' => now(),
+            ]);
+
+            return $this->toRecord($created);
+        });
+    }
+
     public function setStatus(int $enrollmentId, EnrollmentStatus $status): void
     {
         Enrollment::query()->whereKey($enrollmentId)->update(['status' => $status]);
@@ -171,6 +237,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepository
             $enrollment->status,
             $enrollment->enrolled_at->toDateTimeImmutable(),
             $enrollment->course_offering_id,
+            $enrollment->user_id,
         );
     }
 

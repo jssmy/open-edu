@@ -13,7 +13,8 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'Aula Virtual'),
+    'ong_name' => env('APP_ONG_NAME', 'Asociación Un Día de Esperanza'),
 
     /*
     |--------------------------------------------------------------------------

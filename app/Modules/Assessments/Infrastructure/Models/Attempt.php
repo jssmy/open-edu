@@ -2,6 +2,7 @@
 
 namespace App\Modules\Assessments\Infrastructure\Models;
 
+use App\Models\User;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'assessment_id',
     'student_id',
+    'user_id',
     'attempt_number',
     'score',
     'passed',
@@ -46,6 +48,12 @@ class Attempt extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /** @return HasMany<AttemptAnswer, $this> */

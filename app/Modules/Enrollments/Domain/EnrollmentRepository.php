@@ -14,5 +14,7 @@ interface EnrollmentRepository
 
     public function enrollInOffering(int $studentId, int $courseOfferingId, ConflictDetector $detector): Enrollment;
 
+    public function enrollTeacherInCourse(int $teacherUserId, int $courseId): Enrollment;
+
     public function setStatus(int $enrollmentId, EnrollmentStatus $status): void;
 }

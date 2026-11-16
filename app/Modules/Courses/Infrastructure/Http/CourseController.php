@@ -12,15 +12,21 @@ use App\Modules\Courses\Domain\CourseStatus;
 use App\Modules\Courses\Domain\IntroductoryVideo;
 use App\Modules\Courses\Infrastructure\Http\Requests\SaveCourseRequest;
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Modules\Courses\Infrastructure\Models\CourseCategory;
+use App\Modules\Enrollments\Application\EnrollTeacher;
+use App\Modules\Enrollments\Domain\EnrollmentStatus;
+use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Shared\RichText\RichTextDocumentValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 class CourseController extends Controller
 {
@@ -28,39 +34,112 @@ class CourseController extends Controller
     {
         Gate::authorize('viewAny', Course::class);
 
+        $user = $request->user();
+        $canManageCourses = $user->can('courses.manage');
+        $isRoleCatalogView = ! $canManageCourses;
+        $userRoles = $user->getRoleNames()->values()->all();
+
         $term = trim($request->string('q')->toString());
         $status = CourseStatus::tryFrom($request->string('status')->toString());
+        $categoryId = $request->integer('category_id') ?: null;
+
+        $enrolledCourseIds = array_fill_keys(
+            Enrollment::query()
+                ->where('user_id', $user->id)
+                ->where('status', EnrollmentStatus::Active->value)
+                ->pluck('course_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all(),
+            true,
+        );
 
         $paginator = Course::query()
-            ->with('teachers:id,name')
+            ->with([
+                'teachers:id,name',
+                'category:id,name,slug,role_name',
+                'units.lessons' => fn ($query) => $query->where('is_archived', false)->select(['id', 'unit_id']),
+            ])
             ->withCount('units')
             ->when(
-                $request->user()->hasRole('docente'),
-                fn ($query) => $query->whereHas('teachers', fn ($teachers) => $teachers->whereKey($request->user()->id)),
+                $isRoleCatalogView,
+                fn ($query) => $query
+                    ->where('status', CourseStatus::Published->value)
+                    ->forRoles($userRoles),
             )
             ->when($term !== '', function ($query) use ($term): void {
                 $like = '%'.addcslashes($term, '%_\\').'%';
                 $query->where(fn ($inner) => $inner->where('name', 'like', $like)
                     ->orWhereHas('teachers', fn ($teachers) => $teachers->where('name', 'like', $like)));
             })
-            ->when($status !== null, fn ($query) => $query->where('status', $status->value))
+            ->when($canManageCourses && $status !== null, fn ($query) => $query->where('status', $status->value))
+            ->when($categoryId !== null, fn ($query) => $query->where('category_id', $categoryId))
             ->orderBy('name')
             ->orderBy('id')
             ->paginate(10, ['*'], 'page', max(1, $request->integer('page', 1)));
 
+        $completedLessonIds = [];
+        if ($enrolledCourseIds !== []) {
+            $pageLessonIds = $paginator->getCollection()
+                ->flatMap(fn (Course $course) => $course->units->flatMap(fn ($unit) => $unit->lessons->pluck('id')))
+                ->values()
+                ->all();
+
+            if ($pageLessonIds !== []) {
+                $completedLessonIds = array_fill_keys(
+                    DB::table('lesson_progress')
+                        ->where('user_id', $user->id)
+                        ->whereIn('lesson_id', $pageLessonIds)
+                        ->pluck('lesson_id')
+                        ->map(fn ($id): int => (int) $id)
+                        ->all(),
+                    true,
+                );
+            }
+        }
+
         $courses = [
-            'data' => $paginator->getCollection()->map(fn (Course $course): array => [
-                'id' => $course->id,
-                'name' => $course->name,
-                'excerpt' => Str::limit(trim(RichTextDocumentValidator::plainText($course->description)), 180),
-                'cover_url' => $course->coverUrl(),
-                'units_count' => $course->units_count,
-                'status' => $course->status,
-                'teachers' => $course->teachers->map(fn ($teacher): array => [
-                    'id' => $teacher->id,
-                    'name' => $teacher->name,
-                ])->all(),
-            ])->all(),
+            'data' => $paginator->getCollection()->map(function (Course $course) use ($isRoleCatalogView, $enrolledCourseIds, $completedLessonIds): array {
+                $isEnrolled = isset($enrolledCourseIds[$course->id]);
+                $roleName = $course->category?->role_name ?? ($course->target_audience === 'teacher' ? 'docente' : 'estudiante');
+
+                $progress = null;
+                if ($isEnrolled) {
+                    $lessonIds = $course->units
+                        ->flatMap(fn ($unit) => $unit->lessons->pluck('id'))
+                        ->map(fn ($id): int => (int) $id)
+                        ->all();
+                    $totalLessons = count($lessonIds);
+                    $completedLessons = count(array_filter($lessonIds, fn (int $id): bool => isset($completedLessonIds[$id])));
+                    $percentage = $totalLessons === 0 ? 0 : (int) round(($completedLessons / $totalLessons) * 100);
+
+                    $progress = [
+                        'completed_lessons' => $completedLessons,
+                        'total_lessons' => $totalLessons,
+                        'percentage' => $percentage,
+                    ];
+                }
+
+                return [
+                    'id' => $course->id,
+                    'name' => $course->name,
+                    'excerpt' => Str::limit(trim(RichTextDocumentValidator::plainText($course->description)), 180),
+                    'cover_url' => $course->coverUrl(),
+                    'units_count' => $course->units_count,
+                    'status' => $course->status,
+                    'category_id' => $course->category_id,
+                    'category_name' => $course->category?->name,
+                    'category_role_name' => $roleName,
+                    'issues_certificate' => (bool) ($course->issues_certificate ?? true),
+                    'is_enrolled' => $isEnrolled,
+                    'can_self_enroll' => $isRoleCatalogView && ! $isEnrolled,
+                    'study_url' => $isEnrolled ? "/my/courses/{$course->id}" : null,
+                    'progress' => $progress,
+                    'teachers' => $course->teachers->map(fn ($teacher): array => [
+                        'id' => $teacher->id,
+                        'name' => $teacher->name,
+                    ])->all(),
+                ];
+            })->all(),
             'meta' => [
                 'page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -72,9 +151,26 @@ class CourseController extends Controller
 
         return Inertia::render('Courses/Index', [
             'courses' => $courses,
-            'filters' => ['q' => $term, 'status' => $status?->value ?? ''],
-            'canManageCourses' => $request->user()->can('courses.manage'),
+            'categories' => $this->activeCategories($isRoleCatalogView ? $userRoles : null),
+            'roles' => $canManageCourses ? $this->availableRoles() : [],
+            'filters' => [
+                'q' => $term,
+                'status' => $status?->value ?? '',
+                'category_id' => $categoryId ? (string) $categoryId : '',
+            ],
+            'canManageCourses' => $canManageCourses,
+            'isRoleCatalogView' => $isRoleCatalogView,
         ]);
+    }
+
+    public function selfEnroll(
+        Request $request,
+        Course $course,
+        EnrollTeacher $enrollTeacher,
+    ): RedirectResponse {
+        $enrollTeacher($request->user()->id, $course->id, $request->user()->id);
+
+        return to_route('study.courses.show', $course)->with('success', 'Te has inscrito exitosamente en el curso.');
     }
 
     public function create(): Response
@@ -83,6 +179,8 @@ class CourseController extends Controller
 
         return Inertia::render('Courses/Edit', [
             'course' => null,
+            'categories' => $this->activeCategories(),
+            'roles' => $this->availableRoles(),
         ]);
     }
 
@@ -94,6 +192,8 @@ class CourseController extends Controller
             'course' => [
                 'id' => $course->id,
                 'name' => $course->name,
+                'category_id' => $course->category_id,
+                'issues_certificate' => (bool) ($course->issues_certificate ?? true),
                 'description' => $course->description,
                 'objectives' => $course->objectives,
                 'intro_video_url' => $course->introVideoUrl(),
@@ -101,6 +201,8 @@ class CourseController extends Controller
                 'has_custom_cover' => $course->cover_path !== null,
                 'lock_version' => $course->lock_version,
             ],
+            'categories' => $this->activeCategories(),
+            'roles' => $this->availableRoles(),
         ]);
     }
 
@@ -109,6 +211,7 @@ class CourseController extends Controller
         Gate::authorize('view', $course);
 
         $course->load([
+            'category:id,name,slug,role_name',
             'teachers:id,name',
             'units.lessons',
             'assessments:id,course_id,title,is_published',
@@ -118,6 +221,10 @@ class CourseController extends Controller
             'course' => [
                 'id' => $course->id,
                 'name' => $course->name,
+                'category_id' => $course->category_id,
+                'category_name' => $course->category?->name,
+                'category_role_name' => $course->category?->role_name ?? ($course->target_audience === 'teacher' ? 'docente' : 'estudiante'),
+                'issues_certificate' => (bool) ($course->issues_certificate ?? true),
                 'description' => $course->description,
                 'objectives' => $course->objectives,
                 'intro_video_url' => $course->introVideoUrl(),
@@ -196,8 +303,8 @@ class CourseController extends Controller
     }
 
     /**
-     * @param  array{name: string, description?: array|null, objectives?: array|null, intro_video_url?: string|null}  $attributes
-     * @return array{name: string, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null}
+     * @param  array{name: string, category_id?: int|null, target_audience?: string, issues_certificate?: bool, description?: array|null, objectives?: array|null, intro_video_url?: string|null}  $attributes
+     * @return array{name: string, category_id?: int|null, target_audience?: string, issues_certificate?: bool, description: array|null, objectives: array|null, intro_video_provider: string|null, intro_video_id: string|null}
      */
     private function normalizeCourseAttributes(array $attributes): array
     {
@@ -209,5 +316,50 @@ class CourseController extends Controller
             'intro_video_provider' => $video?->provider,
             'intro_video_id' => $video?->id,
         ];
+    }
+
+    /**
+     * @param  list<string>|null  $filterRoles
+     * @return list<array{id: int, name: string, slug: string, role_name: string}>
+     */
+    private function activeCategories(?array $filterRoles = null): array
+    {
+        return CourseCategory::query()
+            ->where('is_active', true)
+            ->when($filterRoles !== null, fn ($query) => $query->whereIn('role_name', $filterRoles))
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'role_name'])
+            ->map(fn (CourseCategory $cat): array => [
+                'id' => $cat->id,
+                'name' => $cat->name,
+                'slug' => $cat->slug,
+                'role_name' => $cat->role_name,
+            ])
+            ->all();
+    }
+
+    /** @return list<array{value: string, label: string}> */
+    private function availableRoles(): array
+    {
+        $labels = [
+            'estudiante' => 'Estudiante',
+            'docente' => 'Docente',
+            'administrador' => 'Administrador',
+        ];
+
+        $roles = Role::query()
+            ->orderByRaw("CASE WHEN name = 'estudiante' THEN 0 WHEN name = 'docente' THEN 1 ELSE 2 END")
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+
+        if ($roles === []) {
+            $roles = ['estudiante', 'docente'];
+        }
+
+        return array_map(fn (string $name): array => [
+            'value' => $name,
+            'label' => $labels[$name] ?? ucfirst($name),
+        ], $roles);
     }
 }

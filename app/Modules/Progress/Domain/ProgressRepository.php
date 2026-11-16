@@ -25,6 +25,15 @@ interface ProgressRepository
      *     id: int,
      *     name: string,
      *     description: ?string,
+     *     issues_certificate?: bool,
+     *     all_assessments_passed?: bool,
+     *     certificate?: array{
+     *         id: int,
+     *         code: string,
+     *         file_url: string,
+     *         download_url: string,
+     *         issued_at: string
+     *     }|null,
      *     units: list<array{
      *         id: int,
      *         title: string,
@@ -40,7 +49,18 @@ interface ProgressRepository
      *     }>
      * }|null
      */
-    public function courseStudyData(int $courseId, int $studentId): ?array;
+    public function courseStudyData(int $courseId, ?int $studentId, ?int $userId = null): ?array;
 
-    public function markLessonCompleted(int $studentId, int $lessonId): void;
+    public function markLessonCompleted(?int $studentId, int $lessonId, ?int $userId = null): void;
+
+    /**
+     * @return array{
+     *     id: int,
+     *     code: string,
+     *     file_url: string,
+     *     download_url: string,
+     *     issued_at: string
+     * }
+     */
+    public function issueCertificate(int $courseId, int $userId, ?int $studentId = null): array;
 }

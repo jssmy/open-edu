@@ -9,8 +9,8 @@ final class StartAttempt
     public function __construct(private readonly AssessmentRepository $assessments) {}
 
     /** @return array{id: int, attempt_number: int} */
-    public function __invoke(int $assessmentId, int $studentId): array
+    public function __invoke(int $assessmentId, ?int $studentId, ?int $userId = null): array
     {
-        return $this->assessments->startAttempt($assessmentId, $studentId);
+        return $this->assessments->startAttempt($assessmentId, $studentId, $userId);
     }
 }

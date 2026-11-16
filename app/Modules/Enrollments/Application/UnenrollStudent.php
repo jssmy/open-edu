@@ -24,6 +24,7 @@ final class UnenrollStudent
         $this->enrollments->setStatus($enrollmentId, $updated->status);
         $this->auditor->log('enrollment.cancelled', $actorId, "enrollment:{$enrollmentId}", [
             'student_id' => $enrollment->studentId,
+            'user_id' => $enrollment->userId,
             'course_id' => $enrollment->courseId,
             'course_offering_id' => $enrollment->courseOfferingId,
         ]);

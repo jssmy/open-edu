@@ -2,6 +2,7 @@
 
 namespace App\Modules\Assessments\Infrastructure;
 
+use App\Models\User;
 use App\Modules\Assessments\Domain\Assessment as AssessmentRules;
 use App\Modules\Assessments\Domain\AssessmentRepository;
 use App\Modules\Assessments\Domain\Attempt as AttemptRules;
@@ -124,9 +125,9 @@ final class EloquentAssessmentRepository implements AssessmentRepository
         });
     }
 
-    public function startAttempt(int $assessmentId, int $studentId): array
+    public function startAttempt(int $assessmentId, ?int $studentId, ?int $userId = null): array
     {
-        return DB::transaction(function () use ($assessmentId, $studentId): array {
+        return DB::transaction(function () use ($assessmentId, $studentId, $userId): array {
             $assessment = Assessment::query()
                 ->lockForUpdate()
                 ->findOrFail($assessmentId);
@@ -136,10 +137,14 @@ final class EloquentAssessmentRepository implements AssessmentRepository
                 throw new DomainException('La evaluación no está disponible.', 'assessment');
             }
 
-            $this->assertActiveEnrollment($studentId, $assessment->course_id);
+            $this->assertActiveEnrollment($studentId, $assessment->course_id, $userId);
 
             $activeAttempt = $assessment->attempts()
-                ->where('student_id', $studentId)
+                ->when(
+                    $studentId !== null,
+                    fn ($query) => $query->where('student_id', $studentId),
+                    fn ($query) => $query->where('user_id', $userId),
+                )
                 ->where('status', 'in_progress')
                 ->lockForUpdate()
                 ->first();
@@ -152,7 +157,11 @@ final class EloquentAssessmentRepository implements AssessmentRepository
             }
 
             $attemptsTaken = $assessment->attempts()
-                ->where('student_id', $studentId)
+                ->when(
+                    $studentId !== null,
+                    fn ($query) => $query->where('student_id', $studentId),
+                    fn ($query) => $query->where('user_id', $userId),
+                )
                 ->count();
             $rules = new AssessmentRules(
                 $assessment->max_attempts,
@@ -162,8 +171,13 @@ final class EloquentAssessmentRepository implements AssessmentRepository
             $attemptNumber = $rules->nextAttemptNumber($attemptsTaken);
             new AttemptRules($attemptNumber, $assessment->max_attempts);
 
+            $resolvedUserId = $userId ?? ($studentId !== null
+                ? Student::query()->whereKey($studentId)->value('user_id')
+                : null);
+
             $attempt = $assessment->attempts()->create([
                 'student_id' => $studentId,
+                'user_id' => $resolvedUserId,
                 'attempt_number' => $attemptNumber,
                 'status' => 'in_progress',
                 'started_at' => now(),
@@ -176,18 +190,22 @@ final class EloquentAssessmentRepository implements AssessmentRepository
         });
     }
 
-    public function submitAttempt(int $assessmentId, int $studentId, array $answers): array
+    public function submitAttempt(int $assessmentId, ?int $studentId, array $answers, ?int $userId = null): array
     {
-        return DB::transaction(function () use ($assessmentId, $studentId, $answers): array {
+        return DB::transaction(function () use ($assessmentId, $studentId, $answers, $userId): array {
             $assessment = Assessment::query()
                 ->with('questions.choices')
                 ->findOrFail($assessmentId);
             $attempt = $assessment->attempts()
-                ->where('student_id', $studentId)
+                ->when(
+                    $studentId !== null,
+                    fn ($query) => $query->where('student_id', $studentId),
+                    fn ($query) => $query->where('user_id', $userId),
+                )
                 ->where('status', 'in_progress')
                 ->lockForUpdate()
                 ->firstOrFail();
-            $this->assertActiveEnrollment($studentId, $assessment->course_id);
+            $this->assertActiveEnrollment($studentId, $assessment->course_id, $userId);
 
             $questions = $assessment->questions;
             if (count($answers) !== $questions->count()) {
@@ -235,11 +253,19 @@ final class EloquentAssessmentRepository implements AssessmentRepository
         });
     }
 
-    public function latestResult(int $assessmentId, int $studentId): ?array
+    public function latestResult(int $assessmentId, ?int $studentId, ?int $userId = null): ?array
     {
+        if ($studentId === null && $userId === null) {
+            return null;
+        }
+
         $attempt = Attempt::query()
             ->where('assessment_id', $assessmentId)
-            ->where('student_id', $studentId)
+            ->when(
+                $studentId !== null,
+                fn ($query) => $query->where('student_id', $studentId),
+                fn ($query) => $query->where('user_id', $userId),
+            )
             ->where('status', 'submitted')
             ->with('assessment')
             ->orderByDesc('attempt_number')
@@ -254,15 +280,17 @@ final class EloquentAssessmentRepository implements AssessmentRepository
         $attempts = Attempt::query()
             ->where('assessment_id', $assessmentId)
             ->where('status', 'submitted')
-            ->with(['student.user', 'assessment'])
+            ->with(['student.user', 'user', 'assessment'])
             ->orderBy('student_id')
             ->orderByDesc('attempt_number')
             ->get()
-            ->unique('student_id')
+            ->unique(fn (Attempt $attempt) => $attempt->student_id !== null
+                ? "student:{$attempt->student_id}"
+                : "user:{$attempt->user_id}")
             ->values();
 
         return $attempts->map(fn (Attempt $attempt): array => [
-            'student_name' => $attempt->student->user->name,
+            'student_name' => $attempt->student?->user?->name ?? $attempt->user?->name ?? 'Participante',
             'attempt_number' => $attempt->attempt_number,
             'score' => $attempt->score,
             'total_score' => $attempt->assessment->total_score,
@@ -305,21 +333,43 @@ final class EloquentAssessmentRepository implements AssessmentRepository
         }
     }
 
-    private function assertActiveEnrollment(int $studentId, int $courseId): void
+    private function assertActiveEnrollment(?int $studentId, int $courseId, ?int $userId = null): void
     {
-        $studentIsActive = Student::query()
-            ->whereKey($studentId)
-            ->where('is_active', true)
-            ->exists();
-        $hasActiveEnrollment = Enrollment::query()
-            ->where('student_id', $studentId)
-            ->where('course_id', $courseId)
-            ->where('status', EnrollmentStatus::Active->value)
-            ->exists();
+        if ($studentId !== null) {
+            $studentIsActive = Student::query()
+                ->whereKey($studentId)
+                ->where('is_active', true)
+                ->exists();
+            $hasActiveEnrollment = Enrollment::query()
+                ->where('student_id', $studentId)
+                ->where('course_id', $courseId)
+                ->where('status', EnrollmentStatus::Active->value)
+                ->exists();
 
-        if (! $studentIsActive || ! $hasActiveEnrollment) {
-            throw new DomainException('Se requiere una inscripción activa para rendir la evaluación.', 'assessment');
+            if (! $studentIsActive || ! $hasActiveEnrollment) {
+                throw new DomainException('Se requiere una inscripción activa para rendir la evaluación.', 'assessment');
+            }
+
+            return;
         }
+
+        if ($userId !== null) {
+            $userIsActive = User::query()
+                ->whereKey($userId)
+                ->where('is_active', true)
+                ->exists();
+            $hasActiveEnrollment = Enrollment::query()
+                ->where('user_id', $userId)
+                ->where('course_id', $courseId)
+                ->where('status', EnrollmentStatus::Active->value)
+                ->exists();
+
+            if ($userIsActive && $hasActiveEnrollment) {
+                return;
+            }
+        }
+
+        throw new DomainException('Se requiere una inscripción activa para rendir la evaluación.', 'assessment');
     }
 
     /**

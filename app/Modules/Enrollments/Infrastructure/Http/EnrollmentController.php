@@ -63,7 +63,8 @@ class EnrollmentController extends Controller
                 ->where('student_id', $selectedStudentId)
                 ->where('status', EnrollmentStatus::Active)
                 ->with([
-                    'course:id,name',
+                    'course:id,name,category_id',
+                    'course.category:id,name',
                     'courseOffering.teachers:id,name',
                     'courseOffering.sessions.teacher:id,name',
                     'courseOffering.sessions.classroom:id,name',
@@ -83,7 +84,9 @@ class EnrollmentController extends Controller
 
         $coursesQuery = Course::query()
             ->where('status', 'published')
+            ->forStudentAudience()
             ->with([
+                'category:id,name,role_name',
                 'teachers:id,name',
                 'offerings' => fn ($q) => $q
                     ->whereNotNull('starts_on')
@@ -127,6 +130,10 @@ class EnrollmentController extends Controller
                 'id' => $course->id,
                 'name' => $course->name,
                 'code' => null,
+                'category_id' => $course->category_id,
+                'category_name' => $course->category?->name,
+                'target_audience' => $course->target_audience ?? 'student',
+                'issues_certificate' => (bool) ($course->issues_certificate ?? true),
                 'description' => $excerpt !== '' ? $excerpt : null,
                 'excerpt' => $excerpt,
                 'cover_url' => $course->coverUrl(),
@@ -174,6 +181,7 @@ class EnrollmentController extends Controller
                 'id' => $enrollment->id,
                 'course_id' => $enrollment->course_id,
                 'course_name' => $enrollment->course?->name ?? '',
+                'category_name' => $enrollment->course?->category?->name,
                 'course_offering_id' => $enrollment->course_offering_id,
                 'group_code' => $offering?->group_code ?? 'Sin grupo',
                 'starts_on' => $offering?->starts_on?->toDateString(),
@@ -201,10 +209,11 @@ class EnrollmentController extends Controller
 
     public function store(
         StoreEnrollmentRequest $request,
-        EnrollStudent $enroll,
+        EnrollStudent $enrollStudent,
     ): RedirectResponse {
         $data = $request->validated();
-        $enroll(
+
+        $enrollStudent(
             studentId: (int) $data['student_id'],
             courseId: null,
             actorId: $request->user()->id,
@@ -221,9 +230,15 @@ class EnrollmentController extends Controller
     ): RedirectResponse {
         Gate::authorize('enrollments.manage');
 
+        $isTeacherEnrollment = $enrollment->user_id !== null && $enrollment->student_id === null;
         $unenroll($enrollment->id, $request->user()->id);
 
-        return back()->with('success', 'Estudiante desmatriculado correctamente.');
+        return back()->with(
+            'success',
+            $isTeacherEnrollment
+                ? 'Docente desmatriculado correctamente.'
+                : 'Estudiante desmatriculado correctamente.',
+        );
     }
 
     public function status(

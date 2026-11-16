@@ -20,8 +20,8 @@ final class SubmitAttempt
      *     submitted_at: string
      * }
      */
-    public function __invoke(int $assessmentId, int $studentId, array $answers): array
+    public function __invoke(int $assessmentId, ?int $studentId, array $answers, ?int $userId = null): array
     {
-        return $this->assessments->submitAttempt($assessmentId, $studentId, $answers);
+        return $this->assessments->submitAttempt($assessmentId, $studentId, $answers, $userId);
     }
 }

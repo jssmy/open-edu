@@ -1,6 +1,13 @@
 import { router } from '@inertiajs/vue3';
 
 export type CourseStatus = 'draft' | 'published' | 'deactivated';
+export type CourseTargetAudience = 'student' | 'teacher';
+
+export interface CourseCategoryItem {
+    id: number;
+    name: string;
+    slug: string;
+}
 
 export function changeCourseStatus(courseId: number, status: CourseStatus): void {
     router.patch(`/courses/${courseId}/status`, { status }, { preserveScroll: true });

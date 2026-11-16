@@ -28,6 +28,14 @@ interface Unit {
     lessons: Lesson[];
 }
 
+interface CertificateInfo {
+    id: number;
+    code: string;
+    file_url: string;
+    download_url: string;
+    issued_at: string;
+}
+
 interface Course {
     id: number;
     name: string;
@@ -35,6 +43,10 @@ interface Course {
     intro_video_embed_url: string | null;
     is_finished?: boolean;
     ends_on?: string | null;
+    issues_certificate?: boolean;
+    all_assessments_passed?: boolean;
+    can_claim_certificate?: boolean;
+    certificate?: CertificateInfo | null;
     units: Unit[];
     progress: {
         completed_lessons: number;
@@ -67,8 +79,32 @@ const props = withDefaults(
 const isFinishedCourse = computed(() => props.isReadOnly || props.course.is_finished);
 
 const completingLessonId = ref<number | null>(null);
+const claimingCertificate = ref(false);
 const completionError = ref<string | null>(null);
 const isDrawerOpen = ref(false);
+
+function claimCertificate(): void {
+    if (claimingCertificate.value) {
+        return;
+    }
+
+    completionError.value = null;
+    claimingCertificate.value = true;
+    router.post(
+        `/courses/${props.course.id}/certificate`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                completionError.value =
+                    errors.certificate ?? errors.general ?? 'No se pudo emitir el certificado.';
+            },
+            onFinish: () => {
+                claimingCertificate.value = false;
+            },
+        },
+    );
+}
 
 const flattenedLessons = computed<FlattenedLesson[]>(() => {
     const list: FlattenedLesson[] = [];
@@ -379,13 +415,57 @@ function isStoredContent(content: Lesson['content']): boolean {
                     </div>
                 </Card>
 
-                <!-- Barra de progreso general para el alumno -->
-                <Card v-if="!isTeacherView" class="flex flex-col gap-2">
+                <!-- Barra de progreso general y certificado para el participante -->
+                <Card v-if="!isTeacherView" class="flex flex-col gap-3">
                     <div class="flex justify-between gap-3 text-xs font-medium text-text-muted">
                         <span>Progreso global del curso</span>
                         <span>{{ course.progress.completed_lessons }} de {{ course.progress.total_lessons }} completadas ({{ course.progress.percentage }}%)</span>
                     </div>
                     <ProgressBar :percentage="course.progress.percentage" />
+
+                    <!-- Bloque de Certificado -->
+                    <div
+                        v-if="course.issues_certificate !== false"
+                        class="mt-1 flex flex-wrap items-center justify-between gap-3 rounded-control border border-border bg-surface-muted/60 px-3.5 py-2.5"
+                        data-testid="course-certificate-section"
+                    >
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-semibold text-text">
+                                🎓 Certificado de finalización
+                            </span>
+                            <span v-if="course.certificate" class="text-xs text-emerald-700 dark:text-emerald-400">
+                                Emitido el {{ course.certificate.issued_at }} · Código {{ course.certificate.code }}
+                            </span>
+                            <span v-else-if="course.can_claim_certificate" class="text-xs text-text-muted">
+                                Has completado todos los requisitos del curso. Ya puedes generar tu certificado en PDF.
+                            </span>
+                            <span v-else class="text-xs text-text-muted">
+                                Completa el 100% de las lecciones{{ course.assessments.length > 0 ? ' y aprueba las evaluaciones' : '' }} para obtener tu certificado.
+                            </span>
+                        </div>
+
+                        <div>
+                            <a
+                                v-if="course.certificate"
+                                :href="course.certificate.download_url"
+                                data-testid="download-certificate-btn"
+                                class="inline-flex items-center justify-center rounded-control bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700"
+                            >
+                                Descargar certificado (.pdf)
+                            </a>
+                            <Button
+                                v-else-if="course.can_claim_certificate"
+                                size="sm"
+                                variant="primary"
+                                data-testid="claim-certificate-btn"
+                                :loading="claimingCertificate"
+                                @click="claimCertificate"
+                            >
+                                Obtener certificado
+                            </Button>
+                            <Badge v-else variant="neutral">Pendiente de finalizar</Badge>
+                        </div>
+                    </div>
                 </Card>
             </div>
 

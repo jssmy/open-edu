@@ -3,6 +3,7 @@
 namespace App\Modules\Scheduling\Infrastructure\Http\Requests;
 
 use App\Models\User;
+use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Scheduling\Domain\Modality;
 use App\Modules\Scheduling\Domain\OfferingStatus;
 use App\Modules\Scheduling\Domain\SessionStatus;
@@ -115,6 +116,13 @@ class SaveScheduleRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $courseId = $this->integer('course_id');
+                if ($courseId > 0 && ! Course::query()->forStudentAudience()->whereKey($courseId)->exists()) {
+                    $validator->errors()->add('course_id', 'Solo los cursos de categorías de estudiantes admiten programación académica.');
+
                     return;
                 }
 

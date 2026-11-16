@@ -36,14 +36,17 @@ final class AssessmentPolicy
 
         $student = Student::query()->where('user_id', $user->id)->first();
 
-        if ($student === null) {
-            return false;
+        if ($student !== null) {
+            return $assessment->attempts()->where('student_id', $student->id)->where('status', 'in_progress')->exists()
+                || $assessment->attempts()->where('student_id', $student->id)->count() < $assessment->max_attempts;
         }
 
-        $attempts = $assessment->attempts()->where('student_id', $student->id);
+        if ($user->hasRole('docente')) {
+            return $assessment->attempts()->where('user_id', $user->id)->where('status', 'in_progress')->exists()
+                || $assessment->attempts()->where('user_id', $user->id)->count() < $assessment->max_attempts;
+        }
 
-        return $attempts->where('status', 'in_progress')->exists()
-            || $assessment->attempts()->where('student_id', $student->id)->count() < $assessment->max_attempts;
+        return false;
     }
 
     public function submit(User $user, Assessment $assessment): bool
@@ -54,14 +57,29 @@ final class AssessmentPolicy
 
         $student = Student::query()->where('user_id', $user->id)->first();
 
-        return $student !== null && $assessment->attempts()
-            ->where('student_id', $student->id)
-            ->where('status', 'in_progress')
-            ->exists();
+        if ($student !== null) {
+            return $assessment->attempts()
+                ->where('student_id', $student->id)
+                ->where('status', 'in_progress')
+                ->exists();
+        }
+
+        if ($user->hasRole('docente')) {
+            return $assessment->attempts()
+                ->where('user_id', $user->id)
+                ->where('status', 'in_progress')
+                ->exists();
+        }
+
+        return false;
     }
 
     public function viewResults(User $user, Assessment $assessment): Response
     {
+        if ($this->hasActiveOrHistoricalEnrollment($user, $assessment)) {
+            return Response::allow();
+        }
+
         if ($user->can('assessments.manage') || $user->can('students.view')) {
             if ($user->hasRole('docente') && ! $assessment->course->teachers()->whereKey($user->id)->exists()) {
                 return Response::denyAsNotFound();
@@ -70,61 +88,81 @@ final class AssessmentPolicy
             return Response::allow();
         }
 
-        return $this->hasActiveOrHistoricalEnrollment($user, $assessment)
-            ? Response::allow()
-            : Response::deny();
+        return Response::deny();
     }
 
     private function hasActiveEnrollment(User $user, Assessment $assessment): bool
     {
-        if (! $user->is_active || ! $user->hasRole('estudiante')) {
+        if (! $user->is_active) {
             return false;
         }
 
-        $student = Student::query()
-            ->where('user_id', $user->id)
-            ->where('is_active', true)
-            ->first();
+        if ($user->hasRole('estudiante')) {
+            $student = Student::query()
+                ->where('user_id', $user->id)
+                ->where('is_active', true)
+                ->first();
 
-        if ($student === null) {
-            return false;
-        }
-
-        $enrollment = Enrollment::query()
-            ->where('student_id', $student->id)
-            ->where('course_id', $assessment->course_id)
-            ->where('status', EnrollmentStatus::Active->value)
-            ->with('courseOffering')
-            ->first();
-
-        if ($enrollment === null) {
-            return false;
-        }
-
-        // Si la oferta tiene fecha de fin y ya pasó, no se permite rendir evaluaciones
-        if ($enrollment->courseOffering?->ends_on !== null) {
-            if ($enrollment->courseOffering->ends_on->toDateString() < now()->toDateString()) {
+            if ($student === null) {
                 return false;
             }
+
+            $enrollment = Enrollment::query()
+                ->where('student_id', $student->id)
+                ->where('course_id', $assessment->course_id)
+                ->where('status', EnrollmentStatus::Active->value)
+                ->with('courseOffering')
+                ->first();
+
+            if ($enrollment === null) {
+                return false;
+            }
+
+            if ($enrollment->courseOffering?->ends_on !== null) {
+                if ($enrollment->courseOffering->ends_on->toDateString() < now()->toDateString()) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        return true;
+        if ($user->hasRole('docente')) {
+            return Enrollment::query()
+                ->where('user_id', $user->id)
+                ->where('course_id', $assessment->course_id)
+                ->where('status', EnrollmentStatus::Active->value)
+                ->exists();
+        }
+
+        return false;
     }
 
     private function hasActiveOrHistoricalEnrollment(User $user, Assessment $assessment): bool
     {
-        if (! $user->is_active || ! $user->hasRole('estudiante')) {
+        if (! $user->is_active) {
             return false;
         }
 
-        $student = Student::query()
-            ->where('user_id', $user->id)
-            ->where('is_active', true)
-            ->first();
+        if ($user->hasRole('estudiante')) {
+            $student = Student::query()
+                ->where('user_id', $user->id)
+                ->where('is_active', true)
+                ->first();
 
-        return $student !== null && Enrollment::query()
-            ->where('student_id', $student->id)
-            ->where('course_id', $assessment->course_id)
-            ->exists();
+            return $student !== null && Enrollment::query()
+                ->where('student_id', $student->id)
+                ->where('course_id', $assessment->course_id)
+                ->exists();
+        }
+
+        if ($user->hasRole('docente')) {
+            return Enrollment::query()
+                ->where('user_id', $user->id)
+                ->where('course_id', $assessment->course_id)
+                ->exists();
+        }
+
+        return false;
     }
 }

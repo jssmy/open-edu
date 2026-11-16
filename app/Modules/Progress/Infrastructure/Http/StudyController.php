@@ -7,6 +7,7 @@ use App\Modules\Courses\Domain\ContentType;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Courses\Infrastructure\Models\Lesson;
 use App\Modules\Enrollments\Domain\EnrollmentStatus;
+use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Progress\Application\CompleteLesson;
 use App\Modules\Progress\Application\GetCourseProgress;
 use App\Modules\Progress\Application\GetMyCourses;
@@ -37,14 +38,20 @@ final class StudyController extends Controller
     public function show(Request $request, Course $course, GetCourseProgress $getCourseProgress): Response
     {
         Gate::authorize('accessCourse', $course);
-        $student = $this->activeStudent($request);
-        $courseData = $getCourseProgress($course->id, $student->id);
+        $user = $request->user();
+        $student = $this->optionalActiveStudent($request);
+        $courseData = $getCourseProgress($course->id, $student?->id, $user->id);
 
         abort_if($courseData === null, 404);
 
-        $enrollment = $student->enrollments()
+        $enrollment = Enrollment::query()
             ->where('course_id', $course->id)
             ->where('status', EnrollmentStatus::Active->value)
+            ->when(
+                $student !== null,
+                fn ($query) => $query->where('student_id', $student->id),
+                fn ($query) => $query->where('user_id', $user->id),
+            )
             ->with('courseOffering')
             ->first();
 
@@ -71,9 +78,14 @@ final class StudyController extends Controller
             ])->all();
         $courseData['intro_video_embed_url'] = $course->introVideoEmbedUrl();
 
+        $backUrl = $student === null && $user->hasRole('docente')
+            ? '/courses'
+            : '/my/classes';
+
         return Inertia::render('Study/CourseViewer', [
             'course' => $courseData,
             'isReadOnly' => $isFinished,
+            'backUrl' => $backUrl,
         ]);
     }
 
@@ -86,11 +98,18 @@ final class StudyController extends Controller
         abort_if($course === null, 404);
         Gate::authorize('accessCourse', $course);
         abort_if($lesson->is_archived, 404);
-        $student = $this->activeStudent($request);
 
-        $enrollment = $student->enrollments()
+        $user = $request->user();
+        $student = $this->optionalActiveStudent($request);
+
+        $enrollment = Enrollment::query()
             ->where('course_id', $course->id)
             ->where('status', EnrollmentStatus::Active->value)
+            ->when(
+                $student !== null,
+                fn ($query) => $query->where('student_id', $student->id),
+                fn ($query) => $query->where('user_id', $user->id),
+            )
             ->with('courseOffering')
             ->first();
 
@@ -100,7 +119,7 @@ final class StudyController extends Controller
             }
         }
 
-        $completeLesson($student->id, $lesson->id);
+        $completeLesson($student?->id, $lesson->id, $user->id);
 
         return to_route('study.courses.show', $course)->with('success', 'Lección completada.');
     }
@@ -132,5 +151,13 @@ final class StudyController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('is_active', true)
             ->firstOrFail();
+    }
+
+    private function optionalActiveStudent(Request $request): ?Student
+    {
+        return Student::query()
+            ->where('user_id', $request->user()->id)
+            ->where('is_active', true)
+            ->first();
     }
 }

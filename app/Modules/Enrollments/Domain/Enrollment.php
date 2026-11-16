@@ -9,11 +9,12 @@ final readonly class Enrollment
 {
     public function __construct(
         public int $id,
-        public int $studentId,
+        public ?int $studentId,
         public int $courseId,
         public EnrollmentStatus $status,
         public DateTimeImmutable $enrolledAt,
         public ?int $courseOfferingId = null,
+        public ?int $userId = null,
     ) {}
 
     public function changeStatus(EnrollmentStatus $status): self
@@ -32,6 +33,14 @@ final readonly class Enrollment
             throw new DomainException('No se puede cambiar el estado de una inscripción cancelada.', 'status');
         }
 
-        return new self($this->id, $this->studentId, $this->courseId, $status, $this->enrolledAt, $this->courseOfferingId);
+        return new self(
+            $this->id,
+            $this->studentId,
+            $this->courseId,
+            $status,
+            $this->enrolledAt,
+            $this->courseOfferingId,
+            $this->userId,
+        );
     }
 }

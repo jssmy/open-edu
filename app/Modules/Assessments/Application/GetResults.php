@@ -29,13 +29,15 @@ final class GetResults
      *     }>
      * }
      */
-    public function forAssessment(int $assessmentId, ?int $studentId): array
+    public function forAssessment(int $assessmentId, ?int $studentId, ?int $userId = null): array
     {
+        $isParticipant = $studentId !== null || $userId !== null;
+
         return [
-            'result' => $studentId === null
+            'result' => ! $isParticipant
                 ? null
-                : $this->assessments->latestResult($assessmentId, $studentId),
-            'results' => $studentId === null
+                : $this->assessments->latestResult($assessmentId, $studentId, $userId),
+            'results' => ! $isParticipant
                 ? $this->assessments->resultsForAssessment($assessmentId)
                 : [],
         ];

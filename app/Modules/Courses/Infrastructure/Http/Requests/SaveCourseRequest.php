@@ -2,11 +2,16 @@
 
 namespace App\Modules\Courses\Infrastructure\Http\Requests;
 
+use App\Modules\Courses\Domain\CourseTargetAudience;
 use App\Modules\Courses\Domain\IntroductoryVideo;
 use App\Modules\Courses\Infrastructure\Models\Course;
+use App\Modules\Courses\Infrastructure\Models\CourseCategory;
+use App\Modules\Enrollments\Domain\EnrollmentStatus;
 use App\Shared\RichText\RichTextDocumentRule;
 use App\Shared\RichText\RichTextDocumentValidator;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class SaveCourseRequest extends FormRequest
@@ -30,6 +35,14 @@ class SaveCourseRequest extends FormRequest
             } elseif (is_array($value)) {
                 $legacyTextFields[$field] = RichTextDocumentValidator::normalizeEmptyImageAlternatives($value);
             }
+        }
+
+        if ($this->has('category_id') && $this->input('category_id') === '') {
+            $legacyTextFields['category_id'] = null;
+        }
+
+        if ($this->has('issues_certificate')) {
+            $legacyTextFields['issues_certificate'] = $this->boolean('issues_certificate');
         }
 
         $this->merge($legacyTextFields);
@@ -58,6 +71,9 @@ class SaveCourseRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            'category_id' => ['nullable', 'integer', 'exists:course_categories,id'],
+            'target_audience' => ['sometimes', 'required', 'string', Rule::enum(CourseTargetAudience::class)],
+            'issues_certificate' => ['sometimes', 'boolean'],
             'lock_version' => $this->route('course') instanceof Course
                 ? ['required', 'integer', 'min:1']
                 : ['prohibited'],
@@ -88,6 +104,23 @@ class SaveCourseRequest extends FormRequest
                         'intro_video_url',
                         'Ingresa una URL HTTPS válida de YouTube o Vimeo.',
                     );
+                }
+
+                $course = $this->route('course');
+                if ($course instanceof Course && $this->has('category_id')) {
+                    $nextCategoryId = $this->input('category_id');
+                    $nextRole = $nextCategoryId
+                        ? (CourseCategory::query()->whereKey($nextCategoryId)->value('role_name') ?? 'estudiante')
+                        : 'estudiante';
+                    $currentRole = $course->effectiveRoleName();
+
+                    if ($nextRole !== $currentRole
+                        && $course->enrollments()->where('status', EnrollmentStatus::Active->value)->exists()) {
+                        $validator->errors()->add(
+                            'category_id',
+                            'No se puede cambiar la categoría a un rol distinto en un curso que ya tiene matrículas activas.',
+                        );
+                    }
                 }
             },
         ];
