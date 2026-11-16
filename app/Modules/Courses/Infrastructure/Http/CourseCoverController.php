@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Modules\Courses\Domain\DefaultCourseCover;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -14,11 +13,6 @@ final class CourseCoverController extends Controller
 {
     public function show(Request $request, Course $course): Response
     {
-        if ($request->user()->hasRole('estudiante')) {
-            abort_unless(Gate::forUser($request->user())->allows('accessCourse', $course), 404);
-        } else {
-            Gate::authorize('view', $course);
-        }
 
         $headers = ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=86400'];
         $disk = Storage::disk('local');

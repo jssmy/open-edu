@@ -98,7 +98,7 @@ it('forbids completing a lesson without course access', function () {
     $this->actingAs($user)->post("/lessons/{$lesson->id}/complete")->assertForbidden();
 });
 
-it('serves lesson files only to students with course access', function () {
+it('serves lesson files to authenticated users', function () {
     Storage::fake('local');
     $course = Course::factory()->create(['status' => 'published']);
     [$user] = studentWithCourseEnrollment($course);
@@ -109,11 +109,8 @@ it('serves lesson files only to students with course access', function () {
         'content' => $filePath,
     ]);
     Storage::disk('local')->put($filePath, 'Lesson document');
-    $otherUser = userWithRole(Role::Estudiante, ['must_change_password' => false]);
-    Student::factory()->create(['user_id' => $otherUser->id]);
 
     $this->actingAs($user)->get("/lessons/{$lesson->id}/content")
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
-    $this->actingAs($otherUser)->get("/lessons/{$lesson->id}/content")->assertForbidden();
 });

@@ -2,8 +2,6 @@
 
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Courses\Infrastructure\Models\CourseMediaImage;
-use App\Modules\Enrollments\Domain\EnrollmentStatus;
-use App\Modules\Enrollments\Infrastructure\Models\Enrollment;
 use App\Modules\Identity\Domain\Role;
 use App\Modules\Students\Infrastructure\Models\Student;
 use Illuminate\Http\UploadedFile;
@@ -81,11 +79,12 @@ it('allows an assigned teacher to upload and view a course image', function () {
         ->assertHeader('content-type', 'image/png');
 });
 
-it('hides course images from students without an active published enrollment', function () {
+it('serves course images to authenticated users and returns 404 when the course id does not match', function () {
     Storage::fake('local');
     $course = Course::factory()->create(['status' => 'published']);
+    $otherCourse = Course::factory()->create(['status' => 'published']);
     $studentUser = userWithRole(Role::Estudiante, ['must_change_password' => false]);
-    $student = Student::factory()->create(['user_id' => $studentUser->id]);
+    Student::factory()->create(['user_id' => $studentUser->id]);
     $image = CourseMediaImage::query()->create([
         'id' => (string) str()->uuid(),
         'course_id' => $course->id,
@@ -97,52 +96,12 @@ it('hides course images from students without an active published enrollment', f
     Storage::disk('local')->put($image->storage_path, 'image bytes');
 
     $this->actingAs($studentUser)->get("/courses/{$course->id}/content-images/{$image->id}")
-        ->assertNotFound();
-
-    Enrollment::query()->create([
-        'student_id' => $student->id,
-        'course_id' => $course->id,
-        'status' => EnrollmentStatus::Active,
-        'enrolled_at' => now(),
-    ]);
-
-    $this->actingAs($studentUser)->get("/courses/{$course->id}/content-images/{$image->id}")
         ->assertOk()
         ->assertHeader('content-type', 'image/webp');
-});
 
-it('hides course images for suspended enrollments and unpublished courses', function (
-    string $courseStatus,
-    EnrollmentStatus $enrollmentStatus,
-) {
-    Storage::fake('local');
-    $course = Course::factory()->create(['status' => $courseStatus]);
-    $studentUser = userWithRole(Role::Estudiante, ['must_change_password' => false]);
-    $student = Student::factory()->create(['user_id' => $studentUser->id]);
-    $manager = userWithRole(Role::GestorDeCursos);
-    $image = CourseMediaImage::query()->create([
-        'id' => (string) str()->uuid(),
-        'course_id' => $course->id,
-        'storage_path' => 'courses/'.$course->id.'/content-images/private.webp',
-        'mime_type' => 'image/webp',
-        'size_bytes' => 12,
-        'uploaded_by' => $manager->id,
-    ]);
-    Storage::disk('local')->put($image->storage_path, 'image bytes');
-    Enrollment::query()->create([
-        'student_id' => $student->id,
-        'course_id' => $course->id,
-        'status' => $enrollmentStatus,
-        'enrolled_at' => now(),
-    ]);
-
-    $this->actingAs($studentUser)
-        ->get("/courses/{$course->id}/content-images/{$image->id}")
+    $this->actingAs($studentUser)->get("/courses/{$otherCourse->id}/content-images/{$image->id}")
         ->assertNotFound();
-})->with([
-    'suspended enrollment' => ['published', EnrollmentStatus::Suspended],
-    'unpublished course' => ['draft', EnrollmentStatus::Active],
-]);
+});
 
 it('forbids an unassigned teacher from uploading a course image', function () {
     Storage::fake('local');

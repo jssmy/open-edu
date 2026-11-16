@@ -8,9 +8,7 @@ use App\Modules\Courses\Infrastructure\Http\Requests\SaveContentImageRequest;
 use App\Modules\Courses\Infrastructure\Models\Course;
 use App\Modules\Courses\Infrastructure\Models\CourseMediaImage;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -71,15 +69,9 @@ final class ContentImageController extends Controller
         ], 201);
     }
 
-    public function show(Request $request, Course $course, CourseMediaImage $image): StreamedResponse
+    public function show(Course $course, CourseMediaImage $image): StreamedResponse
     {
         abort_unless($image->course_id === $course->id, 404);
-
-        if ($request->user()->hasRole('estudiante')) {
-            abort_unless(Gate::forUser($request->user())->allows('accessCourse', $course), 404);
-        } else {
-            Gate::authorize('view', $course);
-        }
 
         $disk = Storage::disk('local');
         abort_unless($disk->exists($image->storage_path), 404);

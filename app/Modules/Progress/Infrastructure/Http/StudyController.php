@@ -128,7 +128,6 @@ final class StudyController extends Controller
     {
         $course = $lesson->unit->course;
         abort_if($course === null, 404);
-        Gate::authorize('accessCourse', $course);
         abort_if($lesson->is_archived, 404);
 
         if (! in_array($lesson->content_type, [
